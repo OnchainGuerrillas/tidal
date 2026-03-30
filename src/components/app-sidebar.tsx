@@ -44,10 +44,10 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <span className="text-lg font-semibold text-tidal-accent group-data-[collapsible=icon]:text-center group-data-[collapsible=icon]:text-sm">
+        <a href="/" className="text-lg font-semibold text-tidal-accent group-data-[collapsible=icon]:text-center group-data-[collapsible=icon]:text-sm">
           <span className="group-data-[collapsible=icon]:hidden">Tidal</span>
           <span className="hidden group-data-[collapsible=icon]:inline">T</span>
-        </span>
+        </a>
       </SidebarHeader>
 
       <SidebarContent>
@@ -55,13 +55,15 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
-                tooltip="New"
-                className="bg-tidal-accent text-background font-medium hover:bg-tidal-accent/90 hover:text-background"
-              >
-                <Plus weight="bold" />
-                <span>New</span>
-              </SidebarMenuButton>
+              <a href="/">
+                <SidebarMenuButton
+                  tooltip="New"
+                  className="cursor-pointer bg-tidal-accent text-background font-medium hover:bg-tidal-accent/90 hover:text-background"
+                >
+                  <Plus weight="bold" />
+                  <span>New</span>
+                </SidebarMenuButton>
+              </a>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
@@ -90,7 +92,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {poolItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton tooltip={item.title} className="pl-6">
+                  <SidebarMenuButton tooltip={item.title} className="cursor-pointer pl-6">
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -112,7 +114,7 @@ export function AppSidebar() {
               {amplifyItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <a href="/amplify">
-                    <SidebarMenuButton tooltip={item.title} className="pl-6">
+                    <SidebarMenuButton tooltip={item.title} className="cursor-pointer pl-6">
                       <span>{item.title}</span>
                     </SidebarMenuButton>
                   </a>
@@ -134,7 +136,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {chatItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton tooltip={item.title} className="pl-6">
+                  <SidebarMenuButton tooltip={item.title} className="cursor-pointer pl-6">
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
