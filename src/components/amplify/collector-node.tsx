@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Timer } from "@phosphor-icons/react";
 import {
   DropdownMenu,
@@ -9,14 +9,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const intervals = ["Daily", "Weekly", "Bi-weekly", "Monthly"] as const;
-
-export type CollectorNodeData = {
-  defaultInterval: (typeof intervals)[number];
-};
-
-export type CollectorNodeType = Node<CollectorNodeData, "collector">;
+import {
+  collectIntervals,
+  type CollectorNodeType,
+} from "@/features/amplify/types";
 
 export const CollectorNode = memo(
   ({ data, isConnectable }: NodeProps<CollectorNodeType>) => {
@@ -66,7 +62,7 @@ export const CollectorNode = memo(
             sideOffset={4}
             className="min-w-[120px] rounded-[4px] border border-tidal-border bg-tidal-card"
           >
-            {intervals.map((option) => (
+            {collectIntervals.map((option) => (
               <DropdownMenuItem
                 key={option}
                 onClick={() => setInterval(option)}

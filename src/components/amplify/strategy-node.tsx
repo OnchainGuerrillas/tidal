@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Timer } from "@phosphor-icons/react";
 import {
   DropdownMenu,
@@ -9,20 +9,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const intervals = ["Daily", "Weekly", "Bi-weekly", "Monthly"] as const;
-
-export type StrategyNodeData = {
-  protocol: string;
-  action: string;
-  assetIn: string;
-  assetOut: string;
-  apy: string;
-  apyType: "earn" | "cost";
-  collectInterval?: (typeof intervals)[number];
-};
-
-export type StrategyNodeType = Node<StrategyNodeData, "strategy">;
+import {
+  collectIntervals,
+  type StrategyNodeType,
+} from "@/features/amplify/types";
 
 export const StrategyNode = memo(
   ({ data, isConnectable }: NodeProps<StrategyNodeType>) => {
@@ -131,7 +121,7 @@ export const StrategyNode = memo(
                 sideOffset={4}
                 className="min-w-[120px] rounded-[4px] border border-tidal-border bg-tidal-card"
               >
-                {intervals.map((option) => (
+                {collectIntervals.map((option) => (
                   <DropdownMenuItem
                     key={option}
                     onClick={() => setInterval(option)}

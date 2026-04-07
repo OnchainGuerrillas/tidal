@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   ArrowsLeftRight,
   Waves,
@@ -23,52 +25,41 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Card, CardContent } from "@/components/ui/card";
+import type { SidebarNavigation } from "@/features/shell/types";
 
-const chatItems = [
-  { title: "Best APYs on Solana" },
-  { title: "Stablecoin yield comparison" },
-  { title: "SOL staking strategies" },
-];
+type AppSidebarProps = {
+  navigation: SidebarNavigation;
+};
 
-const poolItems = [
-  { title: "My Solana Pool" },
-  { title: "Stablecoin Strategy" },
-];
-
-const amplifyItems = [
-  { title: "SOL Yield Loop" },
-  { title: "Staking Compounder" },
-];
-
-export function AppSidebar() {
+export function AppSidebar({ navigation }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4">
-        <a href="/" className="text-lg font-semibold text-tidal-accent group-data-[collapsible=icon]:text-center group-data-[collapsible=icon]:text-sm">
+        <Link
+          href="/"
+          className="text-lg font-semibold text-tidal-accent group-data-[collapsible=icon]:text-center group-data-[collapsible=icon]:text-sm"
+        >
           <span className="group-data-[collapsible=icon]:hidden">Tidal</span>
           <span className="hidden group-data-[collapsible=icon]:inline">T</span>
-        </a>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
-        {/* New button */}
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
-              <a href="/">
-                <SidebarMenuButton
-                  tooltip="New"
-                  className="cursor-pointer bg-tidal-accent text-background font-medium hover:bg-tidal-accent/90 hover:text-background"
-                >
-                  <Plus weight="bold" />
-                  <span>New</span>
-                </SidebarMenuButton>
-              </a>
+              <SidebarMenuButton
+                render={<Link href="/" />}
+                tooltip="New"
+                className="cursor-pointer bg-tidal-accent text-background font-medium hover:bg-tidal-accent/90 hover:text-background"
+              >
+                <Plus weight="bold" />
+                <span>New</span>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Tidal Swap */}
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -82,7 +73,6 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* Tidal Pool */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-tidal-accent">
             <Waves weight="bold" className="mr-2" />
@@ -90,9 +80,12 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {poolItems.map((item) => (
+              {navigation.poolItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton tooltip={item.title} className="cursor-pointer pl-6">
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    className="cursor-pointer pl-6"
+                  >
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -103,7 +96,6 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* Tidal Amplify */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-tidal-accent">
             <Lightning weight="bold" className="mr-2" />
@@ -111,13 +103,15 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {amplifyItems.map((item) => (
+              {navigation.amplifyItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <a href="/amplify">
-                    <SidebarMenuButton tooltip={item.title} className="cursor-pointer pl-6">
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </a>
+                  <SidebarMenuButton
+                    render={<Link href={item.href ?? "/amplify"} />}
+                    tooltip={item.title}
+                    className="cursor-pointer pl-6"
+                  >
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -126,7 +120,6 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* Chats */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-tidal-accent">
             <ChatCircle weight="bold" className="mr-2" />
@@ -134,9 +127,12 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {chatItems.map((item) => (
+              {navigation.chatItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton tooltip={item.title} className="cursor-pointer pl-6">
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    className="cursor-pointer pl-6"
+                  >
                     <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -153,7 +149,7 @@ export function AppSidebar() {
               <User weight="bold" className="h-4 w-4 text-tidal-card" />
             </div>
             <span className="truncate text-sm font-medium text-sidebar-foreground">
-              Alex Thompson
+              {navigation.userName}
             </span>
           </CardContent>
         </Card>

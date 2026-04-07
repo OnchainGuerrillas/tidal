@@ -1,64 +1,44 @@
 "use client";
 
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ChatInput } from "@/components/chat-input";
+import type { AmplifyChatMessage } from "@/features/amplify/types";
+import type { AppMode } from "@/features/shell/types";
 
-const suggestions = [
-  "Optimise this strategy",
-  "Add a new node",
-  "Show risk breakdown",
-];
-
-const modes = ["Chat", "Pool", "Swap", "Amplify"] as const;
-
-type Message = {
-  role: "ai" | "user";
-  content: string;
+type AmplifyChatProps = {
+  messages: AmplifyChatMessage[];
+  suggestions: string[];
+  mode?: AppMode;
+  defaultMode?: AppMode;
+  onModeChange?: (mode: AppMode) => void;
+  inputValue?: string;
+  onInputValueChange?: (value: string) => void;
+  onSubmit?: () => void;
 };
 
-const mockedMessages: Message[] = [
-  {
-    role: "ai",
-    content:
-      "Welcome to Tidal Amplify. I can help you build and optimise yield strategies across Solana protocols.",
-  },
-  {
-    role: "ai",
-    content:
-      "This strategy stakes SOL through Marinade, borrows USDC on Kamino, and provides liquidity on Raydium for a net estimated yield of ~16.3%.",
-  },
-  {
-    role: "user",
-    content:
-      "Can you help me improve the yield on this loop? I'd like to explore alternatives to Raydium for the liquidity step.",
-  },
-];
-
-export function AmplifyChat() {
-  const [mode, setMode] = useState<(typeof modes)[number]>("Amplify");
+export function AmplifyChat({
+  messages,
+  suggestions,
+  mode,
+  defaultMode = "Amplify",
+  onModeChange,
+  inputValue,
+  onInputValueChange,
+  onSubmit,
+}: AmplifyChatProps) {
+  const aiMessages = messages.filter((message) => message.role === "ai");
+  const userMessages = messages.filter((message) => message.role === "user");
 
   return (
     <div className="flex h-full flex-col">
-      {/* Messages area */}
       <div className="flex min-h-0 flex-1 flex-col justify-end gap-[27px] px-[43px] pb-5">
-        {/* AI messages */}
         <div className="flex flex-col gap-2">
-          {mockedMessages
-            .filter((m) => m.role === "ai")
-            .map((message, i) => (
-              <p key={i} className="text-[13px]/[20px] text-tidal-muted">
-                {message.content}
-              </p>
-            ))}
+          {aiMessages.map((message, index) => (
+            <p key={`${message.role}-${index}`} className="text-[13px]/[20px] text-tidal-muted">
+              {message.content}
+            </p>
+          ))}
         </div>
 
-        {/* Suggestions */}
         <div className="flex flex-col gap-2">
           <span className="text-[11px]/[14px] text-tidal-muted">
             Suggestions
@@ -75,87 +55,28 @@ export function AmplifyChat() {
           </div>
         </div>
 
-        {/* User message */}
-        {mockedMessages
-          .filter((m) => m.role === "user")
-          .map((message, i) => (
-            <div key={i} className="flex justify-end">
-              <div className="rounded-[10px] border border-tidal-border bg-tidal-card p-5">
-                <p className="text-[13px]/[20px] font-medium text-tidal-muted">
-                  {message.content}
-                </p>
-              </div>
-            </div>
-          ))}
-      </div>
-
-      {/* Input area */}
-      <div className="flex shrink-0 flex-col items-center gap-3 px-[43px] pt-5">
-        <div className="flex w-full items-center justify-between rounded-full border border-tidal-border bg-tidal-card px-[17px] py-[9px]">
-          <Input
-            placeholder="Message Tidal"
-            className="h-auto border-0 bg-transparent p-0 text-[13px]/[16px] font-medium text-foreground placeholder:text-tidal-placeholder focus-visible:ring-0"
-          />
-          <div className="flex shrink-0 items-center gap-3">
-            {/* Mode dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex w-[90px] cursor-pointer items-center justify-between gap-1.5 rounded-[4px] border border-tidal-accent/50 px-2 py-1.5 outline-none">
-                <span className="text-[11px]/[14px] font-medium text-tidal-accent">
-                  {mode}
-                </span>
-                <svg
-                  width="8"
-                  height="5"
-                  viewBox="0 0 8 5"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M1 1L4 4L7 1"
-                    stroke="#61B3CF"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                side="top"
-                sideOffset={8}
-                className="min-w-[120px] rounded-[4px] border border-tidal-border bg-tidal-card"
-              >
-                {modes.map((option) => (
-                  <DropdownMenuItem
-                    key={option}
-                    onClick={() => setMode(option)}
-                    className="cursor-pointer text-[11px]/[14px] text-tidal-accent"
-                  >
-                    {option}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Send button */}
-            <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-tidal-accent">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 14 14"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M7 1V13M7 1L3 5M7 1L11 5"
-                  stroke="#030813"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+        {userMessages.map((message, index) => (
+          <div key={`${message.role}-${index}`} className="flex justify-end">
+            <div className="rounded-[10px] border border-tidal-border bg-tidal-card p-5">
+              <p className="text-[13px]/[20px] font-medium text-tidal-muted">
+                {message.content}
+              </p>
             </div>
           </div>
-        </div>
+        ))}
+      </div>
+
+      <div className="flex shrink-0 flex-col items-center gap-3 px-[43px] pt-5">
+        <ChatInput
+          className="w-full rounded-full px-[17px]"
+          mode={mode}
+          defaultMode={defaultMode}
+          onModeChange={onModeChange}
+          value={inputValue}
+          onValueChange={onInputValueChange}
+          onSubmit={onSubmit}
+          sendButtonClassName="rounded-full"
+        />
 
         <span className="text-center text-[11px]/[14px] font-medium text-tidal-placeholder">
           Tidal will ask for approval before executing any transactions

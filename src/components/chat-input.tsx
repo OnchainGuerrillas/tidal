@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -8,24 +10,89 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { appModes, type AppMode } from "@/features/shell/types";
 
-const modes = ["Chat", "Pool", "Swap", "Amplify"] as const;
+type ChatInputProps = {
+  className?: string;
+  inputClassName?: string;
+  modeTriggerClassName?: string;
+  sendButtonClassName?: string;
+  mode?: AppMode;
+  defaultMode?: AppMode;
+  onModeChange?: (mode: AppMode) => void;
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  placeholder?: string;
+  modes?: readonly AppMode[];
+  onSubmit?: () => void;
+};
 
-export function ChatInput() {
-  const [mode, setMode] = useState<(typeof modes)[number]>("Chat");
+export function ChatInput({
+  className,
+  inputClassName,
+  modeTriggerClassName,
+  sendButtonClassName,
+  mode,
+  defaultMode = "Chat",
+  onModeChange,
+  value,
+  defaultValue = "",
+  onValueChange,
+  placeholder = "Message Tidal",
+  modes = appModes,
+  onSubmit,
+}: ChatInputProps) {
+  const [uncontrolledMode, setUncontrolledMode] = useState<AppMode>(defaultMode);
+  const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue);
+
+  const currentMode = mode ?? uncontrolledMode;
+  const currentValue = value ?? uncontrolledValue;
+
+  const handleModeChange = (nextMode: AppMode) => {
+    if (mode === undefined) {
+      setUncontrolledMode(nextMode);
+    }
+    onModeChange?.(nextMode);
+  };
+
+  const handleValueChange = (nextValue: string) => {
+    if (value === undefined) {
+      setUncontrolledValue(nextValue);
+    }
+    onValueChange?.(nextValue);
+  };
 
   return (
-    <div className="flex w-1/2 items-center justify-between rounded-lg border border-tidal-border bg-tidal-card px-[10px] py-[9px] pl-3">
+    <form
+      className={cn(
+        "flex w-1/2 items-center justify-between rounded-lg border border-tidal-border bg-tidal-card px-[10px] py-[9px] pl-3",
+        className
+      )}
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit?.();
+      }}
+    >
       <Input
-        placeholder="Message Tidal"
-        className="h-auto border-0 bg-transparent p-0 text-[13px]/[16px] font-medium text-foreground placeholder:text-tidal-placeholder focus-visible:ring-0"
+        value={currentValue}
+        onChange={(event) => handleValueChange(event.target.value)}
+        placeholder={placeholder}
+        className={cn(
+          "h-auto border-0 bg-transparent p-0 text-[13px]/[16px] font-medium text-foreground placeholder:text-tidal-placeholder focus-visible:ring-0",
+          inputClassName
+        )}
       />
       <div className="flex shrink-0 items-center gap-2">
-        {/* Mode dropdown */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex w-[90px] items-center justify-between gap-1.5 rounded-[4px] border border-tidal-accent/50 px-2 py-1.5 cursor-pointer outline-none">
+          <DropdownMenuTrigger
+            className={cn(
+              "flex w-[90px] cursor-pointer items-center justify-between gap-1.5 rounded-[4px] border border-tidal-accent/50 px-2 py-1.5 outline-none",
+              modeTriggerClassName
+            )}
+          >
             <span className="text-[11px]/[14px] font-medium text-tidal-accent">
-              {mode}
+              {currentMode}
             </span>
             <svg
               width="8"
@@ -51,7 +118,7 @@ export function ChatInput() {
             {modes.map((option) => (
               <DropdownMenuItem
                 key={option}
-                onClick={() => setMode(option)}
+                onClick={() => handleModeChange(option)}
                 className="text-[11px]/[14px] text-tidal-accent cursor-pointer"
               >
                 {option}
@@ -60,8 +127,13 @@ export function ChatInput() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Send button */}
-        <div className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-tidal-accent">
+        <button
+          type="submit"
+          className={cn(
+            "flex h-[30px] w-[30px] items-center justify-center rounded-md bg-tidal-accent",
+            sendButtonClassName
+          )}
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="14"
@@ -76,8 +148,8 @@ export function ChatInput() {
             <path d="M12 19V5" />
             <path d="M5 12l7-7 7 7" />
           </svg>
-        </div>
+        </button>
       </div>
-    </div>
+    </form>
   );
 }

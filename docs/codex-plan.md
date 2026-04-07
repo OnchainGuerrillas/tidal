@@ -199,88 +199,98 @@ The styling work should focus on systemising the current look rather than redesi
 - radii: input, card, pill, modal
 - motion: standard transitions for hover, menu open, panel collapse
 
-## Immediate Refactor Targets
+## Tracker
 
-The first pass should focus on the highest-value files:
+### Immediate Refactor Targets
 
-### Route files
+#### Route files
 
-- [ ] `src/app/page.tsx`
-- [ ] `src/app/amplify/page.tsx`
-- [ ] `src/app/layout.tsx`
+- [x] `src/app/page.tsx`
+- [x] `src/app/amplify/page.tsx`
+- [x] `src/app/layout.tsx`
 
-### Shared product components
+#### Shared product components
 
-- [ ] `src/components/chat-input.tsx`
-- [ ] `src/components/app-sidebar.tsx`
-- [ ] `src/components/amplify/amplify-chat.tsx`
-- [ ] `src/components/amplify/strategy-node.tsx`
-- [ ] `src/components/amplify/split-node.tsx`
+- [x] `src/components/chat-input.tsx`
+- [x] `src/components/app-sidebar.tsx`
+- [x] `src/components/amplify/amplify-chat.tsx`
+- [x] `src/components/amplify/strategy-node.tsx`
+- [x] `src/components/amplify/split-node.tsx`
 
-### Styling foundation
+#### Styling foundation
 
 - [ ] `src/app/globals.css`
 
-## Proposed Phases
+### Phase 1: Hygiene And Boundaries
 
-## Phase 1: Hygiene And Boundaries
+Status: Complete
 
-Goal:
+#### Goal
+
 Stabilise the repo and reduce obvious coupling.
 
-Tasks:
+#### Tasks
 
-- [ ] fix lint issues
-- [ ] replace raw anchor navigation with Next `Link`
-- [ ] replace the default `README.md` with repo-specific instructions
-- [ ] move hardcoded mock arrays out of route/component files
-- [ ] define initial feature `types` and `mocks` modules
-- [ ] make existing interactive components prop-driven where practical
+- [x] fix lint issues
+- [x] replace raw anchor navigation with Next `Link`
+- [x] replace the default `README.md` with repo-specific instructions
+- [x] move hardcoded mock arrays out of route/component files
+- [x] define initial feature `types` and `mocks` modules
+- [x] make existing interactive components prop-driven where practical
 
-Deliverable:
+#### Deliverables
 
-- [ ] the repo is clean, lintable, and easier to read
-- [ ] mock content is no longer embedded throughout UI files
+- [x] the repo is clean, lintable, and easier to read
+- [x] mock content is no longer embedded throughout UI files
 
-## Phase 2: Tidal Component Layer
+### Phase 2: Tidal Component Layer
 
-Goal:
+Status: Not started
+
+#### Goal
+
 Create a reusable branded design component layer.
 
-Tasks:
+#### Tasks
 
 - [ ] add `src/components/tidal`
 - [ ] extract repeated patterns from screens into branded components
 - [ ] unify repeated elements such as composer shells, suggestion rows, panel headers, badges, and message treatments
 - [ ] use `cva` for variants where repeated combinations exist
 
-Deliverable:
+#### Deliverables
 
 - [ ] pages compose branded components instead of raw Tailwind blocks
 - [ ] the visual language becomes explicit and reusable
 
-## Phase 3: Feature Module Refactor
+### Phase 3: Feature Module Refactor
 
-Goal:
+Status: In progress
+
+#### Goal
+
 Move from page-centric implementation to feature-centric composition.
 
-Tasks:
+#### Tasks
 
 - [ ] create `features/pool`, `features/swap`, and `features/amplify`
 - [ ] move feature-specific components, mocks, and types into those folders
 - [ ] keep `app/` routes very thin
 - [ ] isolate feature view-model shaping from visual rendering
 
-Deliverable:
+#### Deliverables
 
 - [ ] feature code is easier to hand off and easier to replace with real integration later
 
-## Phase 4: Styling System Cleanup
+### Phase 4: Styling System Cleanup
 
-Goal:
+Status: Not started
+
+#### Goal
+
 Turn the current visual direction into a defined system.
 
-Tasks:
+#### Tasks
 
 - [ ] formalise typography classes or reusable recipes
 - [ ] standardise layout shells and panel spacing
@@ -288,24 +298,19 @@ Tasks:
 - [ ] improve mobile and narrow viewport behaviour
 - [ ] document component usage conventions
 
-Deliverable:
+#### Deliverables
 
 - [ ] consistent styling patterns across Pool, Swap, and Amplify
 - [ ] less visual drift as more screens are added
 
-## Suggested First Moves
+### Suggested Next Moves
 
-If this work starts soon, the recommended first sequence is:
-
-- [ ] Fix lint and baseline repo hygiene.
-- [ ] Extract mock data from `page.tsx`, `amplify/page.tsx`, and `amplify-chat.tsx`.
-- [ ] Refactor `chat-input.tsx` into a reusable controlled composer component.
 - [ ] Introduce `src/components/tidal` and move shared branded patterns there.
-- [ ] Thin down `app/` routes so they mostly render feature containers.
+- [ ] Start extracting repeated layout and message patterns from the home and Amplify screens.
+- [ ] Keep thinning `app/` routes so they mostly render feature containers.
+- [ ] Expand the feature structure to cover Pool and Swap explicitly.
 
-## Success Criteria
-
-This refactor is successful when:
+### Success Criteria
 
 - [ ] page files are thin and mostly declarative
 - [ ] mock data is not embedded in UI component files
@@ -314,9 +319,7 @@ This refactor is successful when:
 - [ ] another developer can connect real logic without rewriting the visual layer
 - [ ] the repo remains lightweight and prototype-friendly
 
-## Non-Goals
-
-This plan does not aim to:
+### Non-Goals
 
 - [ ] build real backend or blockchain integrations
 - [ ] add production-grade business logic

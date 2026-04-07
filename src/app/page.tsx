@@ -1,10 +1,5 @@
 import { ChatInput } from "@/components/chat-input";
-
-const suggestions = [
-  "What protocol has the highest APYs on Solana?",
-  "Where is the best place to invest my stablecoins?",
-  "Help me develop a new investment strategy on Solana?",
-];
+import { homeScreenContent } from "@/features/home/mocks/home-screen";
 
 export default function Home() {
   return (
@@ -30,7 +25,7 @@ export default function Home() {
           Suggestions
         </span>
         <div className="flex flex-col gap-2">
-          {suggestions.map((suggestion) => (
+          {homeScreenContent.suggestions.map((suggestion) => (
             <div
               key={suggestion}
               className="flex w-full items-center justify-between overflow-hidden rounded-full border border-tidal-border bg-tidal-card py-2 pl-3 pr-2"

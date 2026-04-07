@@ -1,15 +1,9 @@
 "use client";
 
 import { memo } from "react";
-import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 
-export type SplitNodeData = {
-  splitA: number;
-  splitB: number;
-  asset: string;
-};
-
-export type SplitNodeType = Node<SplitNodeData, "split">;
+import type { SplitNodeType } from "@/features/amplify/types";
 
 export const SplitNode = memo(
   ({ data, isConnectable }: NodeProps<SplitNodeType>) => {

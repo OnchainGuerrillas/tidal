@@ -5,6 +5,7 @@ import "./globals.css";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppSidebar } from "@/components/app-sidebar";
+import { sidebarNavigation } from "@/features/shell/mocks/navigation";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,7 +27,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <TooltipProvider>
           <SidebarProvider>
-            <AppSidebar />
+            <AppSidebar navigation={sidebarNavigation} />
             <main className="relative flex flex-1 flex-col">
               <SidebarTrigger className="absolute left-2 top-2 z-10 text-tidal-muted hover:text-tidal-accent" />
               {children}
