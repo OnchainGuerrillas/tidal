@@ -6,7 +6,7 @@ const chatMessageVariants = cva("", {
   variants: {
     role: {
       ai: "tidal-text-message",
-      user: "tidal-text-message rounded-[10px] border border-tidal-border bg-tidal-card p-5 font-medium",
+      user: "tidal-text-message rounded-[10px] border border-tidal-border bg-tidal-card p-2 font-medium",
     },
   },
   defaultVariants: {
