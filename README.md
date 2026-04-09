@@ -14,8 +14,8 @@ This repo is intentionally prototype-only. It is used to explore interface patte
 ## Product Surfaces
 
 - Tidal Pool: conversational investing and pool-building flows
-- Tidal Swap: natural-language many-to-many swap flows
 - Tidal Amplify: node-based strategy composition flows
+- Tidal Swap: planned, but not currently being built out in this prototype phase
 
 ## What This Repo Is
 
@@ -61,7 +61,8 @@ Routes should mostly render feature screens rather than contain large amounts of
 
 Current routes:
 
-- `src/app/page.tsx`: root landing / prompt surface
+- `src/app/page.tsx`: Home global chat workspace
+- `src/app/chat/[chatId]/page.tsx`: route-backed global chat pages
 - `src/app/pool/page.tsx`: Pool workspace prototype
 - `src/app/amplify/page.tsx`: Amplify workspace prototype
 - `src/app/layout.tsx`: shared shell and providers
@@ -75,10 +76,10 @@ This is where feature-owned code should live when it only makes sense for one pa
 Current feature areas:
 
 - `src/features/shell`: shared app frame and sidebar behavior
-- `src/features/home`: root landing screen composition
+- `src/features/home`: global chat-first Home screen composition and state
 - `src/features/pool`: Pool workspace screens, components, and state
 - `src/features/amplify`: Amplify workspace screens and components
-- `src/features/swap`: reserved for future Swap work
+- `src/features/swap`: reserved for future Swap work, not currently included
 
 ### `src/mock-data`
 
@@ -140,6 +141,17 @@ In practice that means:
 - routes in `src/app` should stay thin
 - feature screens should assemble the page
 - shared Tidal components should own repeated visual patterns
+
+## Current Prototype Capabilities
+
+The prototype currently focuses on the shared shell plus Home, Pool, and Amplify.
+
+- Home: global chat-first entry flow with route-backed chats, linked context, `@` mentions, and inline recommendation cards that can steer users into Pool or Amplify
+- Pool: overview state, dedicated Pool threads, promoted threads from global chat, and a right-hand workspace panel for positions, recommendations, discovery, and activity
+- Amplify: thread-capable strategy workspace with promoted threads from global chat and a node-based graph surface
+- Shared shell: global top header, global preferences, wallet summary mock data, and sidebar navigation across Home, Pool, and Amplify
+
+Swap is intentionally not included in the current implementation pass. The repo still preserves space for it structurally, but the active prototype work is centered on Home, Pool, and Amplify.
 
 ## Current Pool Example
 

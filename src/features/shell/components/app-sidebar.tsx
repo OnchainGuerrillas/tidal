@@ -5,20 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
-  ArrowsLeftRight,
   CaretDown,
   Waves,
   Lightning,
   ChatCircle,
   Plus,
-  User,
   LinkSimple,
 } from "@phosphor-icons/react";
 
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -26,18 +23,15 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useGlobalChatWorkspace } from "@/features/home/providers/global-chat-workspace-provider";
+import { useAmplifyWorkspace } from "@/features/amplify/providers/amplify-workspace-provider";
 import { usePoolWorkspace } from "@/features/pool/providers/pool-workspace-provider";
 import { cn } from "@/lib/utils";
 import type { SidebarNavigation } from "@/mock-data/shell/types";
@@ -49,8 +43,17 @@ type AppSidebarProps = {
 export function AppSidebar({ navigation }: AppSidebarProps) {
   const pathname = usePathname();
   const isPoolRoute = pathname.startsWith("/pool");
+  const isAmplifyRoute = pathname.startsWith("/amplify");
   const [isPoolExpanded, setIsPoolExpanded] = useState(true);
+  const [isAmplifyExpanded, setIsAmplifyExpanded] = useState(true);
+  const [collapsedAmplifySectionIds, setCollapsedAmplifySectionIds] = useState<string[]>([]);
   const { activeChat, chats, setActiveChatId } = useGlobalChatWorkspace();
+  const {
+    workspace: amplifyWorkspace,
+    activeThread: activeAmplifyThread,
+    setActiveThreadId: setActiveAmplifyThreadId,
+    createBlankThread: createBlankAmplifyThread,
+  } = useAmplifyWorkspace();
   const {
     workspace,
     isOverviewActive,
@@ -64,21 +67,29 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
     href: "/pool",
     id: thread.id,
   }));
+  const amplifyChatItems = amplifyWorkspace.threads.map((thread) => ({
+    title: thread.title,
+    href: "/amplify",
+    id: thread.id,
+  }));
 
   const globalChats = chats.map((chat) => ({
     ...chat,
     href: chat.href ?? "/",
   }));
+  const extraAmplifyItems = navigation.amplifyItems.filter(
+    (item) => item.id !== amplifyWorkspace.id && item.title !== amplifyWorkspace.name
+  );
 
   return (
     <Sidebar
       collapsible="offcanvas"
       className="top-14 h-[calc(100svh-3.5rem)] border-t border-tidal-border"
     >
-      <SidebarHeader className="h-3 p-0" />
+      <SidebarHeader className="h-2 p-0" />
 
       <SidebarContent>
-        <SidebarGroup>
+        <SidebarGroup className="pt-1.5">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
@@ -89,118 +100,226 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
                 onClick={() => setActiveChatId("global-chat-new")}
               >
                 <Plus weight="bold" />
-                <span>New</span>
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                  <span>New</span>
+                  <span className="text-[10px] font-medium text-background/80">
+                    Cmd + K
+                  </span>
+                </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                tooltip="Tidal Swap"
-                className="tidal-sidebar-item"
-              >
-                <ArrowsLeftRight weight="bold" className="text-tidal-accent" />
-                <span className="text-tidal-accent">Tidal Swap</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="tidal-sidebar-group-title">
-            <Waves weight="bold" className="mr-2" />
-            Tidal Pool
-          </SidebarGroupLabel>
+          <div className="flex items-center gap-1 px-0.5">
+            <SidebarGroupLabel className="tidal-sidebar-group-title flex-1 px-0">
+              <Waves weight="bold" className="mr-1" />
+              {workspace.name}
+            </SidebarGroupLabel>
+            <button
+              type="button"
+              aria-label={isPoolExpanded ? "Collapse pool chats" : "Expand pool chats"}
+              aria-expanded={isPoolExpanded}
+              onClick={() => setIsPoolExpanded((current) => !current)}
+              className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-tidal-accent transition-colors hover:bg-tidal-sidebar-active hover:text-tidal-accent"
+            >
+              <CaretDown
+                weight="bold"
+                className={cn(
+                  "h-3 w-3 transition-transform",
+                  isPoolExpanded ? "rotate-180" : "rotate-0"
+                )}
+              />
+            </button>
+          </div>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <div className="flex items-center gap-1">
+            {isPoolExpanded ? (
+              <SidebarMenu>
+                <SidebarMenuItem>
                   <SidebarMenuButton
                     render={<Link href="/pool" />}
-                    tooltip={workspace.name}
-                    className="tidal-sidebar-item flex-1"
+                    tooltip="Overview"
+                    className="tidal-sidebar-item"
                     isActive={isPoolRoute && isOverviewActive}
                     onClick={showOverview}
                   >
-                    <span>{workspace.name}</span>
-                  </SidebarMenuButton>
-
-                  <button
-                    type="button"
-                    aria-label={isPoolExpanded ? "Collapse pool chats" : "Expand pool chats"}
-                    aria-expanded={isPoolExpanded}
-                    onClick={() => setIsPoolExpanded((current) => !current)}
-                    className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-tidal-accent transition-colors hover:bg-tidal-sidebar-active hover:text-foreground"
-                  >
-                    <CaretDown
-                      weight="bold"
-                      className={cn(
-                        "transition-transform",
-                        isPoolExpanded ? "rotate-0" : "-rotate-90"
-                      )}
-                    />
-                  </button>
-                </div>
-
-                {isPoolExpanded ? (
-                  <SidebarMenuSub>
-                    {poolChatItems.map((item) => (
-                      <SidebarMenuSubItem key={item.id}>
-                        <SidebarMenuSubButton
-                          render={<Link href="/pool" />}
-                          isActive={isPoolRoute && item.id === activeThread.id}
-                          onClick={() => setActiveThreadId(item.id)}
-                          className="cursor-pointer text-sidebar-foreground hover:text-foreground data-active:text-tidal-accent"
-                        >
-                          <span>{item.title}</span>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    ))}
-                  </SidebarMenuSub>
-                ) : null}
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="tidal-sidebar-group-title">
-            <Lightning weight="bold" className="mr-2" />
-            Tidal Amplify
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navigation.amplifyItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    render={<Link href={item.href ?? "/amplify"} />}
-                    tooltip={item.title}
-                    className="tidal-sidebar-subitem"
-                  >
-                    <span>{item.title}</span>
+                    <span className="text-[0.8125rem] leading-[1.1rem]">
+                      Overview
+                    </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+                {poolChatItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      render={<Link href="/pool" />}
+                      tooltip={item.title}
+                      className="tidal-sidebar-item"
+                      isActive={
+                        isPoolRoute && !isOverviewActive && item.id === activeThread.id
+                      }
+                      onClick={() => setActiveThreadId(item.id)}
+                    >
+                      <span className="text-[0.8125rem] leading-[1.1rem]">
+                        {item.title}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            ) : null}
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel className="tidal-sidebar-group-title">
-            <ChatCircle weight="bold" className="mr-2" />
-            Chats
-          </SidebarGroupLabel>
+          <div className="flex items-center gap-1 px-0.5">
+            <SidebarGroupLabel className="tidal-sidebar-group-title flex-1 px-0">
+              <Lightning weight="bold" className="mr-1" />
+              {amplifyWorkspace.name}
+            </SidebarGroupLabel>
+            <button
+              type="button"
+              aria-label={
+                isAmplifyExpanded
+                  ? "Collapse Amplify threads"
+                  : "Expand Amplify threads"
+              }
+              aria-expanded={isAmplifyExpanded}
+              onClick={() => setIsAmplifyExpanded((current) => !current)}
+              className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-tidal-accent transition-colors hover:bg-tidal-sidebar-active hover:text-tidal-accent"
+            >
+              <CaretDown
+                weight="bold"
+                className={cn(
+                  "h-3 w-3 transition-transform",
+                  isAmplifyExpanded ? "rotate-180" : "rotate-0"
+                )}
+              />
+            </button>
+          </div>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-2">
+            {isAmplifyExpanded ? (
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/amplify" />}
+                    tooltip="Overview"
+                    className="tidal-sidebar-item"
+                    onClick={() => setActiveAmplifyThreadId(activeAmplifyThread.id)}
+                  >
+                    <span className="text-[0.8125rem] leading-[1.1rem]">
+                      Overview
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {amplifyChatItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      render={<Link href="/amplify" />}
+                      tooltip={item.title}
+                      className="tidal-sidebar-item"
+                      isActive={
+                        isAmplifyRoute && item.id === activeAmplifyThread.id
+                      }
+                      onClick={() => setActiveAmplifyThreadId(item.id)}
+                    >
+                      <span className="text-[0.8125rem] leading-[1.1rem]">
+                        {item.title}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    render={<Link href="/amplify" />}
+                    tooltip="New thread"
+                    className="tidal-sidebar-item"
+                    onClick={createBlankAmplifyThread}
+                  >
+                    <span className="text-[0.8125rem] leading-[1.1rem]">
+                      New thread
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            ) : null}
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {extraAmplifyItems.map((item) => {
+          const sectionId = item.id ?? item.title;
+
+          return (
+          <div key={sectionId}>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <div className="flex items-center gap-1 px-0.5">
+                <SidebarGroupLabel className="tidal-sidebar-group-title flex-1 px-0">
+                  <Lightning weight="bold" className="mr-1" />
+                  {item.title}
+                </SidebarGroupLabel>
+                <button
+                  type="button"
+                  aria-label={
+                    collapsedAmplifySectionIds.includes(sectionId)
+                      ? `Expand ${item.title}`
+                      : `Collapse ${item.title}`
+                  }
+                  aria-expanded={!collapsedAmplifySectionIds.includes(sectionId)}
+                  onClick={() =>
+                    setCollapsedAmplifySectionIds((current) =>
+                      current.includes(sectionId)
+                        ? current.filter((id) => id !== sectionId)
+                        : [...current, sectionId]
+                    )
+                  }
+                  className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-tidal-accent transition-colors hover:bg-tidal-sidebar-active hover:text-tidal-accent"
+                >
+                  <CaretDown
+                    weight="bold"
+                    className={cn(
+                      "h-3 w-3 transition-transform",
+                      collapsedAmplifySectionIds.includes(sectionId)
+                        ? "rotate-0"
+                        : "rotate-180"
+                    )}
+                  />
+                </button>
+              </div>
+              {!collapsedAmplifySectionIds.includes(sectionId) ? (
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                    <SidebarMenuButton
+                      render={<Link href={item.href ?? "/amplify"} />}
+                      tooltip="Overview"
+                      className="tidal-sidebar-item"
+                    >
+                        <span className="text-[0.8125rem] leading-[1.1rem]">
+                          Overview
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              ) : null}
+            </SidebarGroup>
+          </div>
+        )})}
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <div className="flex items-center gap-1 px-0.5">
+            <SidebarGroupLabel className="tidal-sidebar-group-title flex-1 px-0">
+              <ChatCircle weight="bold" className="mr-1" />
+              All Chats
+            </SidebarGroupLabel>
+          </div>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0.5">
               {globalChats.map((chat) => (
                 <SidebarMenuItem key={chat.id}>
                   <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
@@ -211,7 +330,9 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
                       isActive={pathname === chat.href && chat.id === activeChat.id}
                       onClick={() => setActiveChatId(chat.id)}
                     >
-                      <span>{chat.title}</span>
+                      <span className="text-[0.8125rem] leading-[1.1rem]">
+                        {chat.title}
+                      </span>
                     </SidebarMenuButton>
 
                     {chat.links.length > 0 ? (
@@ -250,7 +371,9 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
                       isActive={pathname === chat.href && chat.id === activeChat.id}
                       onClick={() => setActiveChatId(chat.id)}
                     >
-                      <span>{chat.title}</span>
+                      <span className="text-[0.8125rem] leading-[1.1rem]">
+                        {chat.title}
+                      </span>
                     </SidebarMenuButton>
                   </div>
                 </SidebarMenuItem>
@@ -260,26 +383,6 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-2">
-        <Card
-          size="sm"
-          className="bg-tidal-card ring-tidal-border group-data-[collapsible=icon]:hidden"
-        >
-          <CardContent className="flex items-center gap-3">
-            <div className="tidal-user-avatar">
-              <User weight="bold" className="h-4 w-4 text-tidal-card" />
-            </div>
-            <span className="tidal-text-body truncate text-sidebar-foreground">
-              {navigation.userName}
-            </span>
-          </CardContent>
-        </Card>
-        <div className="hidden group-data-[collapsible=icon]:flex justify-center">
-          <div className="tidal-user-avatar">
-            <User weight="bold" className="h-4 w-4 text-tidal-card" />
-          </div>
-        </div>
-      </SidebarFooter>
     </Sidebar>
   );
 }

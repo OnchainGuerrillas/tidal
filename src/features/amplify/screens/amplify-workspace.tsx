@@ -22,12 +22,8 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { AmplifyChat } from "@/features/amplify/components/amplify-chat";
 import { SplitNode } from "@/features/amplify/components/split-node";
 import { StrategyNode } from "@/features/amplify/components/strategy-node";
-import {
-  amplifyInitialEdges,
-  amplifyInitialNodes,
-  amplifyMessages,
-  amplifySuggestions,
-} from "@/mock-data/amplify/mocks/workspace";
+import { useAmplifyWorkspace } from "@/features/amplify/providers/amplify-workspace-provider";
+import { PoolWorkspaceHeader } from "@/features/pool/components/pool-workspace-header";
 
 function AssetEdge({
   sourceX,
@@ -78,8 +74,14 @@ const edgeTypes = { asset: AssetEdge };
 const STORAGE_KEY = "amplify-node-positions";
 
 export function AmplifyWorkspace() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(amplifyInitialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(amplifyInitialEdges);
+  const {
+    workspace,
+    activeThread,
+    setActiveThreadId,
+    createBlankThread,
+  } = useAmplifyWorkspace();
+  const [nodes, setNodes, onNodesChange] = useNodesState(workspace.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(workspace.edges);
   const { setOpen } = useSidebar();
   const hasMounted = useRef(false);
 
@@ -125,36 +127,45 @@ export function AmplifyWorkspace() {
   );
 
   return (
-    <div className="tidal-workspace">
-      <div className="tidal-workspace-panel">
-        <AmplifyChat
-          messages={amplifyMessages}
-          suggestions={amplifySuggestions}
-        />
-      </div>
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
+      <PoolWorkspaceHeader
+        workspaceName={workspace.name}
+        threads={workspace.threads}
+        activeThreadId={activeThread.id}
+        showOverviewTab={false}
+        onThreadSelect={setActiveThreadId}
+        onNewChat={createBlankThread}
+        newChatLabel="New thread"
+      />
 
-      <div className="tidal-workspace-canvas">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeDragStop={onNodeDragStop}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          colorMode="dark"
-        >
-          <Controls className="tidal-flow-controls" />
-          <Background
-            variant={BackgroundVariant.Dots}
-            gap={20}
-            size={1}
-            color="#22292E"
-          />
-        </ReactFlow>
+      <div className="tidal-workspace">
+        <div className="tidal-workspace-panel pt-0 pb-5">
+          <AmplifyChat activeThread={activeThread} />
+        </div>
+
+        <div className="tidal-workspace-canvas">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeDragStop={onNodeDragStop}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            colorMode="dark"
+          >
+            <Controls className="tidal-flow-controls" />
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={20}
+              size={1}
+              color="#22292E"
+            />
+          </ReactFlow>
+        </div>
       </div>
     </div>
   );

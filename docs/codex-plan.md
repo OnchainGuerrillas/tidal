@@ -378,6 +378,9 @@ Turn the current visual direction into a defined system.
 - [x] Extend the shared global chat flow with a mention-aware composer and route-backed chat updates that resolve `@` selections into structured links.
 - [x] Lift risk appetite and investment interests into a shared preference-profile provider and reusable context panel used across Home, Pool, and Amplify.
 - [x] Add inline AI recommendation cards that steer general chat into Pool or Amplify context without silently creating dedicated threads.
+- [x] Add explicit promotion from general chat into dedicated Pool threads using summary-seeded mock state rather than transcript copies.
+- [x] Extend Amplify into a thread-capable workspace and add explicit promotion from general chat into dedicated Amplify threads.
+- [x] Standardise ownership and promotion UI across Home, Pool, and Amplify with shared banners, summary panels, and promotion cards.
 - [ ] Decide the first real Pool and Swap screens to add under the new feature structure.
 - [x] Continue replacing raw text sizes and page spacing values with the new semantic classes in `globals.css`.
 - [x] Decide the intentional mobile layout behaviour for Amplify.

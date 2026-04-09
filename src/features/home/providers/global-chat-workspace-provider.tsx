@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -50,6 +51,21 @@ type GlobalChatWorkspaceContextValue = {
 
 const GlobalChatWorkspaceContext =
   createContext<GlobalChatWorkspaceContextValue | null>(null);
+
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+
+  return (
+    tagName === "input" ||
+    tagName === "textarea" ||
+    target.isContentEditable ||
+    target.closest('[contenteditable="true"]') !== null
+  );
+}
 
 function cloneChat(chat: GlobalChat): GlobalChat {
   return {
@@ -395,16 +411,37 @@ export function GlobalChatWorkspaceProvider({
   const pathname = usePathname();
   const router = useRouter();
   const [chats, setChats] = useState<GlobalChat[]>(() => globalChats.map(cloneChat));
+  const [pendingChatId, setPendingChatId] = useState<string | null>(null);
   const routeChatId = getGlobalChatIdFromPathname(pathname);
 
   const setActiveChatIdSafe = useCallback(
     (chatId: string) => {
       if (chats.some((chat) => chat.id === chatId)) {
+        setPendingChatId(null);
         router.push(getGlobalChatHref(chatId));
       }
     },
     [chats, router]
   );
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") {
+        return;
+      }
+
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      setPendingChatId(null);
+      router.push(getGlobalChatHref(NEW_GLOBAL_CHAT_ID));
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   const completeWorkspaceActionCard = useCallback(
     (chatId: string, cardId: string) => {
@@ -415,38 +452,41 @@ export function GlobalChatWorkspaceProvider({
           return currentChats;
         }
 
-        let nextCard: CreateWorkspaceActionCard | null = null;
+        const matchingMessage = chat.messages.find(
+          (message) => message.actionCard?.id === cardId
+        );
+        const actionCard = matchingMessage?.actionCard;
+
+        if (!actionCard) {
+          return currentChats;
+        }
+
+        const resolvedCard: CreateWorkspaceActionCard = {
+          ...actionCard,
+          status: "completed",
+        };
         const nextMessages = chat.messages.map((message) => {
           if (message.actionCard?.id !== cardId) {
             return message;
           }
 
-          nextCard = {
-            ...message.actionCard,
-            status: "completed",
-          };
-
           return {
             ...message,
-            actionCard: nextCard,
+            actionCard: resolvedCard,
           };
         });
 
-        if (!nextCard) {
-          return currentChats;
-        }
-
         const linkAlreadyExists = chat.links.some(
           (link) =>
-            link.targetKind === nextCard.workspaceType &&
-            link.targetId === nextCard.targetWorkspaceId
+            link.targetKind === resolvedCard.workspaceType &&
+            link.targetId === resolvedCard.targetWorkspaceId
         );
-        const targetSummary = getWorkspaceSummaries(nextCard.workspaceType).find(
-          (summary) => summary.id === nextCard?.targetWorkspaceId
+        const targetSummary = getWorkspaceSummaries(resolvedCard.workspaceType).find(
+          (summary) => summary.id === resolvedCard.targetWorkspaceId
         );
         const nextLinks = linkAlreadyExists
           ? chat.links
-          : [...chat.links, buildWorkspaceChatLink(nextCard, targetSummary)];
+          : [...chat.links, buildWorkspaceChatLink(resolvedCard, targetSummary)];
         const updatedChat: GlobalChat = {
           ...chat,
           lastViewedLabel: "Just now",
@@ -484,7 +524,10 @@ export function GlobalChatWorkspaceProvider({
       const nextChatIdBase = isNewChat
         ? `global-chat-${createSlug(trimmedValue)}`
         : routeChatId;
-      let nextChatId = nextChatIdBase;
+      const nextChatId =
+        isNewChat && chats.some((chat) => chat.id === nextChatIdBase)
+          ? `${nextChatIdBase}-${Date.now().toString().slice(-4)}`
+          : nextChatIdBase;
 
       setChats((currentChats) => {
         const newChatSeed =
@@ -492,10 +535,6 @@ export function GlobalChatWorkspaceProvider({
           cloneChat(globalChats[0]);
 
         if (isNewChat) {
-          if (currentChats.some((chat) => chat.id === nextChatIdBase)) {
-            nextChatId = `${nextChatIdBase}-${Date.now().toString().slice(-4)}`;
-          }
-
           const createdChat: GlobalChat = {
             id: nextChatId,
             title: buildChatTitle(trimmedValue),
@@ -559,13 +598,18 @@ export function GlobalChatWorkspaceProvider({
         ];
       });
 
-      router.push(getGlobalChatHref(nextChatId));
+      if (isNewChat) {
+        setPendingChatId(nextChatId);
+        router.push(getGlobalChatHref(nextChatId));
+      }
     },
-    [routeChatId, router]
+    [chats, routeChatId, router]
   );
 
+  const resolvedChatId =
+    routeChatId === NEW_GLOBAL_CHAT_ID && pendingChatId ? pendingChatId : routeChatId;
   const activeChat =
-    chats.find((chat) => chat.id === routeChatId) ??
+    chats.find((chat) => chat.id === resolvedChatId) ??
     chats.find((chat) => chat.id === NEW_GLOBAL_CHAT_ID) ??
     chats[0];
   const recentChats = chats.filter((chat) => chat.id !== activeChat.id);

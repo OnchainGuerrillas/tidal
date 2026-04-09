@@ -1,6 +1,7 @@
 import type {
   InvestmentInterestLabel,
   PreferenceOption,
+  PromotionSource,
   RiskAppetiteLabel,
 } from "@/mock-data/shell/types";
 
@@ -33,6 +34,8 @@ export type PoolThread = {
   lastViewedLabel: string;
   messages: PoolChatMessage[];
   context?: PoolThreadContext;
+  summarySeed?: string;
+  source?: PromotionSource;
 };
 
 export type PoolRiskOption = PreferenceOption<RiskAppetiteLabel>;

@@ -25,7 +25,7 @@ export function PoolScreen() {
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
       <PoolWorkspaceHeader
-        poolName={workspace.name}
+        workspaceName={workspace.name}
         threads={workspace.threads}
         isOverviewActive={isOverviewActive}
         activeThreadId={activeThread.id}
@@ -45,7 +45,6 @@ export function PoolScreen() {
           />
         ) : (
           <PoolConversationPane
-            poolSummary={workspace.summary}
             activeThread={activeThread}
           />
         )}

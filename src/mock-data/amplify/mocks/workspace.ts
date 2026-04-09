@@ -1,28 +1,10 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type {
-  AmplifyChatMessage,
+  AmplifyWorkspace,
   SplitNodeData,
   StrategyNodeData,
 } from "../types";
-
-export const amplifyMessages: AmplifyChatMessage[] = [
-  {
-    role: "ai",
-    content:
-      "Welcome to Tidal Amplify. I can help you build and optimise yield strategies across Solana protocols.",
-  },
-  {
-    role: "ai",
-    content:
-      "This strategy stakes SOL through Marinade, borrows USDC on Kamino, and provides liquidity on Raydium for a net estimated yield of ~16.3%.",
-  },
-  {
-    role: "user",
-    content:
-      "Can you help me improve the yield on this loop? I'd like to explore alternatives to Raydium for the liquidity step.",
-  },
-];
 
 export const amplifySuggestions = [
   "Optimise this strategy",
@@ -205,3 +187,62 @@ export const amplifyInitialEdges: Edge<{ asset: string }>[] = [
     animated: true,
   },
 ];
+
+export const amplifyWorkspace: AmplifyWorkspace = {
+  id: "amplify-sol-yield-loop",
+  name: "SOL Yield Loop",
+  summary:
+    "A composable SOL yield loop that moves across staking, borrowing, and LP positions.",
+  activeThreadId: "amplify-thread-loop-optimisation",
+  threads: [
+    {
+      id: "amplify-thread-loop-optimisation",
+      title: "Loop optimisation",
+      preview: "Refining the current loop and comparing alternatives to Raydium.",
+      lastViewedLabel: "Last viewed today",
+      messages: [
+        {
+          id: "amplify-thread-loop-optimisation-ai-1",
+          role: "ai",
+          content:
+            "Welcome to Tidal Amplify. I can help you build and optimise yield strategies across Solana protocols.",
+        },
+        {
+          id: "amplify-thread-loop-optimisation-user-1",
+          role: "user",
+          content:
+            "Can you help me improve the yield on this loop? I'd like to explore alternatives to Raydium for the liquidity step.",
+        },
+        {
+          id: "amplify-thread-loop-optimisation-ai-2",
+          role: "ai",
+          content:
+            "This strategy stakes SOL through Marinade, borrows USDC on Kamino, and provides liquidity on Raydium for a net estimated yield of ~16.3%.",
+        },
+      ],
+    },
+    {
+      id: "amplify-thread-risk-review",
+      title: "Risk review",
+      preview: "Pressure-testing where the current loop is most exposed.",
+      lastViewedLabel: "Last viewed yesterday",
+      messages: [
+        {
+          id: "amplify-thread-risk-review-ai-1",
+          role: "ai",
+          content:
+            "The main risk concentrations are Kamino borrow cost sensitivity and the LP leg on Raydium.",
+        },
+        {
+          id: "amplify-thread-risk-review-user-1",
+          role: "user",
+          content:
+            "Break down which step in the loop contributes most of the risk and where the yield could compress fastest.",
+        },
+      ],
+    },
+  ],
+  suggestions: amplifySuggestions,
+  nodes: amplifyInitialNodes,
+  edges: amplifyInitialEdges,
+};

@@ -1,22 +1,45 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { ChatMessage } from "@/components/tidal/chat-message";
 import { CreateWorkspaceRecommendationCard } from "@/components/tidal/create-workspace-action-card";
+import { ThreadOwnershipBanner } from "@/components/tidal/thread-ownership-banner";
 import { PromptComposer } from "@/components/tidal/prompt-composer";
 import { SectionLabel } from "@/components/tidal/section-label";
 import { SuggestionAction } from "@/components/tidal/suggestion-action";
 import { useGlobalChatWorkspace } from "@/features/home/providers/global-chat-workspace-provider";
+import { usePoolWorkspace } from "@/features/pool/providers/pool-workspace-provider";
 import { homeScreenContent } from "@/mock-data/home/mocks/home-screen";
+import { useAmplifyWorkspace } from "@/features/amplify/providers/amplify-workspace-provider";
+import { WorkspacePromotionCard } from "@/components/tidal/workspace-promotion-card";
 
 export function HomeScreen() {
+  const router = useRouter();
   const {
     activeChat,
     completeWorkspaceActionCard,
     mentionTargets,
     submitMessage,
   } = useGlobalChatWorkspace();
+  const { getPromotedThreadBySourceChatId, promoteGlobalChatToThread } =
+    usePoolWorkspace();
+  const {
+    getPromotedThreadBySourceChatId: getPromotedAmplifyThreadBySourceChatId,
+    promoteGlobalChatToThread: promoteGlobalChatToAmplifyThread,
+  } = useAmplifyWorkspace();
   const isEmptyChat = activeChat.messages.length === 0;
   const orderedMessages = [...activeChat.messages].reverse();
+  const poolLinks = activeChat.links.filter((link) => link.workspaceType === "pool");
+  const amplifyLinks = activeChat.links.filter(
+    (link) => link.workspaceType === "amplify"
+  );
+  const promotedPoolThread = getPromotedThreadBySourceChatId(activeChat.id);
+  const promotedAmplifyThread =
+    getPromotedAmplifyThreadBySourceChatId(activeChat.id);
+  const latestUserMessage = [...activeChat.messages]
+    .reverse()
+    .find((message) => message.role === "user" && message.content)?.content;
 
   if (isEmptyChat) {
     return (
@@ -58,22 +81,47 @@ export function HomeScreen() {
     <div className="tidal-page min-h-full">
       <div className="mx-auto flex min-h-full w-full max-w-5xl min-w-0 flex-1 flex-col">
         <div className="mb-6 flex flex-col gap-3">
-          <SectionLabel>Global chat</SectionLabel>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <h1 className="tidal-text-thread-title">{activeChat.title}</h1>
-              <p className="max-w-3xl tidal-text-message">{activeChat.preview}</p>
-            </div>
-            <span className="tidal-meta-pill w-fit">{activeChat.lastViewedLabel}</span>
-          </div>
-          {activeChat.links.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {activeChat.links.map((link) => (
-                <span key={link.id} className="tidal-meta-pill">
-                  {link.label}
-                </span>
-              ))}
-            </div>
+          <ThreadOwnershipBanner
+            ownershipLabel="General chat"
+            title={activeChat.title}
+            description={activeChat.preview}
+            linkedLabels={activeChat.links.map((link) => link.label)}
+          />
+
+          {poolLinks.length > 0 ? (
+            <WorkspacePromotionCard
+              workspaceType="pool"
+              hasDedicatedThread={Boolean(promotedPoolThread)}
+              onOpen={() => {
+                promoteGlobalChatToThread({
+                  sourceChatId: activeChat.id,
+                  sourceChatTitle: activeChat.title,
+                  sourceChatPreview: activeChat.preview,
+                  latestUserMessage,
+                  promotedFromLinkIds: poolLinks.map((link) => link.id),
+                  promotedLinkLabels: poolLinks.map((link) => link.label),
+                });
+                router.push("/pool");
+              }}
+            />
+          ) : null}
+
+          {amplifyLinks.length > 0 ? (
+            <WorkspacePromotionCard
+              workspaceType="amplify"
+              hasDedicatedThread={Boolean(promotedAmplifyThread)}
+              onOpen={() => {
+                promoteGlobalChatToAmplifyThread({
+                  sourceChatId: activeChat.id,
+                  sourceChatTitle: activeChat.title,
+                  sourceChatPreview: activeChat.preview,
+                  latestUserMessage,
+                  promotedFromLinkIds: amplifyLinks.map((link) => link.id),
+                  promotedLinkLabels: amplifyLinks.map((link) => link.label),
+                });
+                router.push("/amplify");
+              }}
+            />
           ) : null}
         </div>
 

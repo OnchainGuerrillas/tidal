@@ -19,13 +19,13 @@ export function PoolOverviewPane({
   onNewChat,
 }: PoolOverviewPaneProps) {
   return (
-    <section className="flex min-w-0 flex-1 flex-col px-4 py-5 md:px-6">
-      <div className="mb-6 max-w-5xl space-y-4">
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 py-5 md:px-6">
+      <div className="mb-6 max-w-5xl shrink-0 space-y-4">
         <h2 className="tidal-text-thread-title">{poolName}</h2>
         <p className="max-w-4xl tidal-text-message">{overviewPrompt}</p>
       </div>
 
-      <div className="max-w-5xl flex-1 space-y-4">
+      <div className="max-w-5xl min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         <div className="space-y-3">
           <h3 className="tidal-text-thread-title">
             Start a new chat

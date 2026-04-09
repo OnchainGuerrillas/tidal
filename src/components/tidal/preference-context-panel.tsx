@@ -14,6 +14,8 @@ type PreferenceContextPanelProps = {
   onRiskToggle: (label: RiskAppetiteLabel) => void;
   onInterestToggle: (label: InvestmentInterestLabel) => void;
   className?: string;
+  showRiskOptions?: boolean;
+  showInterestOptions?: boolean;
 };
 
 function PreferenceOptionPill({
@@ -53,6 +55,8 @@ export function PreferenceContextPanel({
   onRiskToggle,
   onInterestToggle,
   className,
+  showRiskOptions = true,
+  showInterestOptions = true,
 }: PreferenceContextPanelProps) {
   return (
     <section className={cn("tidal-context-panel space-y-5", className)}>
@@ -61,45 +65,49 @@ export function PreferenceContextPanel({
         <p className="max-w-4xl tidal-text-body">{description}</p>
       </div>
 
-      <div className="space-y-3">
-        <SectionLabel className="block">Risk appetite</SectionLabel>
-        <div className="flex flex-wrap gap-3">
-          {riskOptions.map((option) => (
-            <button
-              key={option.label}
-              type="button"
-              onClick={() => onRiskToggle(option.label)}
-              className="text-left"
-              aria-pressed={option.checked}
-            >
-              <PreferenceOptionPill
-                checked={option.checked}
-                label={option.label}
-              />
-            </button>
-          ))}
+      {showRiskOptions ? (
+        <div className="space-y-3">
+          <SectionLabel className="block">Risk appetite</SectionLabel>
+          <div className="flex flex-wrap gap-3">
+            {riskOptions.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => onRiskToggle(option.label)}
+                className="text-left"
+                aria-pressed={option.checked}
+              >
+                <PreferenceOptionPill
+                  checked={option.checked}
+                  label={option.label}
+                />
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <div className="space-y-3">
-        <SectionLabel className="block">Investment interests</SectionLabel>
-        <div className="flex flex-wrap gap-3">
-          {interestOptions.map((option) => (
-            <button
-              key={option.label}
-              type="button"
-              onClick={() => onInterestToggle(option.label)}
-              className="text-left"
-              aria-pressed={option.checked}
-            >
-              <PreferenceOptionPill
-                checked={option.checked}
-                label={option.label}
-              />
-            </button>
-          ))}
+      {showInterestOptions ? (
+        <div className="space-y-3">
+          <SectionLabel className="block">Investment interests</SectionLabel>
+          <div className="flex flex-wrap gap-3">
+            {interestOptions.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => onInterestToggle(option.label)}
+                className="text-left"
+                aria-pressed={option.checked}
+              >
+                <PreferenceOptionPill
+                  checked={option.checked}
+                  label={option.label}
+                />
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }

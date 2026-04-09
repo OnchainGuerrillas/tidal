@@ -26,6 +26,15 @@ type PoolThreadSeed = {
   initialUserMessage: string;
 };
 
+type PromoteGlobalChatToPoolThreadInput = {
+  sourceChatId: string;
+  sourceChatTitle: string;
+  sourceChatPreview: string;
+  latestUserMessage?: string;
+  promotedFromLinkIds: string[];
+  promotedLinkLabels: string[];
+};
+
 type PoolWorkspaceContextValue = {
   workspace: PoolWorkspace;
   isOverviewActive: boolean;
@@ -39,6 +48,10 @@ type PoolWorkspaceContextValue = {
   setActiveThreadId: (threadId: string) => void;
   createBlankThread: () => void;
   createFocusedThread: (seed: PoolThreadSeed) => void;
+  getPromotedThreadBySourceChatId: (chatId: string) => PoolThread | null;
+  promoteGlobalChatToThread: (
+    input: PromoteGlobalChatToPoolThreadInput
+  ) => PoolThread;
 };
 
 const PoolWorkspaceContext = createContext<PoolWorkspaceContextValue | null>(null);
@@ -48,7 +61,25 @@ function cloneThread(thread: PoolThread): PoolThread {
     ...thread,
     messages: thread.messages.map((message) => ({ ...message })),
     context: thread.context ? { ...thread.context } : undefined,
+    source: thread.source ? { ...thread.source } : undefined,
   };
+}
+
+function createThreadId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function buildPromotionSummary(input: PromoteGlobalChatToPoolThreadInput) {
+  const linkedContext =
+    input.promotedLinkLabels.length > 0
+      ? input.promotedLinkLabels.join(", ")
+      : "the current Pool context";
+  const latestPrompt =
+    input.latestUserMessage && input.latestUserMessage.trim().length > 0
+      ? ` Latest user focus: "${input.latestUserMessage.trim()}".`
+      : "";
+
+  return `Promoted from the global chat "${input.sourceChatTitle}" so the conversation can continue as focused Pool work around ${linkedContext}. ${input.sourceChatPreview}${latestPrompt}`;
 }
 
 export function PoolWorkspaceProvider({
@@ -167,6 +198,62 @@ export function PoolWorkspaceProvider({
     setIsOverviewActive(false);
   }, [threads]);
 
+  const getPromotedThreadBySourceChatId = useCallback(
+    (chatId: string) =>
+      threads.find((thread) => thread.source?.sourceChatId === chatId) ?? null,
+    [threads]
+  );
+
+  const promoteGlobalChatToThread = useCallback(
+    (input: PromoteGlobalChatToPoolThreadInput) => {
+      const existingThread = threads.find(
+        (thread) => thread.source?.sourceChatId === input.sourceChatId
+      );
+
+      if (existingThread) {
+        setActiveThreadIdState(existingThread.id);
+        setIsOverviewActive(false);
+        return existingThread;
+      }
+
+      const summarySeed = buildPromotionSummary(input);
+      const nextThread: PoolThread = {
+        id: createThreadId("pool-thread-promoted"),
+        title: input.sourceChatTitle,
+        preview: `Promoted from global chat for focused Pool research.`,
+        lastViewedLabel: "Created just now",
+        context: {
+          type: "pool",
+          entityId: poolWorkspace.id,
+          title: poolWorkspace.name,
+          description:
+            "Focused Pool thread created from a broader general chat. This thread now belongs to the Pool workspace only.",
+        },
+        summarySeed,
+        source: {
+          sourceChatId: input.sourceChatId,
+          summary: summarySeed,
+          promotedFromLinkIds: input.promotedFromLinkIds,
+        },
+        messages: [
+          {
+            id: createThreadId("pool-thread-promoted-ai"),
+            role: "ai",
+            content:
+              "I’ve turned the relevant part of the global chat into a focused Pool thread. We can continue with Pool-specific research and actions here without carrying over the full general transcript.",
+          },
+        ],
+      };
+
+      setThreads((currentThreads) => [...currentThreads, nextThread]);
+      setActiveThreadIdState(nextThread.id);
+      setIsOverviewActive(false);
+
+      return nextThread;
+    },
+    [threads]
+  );
+
   const workspace = useMemo<PoolWorkspace>(
     () => ({
       ...poolWorkspace,
@@ -198,6 +285,8 @@ export function PoolWorkspaceProvider({
       setActiveThreadId,
       createBlankThread,
       createFocusedThread,
+      getPromotedThreadBySourceChatId,
+      promoteGlobalChatToThread,
     }),
     [
       workspace,
@@ -212,6 +301,8 @@ export function PoolWorkspaceProvider({
       setActiveThreadId,
       createBlankThread,
       createFocusedThread,
+      getPromotedThreadBySourceChatId,
+      promoteGlobalChatToThread,
     ]
   );
 

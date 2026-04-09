@@ -105,7 +105,7 @@
 
 /* React Flow dark theme overrides */
 .react-flow {
-  --xy-background-color: #050A13;
+  --xy-background-color: #0F151F;
   --xy-node-border-radius: 8px;
   --xy-edge-stroke: #61B3CF;
   --xy-edge-stroke-selected: #61B3CF;

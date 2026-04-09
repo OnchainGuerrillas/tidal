@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AmplifyWorkspaceProvider } from "@/features/amplify/providers/amplify-workspace-provider";
 import { GlobalChatWorkspaceProvider } from "@/features/home/providers/global-chat-workspace-provider";
 import { PoolWorkspaceProvider } from "@/features/pool/providers/pool-workspace-provider";
 import { AppHeader } from "@/features/shell/components/app-header";
@@ -28,22 +29,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} dark h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+      <body className="flex h-screen flex-col overflow-hidden">
         <TooltipProvider>
           <PreferenceProfileProvider>
             <GlobalChatWorkspaceProvider>
               <PoolWorkspaceProvider>
-                <SidebarProvider>
-                  <div className="flex flex-1 flex-col overflow-hidden">
-                    <AppHeader navigation={sidebarNavigation} />
-                    <div className="flex flex-1 overflow-hidden">
-                      <AppSidebar navigation={sidebarNavigation} />
-                      <main className="flex flex-1 flex-col overflow-auto">
-                        {children}
-                      </main>
+                <AmplifyWorkspaceProvider>
+                  <SidebarProvider>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                      <AppHeader navigation={sidebarNavigation} />
+                      <div className="flex min-h-0 flex-1 overflow-hidden">
+                        <AppSidebar navigation={sidebarNavigation} />
+                        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                          {children}
+                        </main>
+                      </div>
                     </div>
-                  </div>
-                </SidebarProvider>
+                  </SidebarProvider>
+                </AmplifyWorkspaceProvider>
               </PoolWorkspaceProvider>
             </GlobalChatWorkspaceProvider>
           </PreferenceProfileProvider>

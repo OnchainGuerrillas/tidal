@@ -15,8 +15,8 @@ const promptComposerVariants = cva(
   {
     variants: {
       surface: {
-        default: "w-full rounded-lg px-3 py-2",
-        pill: "w-full rounded-full px-4 py-2",
+        default: "w-full rounded-lg pl-3 pr-2 py-2",
+        pill: "w-full rounded-full pl-4 pr-2 py-2",
       },
     },
     defaultVariants: {

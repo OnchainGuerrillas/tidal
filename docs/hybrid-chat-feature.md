@@ -170,7 +170,7 @@ Give the chat system a clear way to move users into the correct workspace withou
 
 ### Phase 6: Promotion Into Dedicated Pool Threads
 
-Status: Not started
+Status: Complete
 
 #### Goal
 
@@ -178,22 +178,22 @@ Connect the global chat model to the existing Pool workspace model.
 
 #### Tasks
 
-- [ ] adapt the existing Pool thread model so it can accept promoted threads from the global chat system
-- [ ] preserve the Pool overview as non-thread state
-- [ ] preserve the existing focused research thread behavior inside Pool
-- [ ] preserve that dedicated Pool threads belong to one Pool
-- [ ] add a promotion flow from general chat into a Pool thread using a summary seed
-- [ ] preserve the difference between context-only Pool references and dedicated Pool threads
+- [x] adapt the existing Pool thread model so it can accept promoted threads from the global chat system
+- [x] preserve the Pool overview as non-thread state
+- [x] preserve the existing focused research thread behavior inside Pool
+- [x] preserve that dedicated Pool threads belong to one Pool
+- [x] add a promotion flow from general chat into a Pool thread using a summary seed
+- [x] preserve the difference between context-only Pool references and dedicated Pool threads
 
 #### Deliverable
 
-- [ ] a user can reference a Pool in a general chat without creating a Pool thread
-- [ ] a user can promote relevant context into a dedicated Pool thread
-- [ ] the resulting Pool thread starts from a summary seed, not a transcript copy
+- [x] a user can reference a Pool in a general chat without creating a Pool thread
+- [x] a user can promote relevant context into a dedicated Pool thread
+- [x] the resulting Pool thread starts from a summary seed, not a transcript copy
 
 ### Phase 7: Amplify Threading And Promotion
 
-Status: Not started
+Status: Complete
 
 #### Goal
 
@@ -201,21 +201,21 @@ Bring Amplify up to the same dedicated-thread model as Pool while preserving its
 
 #### Tasks
 
-- [ ] extend Amplify from a single embedded conversation model into a workspace that can support dedicated threads
-- [ ] add promotion flow from general chat into Amplify threads using the same summary-seeded approach as Pool
-- [ ] support mention links to Amplify workspaces from global chat
-- [ ] support mention links to Amplify nested strategy items from global chat
-- [ ] keep the graph workspace independent from the global chat model while allowing focused thread context to inform the Amplify experience
+- [x] extend Amplify from a single embedded conversation model into a workspace that can support dedicated threads
+- [x] add promotion flow from general chat into Amplify threads using the same summary-seeded approach as Pool
+- [x] support mention links to Amplify workspaces from global chat
+- [x] support mention links to Amplify nested strategy items from global chat
+- [x] keep the graph workspace independent from the global chat model while allowing focused thread context to inform the Amplify experience
 
 #### Deliverable
 
-- [ ] a user can use Amplify context in general chat without creating an Amplify thread
-- [ ] a user can promote general chat context into a dedicated Amplify thread
-- [ ] Amplify supports multiple dedicated workspace threads in the prototype
+- [x] a user can use Amplify context in general chat without creating an Amplify thread
+- [x] a user can promote general chat context into a dedicated Amplify thread
+- [x] Amplify supports multiple dedicated workspace threads in the prototype
 
 ### Phase 8: UX Coherence And Documentation Pass
 
-Status: Not started
+Status: Complete
 
 #### Goal
 
@@ -223,20 +223,20 @@ Make the hybrid chat model legible and maintainable.
 
 #### Tasks
 
-- [ ] standardize the visual language for linked tags
-- [ ] standardize the visual language for mention chips
-- [ ] standardize the visual language for chat context panels
-- [ ] standardize the visual language for create/open recommendation cards
-- [ ] ensure users can always tell what the current chat references
-- [ ] ensure users can always tell what their standing preferences are
-- [ ] ensure users can always tell whether they are in a general chat or a dedicated workspace thread
-- [ ] update `docs/architecture.md` after implementation so the prototype structure remains accurate
-- [ ] keep this doc implementation-oriented as progress is made
+- [x] standardize the visual language for linked tags
+- [x] standardize the visual language for mention chips
+- [x] standardize the visual language for chat context panels
+- [x] standardize the visual language for create/open recommendation cards
+- [x] ensure users can always tell what the current chat references
+- [x] ensure users can always tell what their standing preferences are
+- [x] ensure users can always tell whether they are in a general chat or a dedicated workspace thread
+- [x] update `docs/architecture.md` after implementation so the prototype structure remains accurate
+- [x] keep this doc implementation-oriented as progress is made
 
 #### Deliverable
 
-- [ ] navigation, ownership, and promotion behavior are visually understandable
-- [ ] architecture documentation reflects the resulting structure
+- [x] navigation, ownership, and promotion behavior are visually understandable
+- [x] architecture documentation reflects the resulting structure
 
 ## Cross-Phase Acceptance Checklist
 
@@ -250,11 +250,11 @@ These are the feature-level scenarios that should be true by the end of the work
 - [ ] update global risk appetite and investment interests, then verify they appear consistently across global chat and workspace-thread surfaces
 - [x] trigger an inline AI card that recommends creating a Pool
 - [x] trigger an inline AI card that recommends creating an Amplify
-- [ ] use existing Pool context without creating a dedicated thread
-- [ ] promote a general chat into a dedicated Pool thread
-- [ ] use existing Amplify context without creating a dedicated thread
-- [ ] promote a general chat into a dedicated Amplify thread
-- [ ] confirm one general chat can reference both Pool and Amplify while the promoted dedicated threads remain separate
+- [x] use existing Pool context without creating a dedicated thread
+- [x] promote a general chat into a dedicated Pool thread
+- [x] use existing Amplify context without creating a dedicated thread
+- [x] promote a general chat into a dedicated Amplify thread
+- [x] confirm one general chat can reference both Pool and Amplify while the promoted dedicated threads remain separate
 - [ ] confirm dedicated workspace threads are nested only under their owning workspace in navigation
 
 ## Assumptions And Defaults

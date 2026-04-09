@@ -58,6 +58,9 @@ Current examples:
 - `SuggestionAction`
 - `SectionLabel`
 - `ChatMessage`
+- `ThreadOwnershipBanner`
+- `PromotionSummaryPanel`
+- `WorkspacePromotionCard`
 - `WorkspaceButton`
 - `SurfaceCard`
 - `Badge`
@@ -160,6 +163,9 @@ Current responsibilities:
 - chat submission flow that turns selected mentions into structured `ChatLink` entries on the active global chat
 - heuristic inline recommendation cards that suggest creating or opening Pool and Amplify workspaces inside the chat stream
 - create/open recommendation actions that add linked workspace context without creating dedicated threads
+- explicit promotion controls that turn a general chat with Pool context into a dedicated Pool thread
+- explicit promotion controls that turn a general chat with Amplify context into a dedicated Amplify thread
+- shared ownership banners on general chats and summary-seed panels on promoted workspace threads
 - reusable preference context panel rendering behind the shared global header dialog
 - chat-level suggestion and metadata panels around the shared composer
 
@@ -188,8 +194,9 @@ Current responsibilities:
 - left-side conversation and overview panes
 - right-side tabbed Pool panel with holdings, recommendations, discovery, and activity surfaces
 - shared client-side Pool workspace state used by both the workspace and the sidebar, including active thread, active panel tab, and pending actions
+- promoted Pool thread creation from the global chat system, including source metadata and summary-seeded context
 - shared global preference panel mounted on both Pool overview and focused Pool thread surfaces
-- sidebar Pool navigation that treats the Pool as a parent item with its chats nested beneath it
+- sidebar Pool navigation that treats the Pool as a named workspace section with an overview item and flat thread items beneath it
 
 ### Amplify Feature
 
@@ -198,7 +205,9 @@ Current responsibilities:
 Current responsibilities:
 
 - Amplify route-level workspace composition
-- strategy graph and chat layout
+- strategy graph and thread-capable chat layout
+- promoted Amplify thread creation from the global chat system, including source metadata and summary-seeded context
+- sidebar Amplify navigation that treats each strategy workspace as its own section, each with an overview item, while the primary workspace also lists flat thread items
 - shared global preference panel mounted on the Amplify chat surface
 
 ### Amplify Mock Data
@@ -208,9 +217,10 @@ Current responsibilities:
 Current responsibilities:
 
 - chat message typing
+- Amplify workspace and thread typing
 - strategy node typing
 - split node typing
-- mocked chat content
+- mocked Amplify workspace and thread content
 - mocked React Flow nodes and edges
 
 ## Component Boundary Rules
@@ -240,6 +250,7 @@ These components now cover:
 - prompt/composer styling
 - suggestion row and chip styling
 - chat message treatments
+- ownership banners for general chat and promotion summary panels for promoted workspace threads
 - small workspace actions
 - node/panel shells
 - small badges and pills

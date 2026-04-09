@@ -1,4 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
+import type { PromotionSource } from "@/mock-data/shell/types";
 
 export const collectIntervals = [
   "Daily",
@@ -34,12 +35,27 @@ export type SplitNodeType = Node<SplitNodeData, "split">;
 export type CollectorNodeType = Node<CollectorNodeData, "collector">;
 
 export type AmplifyChatMessage = {
+  id: string;
   role: "ai" | "user";
   content: string;
 };
 
-export type AmplifyWorkspace = {
+export type AmplifyThread = {
+  id: string;
+  title: string;
+  preview: string;
+  lastViewedLabel: string;
   messages: AmplifyChatMessage[];
+  summarySeed?: string;
+  source?: PromotionSource;
+};
+
+export type AmplifyWorkspace = {
+  id: string;
+  name: string;
+  summary: string;
+  activeThreadId: string;
+  threads: AmplifyThread[];
   suggestions: string[];
   nodes: (Node<StrategyNodeData> | Node<SplitNodeData>)[];
   edges: Edge<{ asset: string }>[];
