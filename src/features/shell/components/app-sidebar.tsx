@@ -16,6 +16,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -33,6 +34,8 @@ import {
 import { useGlobalChatWorkspace } from "@/features/home/providers/global-chat-workspace-provider";
 import { useAmplifyWorkspace } from "@/features/amplify/providers/amplify-workspace-provider";
 import { usePoolWorkspace } from "@/features/pool/providers/pool-workspace-provider";
+import { getAmplifyWorkspaceHref } from "@/lib/amplify-routes";
+import { sidebarNavigation } from "@/mock-data/shell/mocks/navigation";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
@@ -68,6 +71,12 @@ export function AppSidebar() {
     ...chat,
     href: chat.href ?? "/",
   }));
+  const userInitials = sidebarNavigation.userName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <Sidebar
@@ -162,9 +171,10 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         {amplifyWorkspaces.map((workspace) => {
+          const workspaceHref = getAmplifyWorkspaceHref(workspace.id);
           const amplifyChatItems = workspace.threads.map((thread) => ({
             title: thread.title,
-            href: "/amplify",
+            href: workspaceHref,
             id: thread.id,
           }));
           const sectionId = workspace.id;
@@ -215,7 +225,7 @@ export function AppSidebar() {
                   <SidebarMenu>
                     <SidebarMenuItem>
                       <SidebarMenuButton
-                        render={<Link href="/amplify" />}
+                        render={<Link href={workspaceHref} />}
                         tooltip="Overview"
                         className="tidal-sidebar-item"
                         isActive={isAmplifyRoute && isActiveWorkspace}
@@ -229,7 +239,7 @@ export function AppSidebar() {
                     {amplifyChatItems.map((item) => (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
-                          render={<Link href="/amplify" />}
+                          render={<Link href={item.href} />}
                           tooltip={item.title}
                           className="tidal-sidebar-item"
                           isActive={
@@ -249,7 +259,7 @@ export function AppSidebar() {
                     ))}
                     <SidebarMenuItem>
                       <SidebarMenuButton
-                        render={<Link href="/amplify" />}
+                        render={<Link href={workspaceHref} />}
                         tooltip="New thread"
                         className="tidal-sidebar-item"
                         onClick={() => createBlankAmplifyThread(workspace.id)}
@@ -342,7 +352,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
+      <SidebarFooter className="border-t border-tidal-border pt-3">
+        <div className="rounded-xl border border-tidal-border bg-tidal-card/75 p-3">
+          <div className="flex items-start gap-3">
+            <div className="tidal-user-avatar text-[11px] font-semibold text-background">
+              {userInitials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-foreground">
+                {sidebarNavigation.wallet.addressLabel}
+              </div>
+              <div className="mt-0.5 truncate text-[11px] text-tidal-muted">
+                {sidebarNavigation.wallet.solBalanceLabel}
+              </div>
+            </div>
+          </div>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

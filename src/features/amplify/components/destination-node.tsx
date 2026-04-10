@@ -5,16 +5,13 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import { Badge } from "@/components/tidal/badge";
 import { SurfaceCard } from "@/components/tidal/surface-card";
+import { formatAmplifyStatusLabel } from "@/features/amplify/lib/status";
 import type { DestinationNodeType } from "@/mock-data/amplify/types";
-
-function formatStatusLabel(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
 
 export const DestinationNode = memo(
   ({ data, isConnectable }: NodeProps<DestinationNodeType>) => {
     return (
-      <SurfaceCard className="w-[220px] bg-[#15202E]">
+      <SurfaceCard className="w-[280px] bg-[#15202E]">
         <Handle
           type="target"
           position={Position.Left}
@@ -24,7 +21,7 @@ export const DestinationNode = memo(
 
         <div className="mb-3 flex items-center justify-between">
           <span className="tidal-text-eyebrow">{data.destinationLabel}</span>
-          <Badge variant="status">{formatStatusLabel(data.status)}</Badge>
+          <Badge variant="status">{formatAmplifyStatusLabel(data.status)}</Badge>
         </div>
 
         <div className="mb-3 tidal-text-body">{data.title}</div>

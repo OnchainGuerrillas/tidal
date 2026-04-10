@@ -64,7 +64,8 @@ Current routes:
 - `src/app/page.tsx`: Home global chat workspace
 - `src/app/chat/[chatId]/page.tsx`: route-backed global chat pages
 - `src/app/pool/page.tsx`: Pool workspace prototype
-- `src/app/amplify/page.tsx`: Amplify workspace prototype
+- `src/app/amplify/page.tsx`: redirector to the active Amplify workspace URL
+- `src/app/amplify/[workspaceId]/page.tsx`: addressable Amplify workspace route
 - `src/app/layout.tsx`: shared shell and providers
 
 ### `src/features`
@@ -78,7 +79,7 @@ Current feature areas:
 - `src/features/shell`: shared app frame and sidebar behavior
 - `src/features/home`: global chat-first Home screen composition and state
 - `src/features/pool`: Pool workspace screens, components, and state
-- `src/features/amplify`: Amplify workspace screens and components
+- `src/features/amplify`: Amplify workspace screens, components, canvas hooks, and feature-local helpers
 - `src/features/swap`: reserved for future Swap work, not currently included
 
 ### `src/mock-data`
@@ -93,6 +94,14 @@ Current mock-data areas:
 - `src/mock-data/home`
 - `src/mock-data/pool`
 - `src/mock-data/amplify`
+
+Amplify mock data is now split further into:
+
+- `src/mock-data/amplify/mocks/catalog.ts`: picker catalog definitions and compatibility-facing catalog metadata
+- `src/mock-data/amplify/mocks/node-factories.ts`: node creation helpers for builder flows
+- `src/mock-data/amplify/mocks/builder-workspace.ts`: blank builder workspace seeding
+- `src/mock-data/amplify/mocks/example-workspace.ts`: seeded example strategy workspace
+- `src/mock-data/amplify/mocks/workspace.ts`: small re-export surface for the rest of the app
 
 ### `src/components/ui`
 
@@ -146,10 +155,10 @@ In practice that means:
 
 The prototype currently focuses on the shared shell plus Home, Pool, and Amplify.
 
-- Home: global chat-first entry flow with route-backed chats, linked context, `@` mentions, and inline recommendation cards that can steer users into Pool or Amplify
+- Home: global chat-first entry flow with route-backed chats, linked context, `@` mentions, inline recommendation cards, and a direct CTA to create a new blank Amplify workspace
 - Pool: overview state, dedicated Pool threads, promoted threads from global chat, and a right-hand workspace panel for positions, recommendations, discovery, and activity
-- Amplify: thread-capable strategy workspace with promoted threads from global chat and a node-based graph surface
-- Shared shell: global top header, global preferences, wallet summary mock data, and sidebar navigation across Home, Pool, and Amplify
+- Amplify: multi-workspace strategy surface with addressable workspace URLs, a blank builder workspace, a seeded example loop, structured node creation, inline node editing, mocked run states, and fullscreen canvas focus mode
+- Shared shell: global top header with risk and investment-type controls, plus sidebar navigation across Home, Pool, and Amplify
 
 Swap is intentionally not included in the current implementation pass. The repo still preserves space for it structurally, but the active prototype work is centered on Home, Pool, and Amplify.
 
@@ -165,6 +174,18 @@ The Pool workspace is the clearest example of how the repo is intended to work.
 
 So if another developer needs to integrate Pool into the real app later, the main job should be replacing the mocked Pool state and data sources rather than untangling the UI structure first.
 
+## Current Amplify Example
+
+Amplify is now structured in the same spirit:
+
+- `src/app/amplify/[workspaceId]/page.tsx` is the addressable route
+- `src/features/amplify/screens` owns workspace-level composition
+- `src/features/amplify/hooks` owns the main canvas graph state and interaction logic
+- `src/features/amplify/components` owns node cards, picker UI, and Amplify-only presentational pieces
+- `src/mock-data/amplify` owns the seeded builder/example workspaces, node catalog, and node factory helpers
+
+That means future integration work can replace mocked Amplify state and execution behavior without first unpicking the UI and route structure.
+
 ## Docs
 
 - `docs/product-vision.md`
@@ -172,6 +193,7 @@ So if another developer needs to integrate Pool into the real app later, the mai
 - `docs/codex-plan.md`
 - `docs/architecture.md`
 - `docs/codex-pool-plan.md`
+- `docs/amplify-nodes.md`
 
 ## Working Rules
 

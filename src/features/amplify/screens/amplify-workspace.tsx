@@ -1,77 +1,45 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowsOutSimple, List } from "@phosphor-icons/react";
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
-import {
-  ReactFlow,
-  Controls,
   Background,
-  addEdge,
-  applyEdgeChanges,
-  applyNodeChanges,
-  type Edge,
-  type EdgeChange,
-  type EdgeProps,
-  type NodeChange,
-  type OnConnect,
-  type OnConnectEnd,
-  type OnConnectStart,
-  type ReactFlowInstance,
   BackgroundVariant,
   BaseEdge,
+  Controls,
   EdgeLabelRenderer,
+  ReactFlow,
   getBezierPath,
+  type Edge,
+  type EdgeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useSidebar } from "@/components/ui/sidebar";
+import { Badge } from "@/components/tidal/badge";
 import { SurfaceCard } from "@/components/tidal/surface-card";
-import { AmplifyChat } from "@/features/amplify/components/amplify-chat";
-import { AmplifyBuilderContextProvider } from "@/features/amplify/components/amplify-builder-context";
+import { useSidebar } from "@/components/ui/sidebar";
 import { AmountNode } from "@/features/amplify/components/amount-node";
+import { AmplifyBuilderContextProvider } from "@/features/amplify/components/amplify-builder-context";
+import { AmplifyChat } from "@/features/amplify/components/amplify-chat";
+import {
+  AmplifyNodePicker,
+  type AmplifyNodePickerGroupState,
+  type AmplifyNodePickerItemState,
+} from "@/features/amplify/components/amplify-node-picker";
 import { DestinationNode } from "@/features/amplify/components/destination-node";
 import { RewardNode } from "@/features/amplify/components/reward-node";
 import { SplitNode } from "@/features/amplify/components/split-node";
 import { StrategyNode } from "@/features/amplify/components/strategy-node";
 import { WalletNode } from "@/features/amplify/components/wallet-node";
+import { useAmplifyCanvasState } from "@/features/amplify/hooks/use-amplify-canvas-state";
+import { getAmplifyWorkspaceHref } from "@/lib/amplify-routes";
 import { useAmplifyWorkspace } from "@/features/amplify/providers/amplify-workspace-provider";
 import { PoolWorkspaceHeader } from "@/features/pool/components/pool-workspace-header";
-import {
-  amplifyNodeCatalog,
-  createAmplifyNodeFromCatalog,
-  isCatalogItemCompatible,
-} from "@/mock-data/amplify/mocks/workspace";
 import type {
-  AmplifyGraphEdge,
-  AmplifyGraphNode,
-  AmplifyNodeCatalogItem,
-  AmplifyNodeOutput,
+  AmplifyNodePickerGroup,
+  AmplifyWorkspace as AmplifyWorkspaceType,
 } from "@/mock-data/amplify/types";
-
-type PickerState = {
-  mode: "pane" | "source";
-  clientPosition: { x: number; y: number };
-  flowPosition: { x: number; y: number };
-  source?: {
-    nodeId: string;
-    outputId: string;
-    asset: string;
-  };
-};
-
-type PendingSourceConnection = {
-  nodeId: string;
-  outputId: string;
-};
-
-const STORAGE_KEY = "amplify-node-positions";
-const mainEdgeStyle = { stroke: "#61B3CF", strokeWidth: 2 };
 
 function AssetEdge({
   sourceX,
@@ -123,160 +91,214 @@ const nodeTypes = {
 
 const edgeTypes = { asset: AssetEdge };
 
-function cloneGraphNode<TNode extends AmplifyGraphNode>(node: TNode): TNode {
-  return {
-    ...node,
-    position: { ...node.position },
-    data: { ...node.data },
+type AmplifyCanvasStatusProps = {
+  workspace: AmplifyWorkspaceType;
+  onEnterDraftMode: () => void;
+  onRunDraft: () => void;
+};
+
+function AmplifyCanvasStatus({
+  workspace,
+  onEnterDraftMode,
+  onRunDraft,
+}: AmplifyCanvasStatusProps) {
+  const impactedNodeCount = workspace.draftState?.impactedNodeIds.length ?? 0;
+  const changedNodeCount = workspace.draftState?.changedNodeIds.length ?? 0;
+
+  return (
+    <>
+      <div className="pointer-events-none absolute top-4 right-4 z-10">
+        <SurfaceCard className="pointer-events-auto min-w-[260px] bg-[#15202E]/95 shadow-lg shadow-black/30">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant="status">
+                  {workspace.executionState === "active"
+                    ? "Active"
+                    : workspace.executionState === "impacted"
+                      ? "Impacted"
+                      : workspace.executionState === "error"
+                        ? "Error"
+                        : "Draft"}
+                </Badge>
+                {workspace.activeSnapshot?.updatedAtLabel ? (
+                  <span className="tidal-text-caption text-tidal-muted">
+                    {workspace.activeSnapshot.updatedAtLabel}
+                  </span>
+                ) : null}
+              </div>
+              <p className="max-w-[220px] tidal-text-caption text-tidal-muted">
+                {workspace.executionState === "active"
+                  ? "Nodes are locked while the strategy is marked active. Enter draft mode to make changes over the last successful run."
+                  : workspace.executionState === "impacted"
+                    ? "Upstream draft edits are affecting downstream positions. Review impacted nodes, then rerun to replace the active snapshot."
+                    : workspace.executionState === "error"
+                      ? "The last run found invalid or blocked nodes. Fix the highlighted path and rerun the draft."
+                      : "Inline controls are live in draft mode. Run the draft when you want to lock the strategy and review the current setup."}
+              </p>
+            </div>
+
+            {workspace.isEditable ? (
+              <button
+                type="button"
+                onClick={
+                  workspace.executionState === "active" ? onEnterDraftMode : onRunDraft
+                }
+                className="rounded-md border border-tidal-border bg-background/40 px-3 py-2 text-xs font-medium text-tidal-accent transition-colors hover:border-tidal-accent/40 hover:bg-tidal-sidebar-active"
+              >
+                {workspace.executionState === "active" ? "Edit draft" : "Run draft"}
+              </button>
+            ) : null}
+          </div>
+        </SurfaceCard>
+      </div>
+
+      {workspace.executionState === "impacted" && impactedNodeCount > 0 ? (
+        <div className="pointer-events-none absolute top-28 right-4 z-10">
+          <SurfaceCard className="pointer-events-auto max-w-[320px] border-amber-400/30 bg-[#1C2330]/95 shadow-lg shadow-black/30">
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-amber-300">
+                Downstream nodes impacted
+              </div>
+              <p className="tidal-text-caption text-tidal-muted">
+                {changedNodeCount} edited node{changedNodeCount === 1 ? "" : "s"} changed
+                the assumptions for {impactedNodeCount} downstream node
+                {impactedNodeCount === 1 ? "" : "s"}. Rerun the draft to update the active
+                strategy state.
+              </p>
+            </div>
+          </SurfaceCard>
+        </div>
+      ) : null}
+
+      {workspace.executionState === "error" ? (
+        <div className="pointer-events-none absolute top-28 right-4 z-10">
+          <SurfaceCard className="pointer-events-auto max-w-[320px] border-rose-400/30 bg-[#241A22]/95 shadow-lg shadow-black/30">
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-rose-300">
+                Run blocked by invalid nodes
+              </div>
+              <p className="tidal-text-caption text-tidal-muted">
+                One or more nodes are missing upstream input or are blocked by an invalid
+                connection. Fix the highlighted nodes and rerun.
+              </p>
+            </div>
+          </SurfaceCard>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+type AmplifyPickerOverlayProps = {
+  pickerState: {
+    mode: "pane" | "source";
+    source?: {
+      asset: string;
+    };
   };
+  groups: AmplifyNodePickerGroupState[];
+  items: AmplifyNodePickerItemState[];
+  selectedGroup: AmplifyNodePickerGroup;
+  searchQuery: string;
+  onClose: () => void;
+  onSearchQueryChange: (value: string) => void;
+  onSelectedGroupChange: (group: AmplifyNodePickerGroup) => void;
+  onSelectItem: (item: AmplifyNodePickerItemState["item"]) => void;
+};
+
+function AmplifyPickerOverlay({
+  pickerState,
+  groups,
+  items,
+  selectedGroup,
+  searchQuery,
+  onClose,
+  onSearchQueryChange,
+  onSelectedGroupChange,
+  onSelectItem,
+}: AmplifyPickerOverlayProps) {
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close node picker"
+        className="fixed inset-0 z-10 cursor-default"
+        onClick={onClose}
+      />
+      <div className="absolute inset-0 z-20 flex items-center justify-center p-3 pointer-events-none">
+        <div
+          className="pointer-events-auto w-[min(42rem,calc(100vw-1.5rem))]"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <AmplifyNodePicker
+            title={
+              pickerState.mode === "source"
+                ? `Add node from ${pickerState.source?.asset ?? "output"}`
+                : "Create node"
+            }
+            description={
+              pickerState.mode === "source"
+                ? "Browse categories on the left. Compatible items stay enabled and incompatible ones stay visible."
+                : "Browse categories or search to place a disconnected node on the canvas."
+            }
+            groups={groups}
+            selectedGroup={selectedGroup}
+            searchQuery={searchQuery}
+            items={items}
+            onSearchQueryChange={onSearchQueryChange}
+            onSelectedGroupChange={onSelectedGroupChange}
+            onSelectItem={onSelectItem}
+          />
+        </div>
+      </div>
+    </>
+  );
 }
 
-function cloneGraphEdge(edge: AmplifyGraphEdge): AmplifyGraphEdge {
-  return {
-    ...edge,
-    style: edge.style ? { ...edge.style } : undefined,
-    data: edge.data ? { ...edge.data } : undefined,
-  };
-}
-
-function getOutputById(
-  node: AmplifyGraphNode | undefined,
-  outputId?: string | null
-): AmplifyNodeOutput | null {
-  if (!node) {
-    return null;
-  }
-
-  if (!outputId) {
-    return node.data.outputs[0] ?? null;
-  }
-
-  return node.data.outputs.find((output) => output.id === outputId) ?? null;
-}
-
-function applySourceAssetToNode(
-  node: AmplifyGraphNode,
-  sourceAsset: string
-): AmplifyGraphNode {
-  if (node.type === "amount") {
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        title: `${sourceAsset} amount`,
-        summary: `Choose how much ${sourceAsset} to route into the next node.`,
-        acceptedAssets: [sourceAsset],
-        outputs: node.data.outputs.map((output) => ({
-          ...output,
-          asset: sourceAsset,
-          amountLabel: `Custom ${sourceAsset}`,
-        })),
-        holdingsLabel: `Awaiting ${sourceAsset} input`,
-        sourceAsset,
-        amountLabel: `50% ${sourceAsset}`,
-        maxAmountLabel: `Max ${sourceAsset}`,
-      },
-    };
-  }
-
-  if (node.type === "split") {
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        title: `${sourceAsset} split`,
-        summary: `Branch ${sourceAsset} across two downstream paths.`,
-        acceptedAssets: [sourceAsset],
-        outputs: node.data.outputs.map((output) => ({
-          ...output,
-          asset: output.id === "a" ? `50% ${sourceAsset}` : `50% ${sourceAsset}`,
-        })),
-        holdingsLabel: `${sourceAsset} ready to route`,
-        asset: sourceAsset,
-      },
-    };
-  }
-
-  if (node.type === "reward") {
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        summary: `Collect and route ${sourceAsset} before sending it onward.`,
-        acceptedAssets: [sourceAsset],
-        outputs: node.data.outputs.map((output) => ({
-          ...output,
-          asset: sourceAsset,
-        })),
-        holdingsLabel: `${sourceAsset} ready to collect`,
-        rewardAsset: sourceAsset,
-      },
-    };
-  }
-
-  if (node.type === "destination") {
-    return {
-      ...node,
-      data: {
-        ...node.data,
-        summary: `Send ${sourceAsset} back to wallet.`,
-        acceptedAssets: [sourceAsset],
-        holdingsLabel: `Ready to receive ${sourceAsset}`,
-        asset: sourceAsset,
-      },
-    };
-  }
-
-  return node;
-}
-
-function canConnectAssetToNode(asset: string, node: AmplifyGraphNode) {
-  return node.data.acceptedAssets.includes(asset);
-}
-
-function buildAssetEdge(
-  sourceNodeId: string,
-  sourceHandleId: string | null | undefined,
-  targetNodeId: string,
-  asset: string
-): AmplifyGraphEdge {
-  return {
-    id: `e-${sourceNodeId}-${sourceHandleId ?? "next"}-${targetNodeId}`,
-    source: sourceNodeId,
-    sourceHandle: sourceHandleId ?? undefined,
-    target: targetNodeId,
-    type: "asset",
-    data: { asset },
-    style: mainEdgeStyle,
-    animated: true,
-  };
-}
-
-function getClientPosition(event: MouseEvent | TouchEvent) {
-  if ("changedTouches" in event && event.changedTouches.length > 0) {
-    return {
-      x: event.changedTouches[0].clientX,
-      y: event.changedTouches[0].clientY,
-    };
-  }
-
-  const mouseEvent = event as MouseEvent;
-  return {
-    x: mouseEvent.clientX,
-    y: mouseEvent.clientY,
-  };
-}
-
-export function AmplifyWorkspace() {
+export function AmplifyWorkspace({
+  workspaceId,
+}: {
+  workspaceId?: string;
+}) {
   const {
+    workspaces,
     workspace,
     activeThread,
     setActiveThreadId,
     createBlankThread,
     updateWorkspaceGraph,
+    updateWorkspaceMeta,
+    setActiveWorkspaceId,
   } = useAmplifyWorkspace();
+  const router = useRouter();
   const { setOpen } = useSidebar();
   const hasMounted = useRef(false);
+  const [isCanvasFullscreen, setIsCanvasFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!workspaceId) {
+      return;
+    }
+
+    const matchedWorkspace = workspaces.find(
+      (candidateWorkspace) => candidateWorkspace.id === workspaceId
+    );
+
+    if (!matchedWorkspace) {
+      const fallbackWorkspace = workspaces[0];
+
+      if (fallbackWorkspace) {
+        router.replace(getAmplifyWorkspaceHref(fallbackWorkspace.id));
+      }
+
+      return;
+    }
+
+    if (workspace.id !== matchedWorkspace.id) {
+      setActiveWorkspaceId(matchedWorkspace.id);
+    }
+  }, [router, setActiveWorkspaceId, workspace.id, workspaceId, workspaces]);
 
   useEffect(() => {
     if (!hasMounted.current) {
@@ -287,25 +309,34 @@ export function AmplifyWorkspace() {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
-      <PoolWorkspaceHeader
-        workspaceName={workspace.name}
-        threads={workspace.threads}
-        activeThreadId={activeThread.id}
-        showOverviewTab={false}
-        onThreadSelect={setActiveThreadId}
-        onNewChat={createBlankThread}
-        newChatLabel="New thread"
-      />
+      {!isCanvasFullscreen ? (
+        <PoolWorkspaceHeader
+          workspaceName={workspace.name}
+          threads={workspace.threads}
+          activeThreadId={activeThread.id}
+          showOverviewTab={false}
+          onThreadSelect={setActiveThreadId}
+          onNewChat={createBlankThread}
+          newChatLabel="New thread"
+        />
+      ) : null}
 
-      <div className="tidal-workspace">
-        <div className="tidal-workspace-panel pt-0 pb-5">
-          <AmplifyChat activeThread={activeThread} />
-        </div>
+      <div className={isCanvasFullscreen ? "flex min-h-0 flex-1" : "tidal-workspace"}>
+        {!isCanvasFullscreen ? (
+          <div className="tidal-workspace-panel pt-0 pb-5">
+            <AmplifyChat activeThread={activeThread} />
+          </div>
+        ) : null}
 
         <AmplifyWorkspaceCanvas
           key={workspace.id}
           workspace={workspace}
           updateWorkspaceGraph={updateWorkspaceGraph}
+          updateWorkspaceMeta={updateWorkspaceMeta}
+          isCanvasFullscreen={isCanvasFullscreen}
+          onToggleCanvasFullscreen={() =>
+            setIsCanvasFullscreen((current) => !current)
+          }
         />
       </div>
     </div>
@@ -315,262 +346,86 @@ export function AmplifyWorkspace() {
 function AmplifyWorkspaceCanvas({
   workspace,
   updateWorkspaceGraph,
+  updateWorkspaceMeta,
+  isCanvasFullscreen,
+  onToggleCanvasFullscreen,
 }: {
-  workspace: ReturnType<typeof useAmplifyWorkspace>["workspace"];
-  updateWorkspaceGraph: ReturnType<typeof useAmplifyWorkspace>["updateWorkspaceGraph"];
+  workspace: AmplifyWorkspaceType;
+  updateWorkspaceGraph: (
+    workspaceId: string,
+    nodes: import("@/mock-data/amplify/types").AmplifyGraphNode[],
+    edges: import("@/mock-data/amplify/types").AmplifyGraphEdge[]
+  ) => void;
+  updateWorkspaceMeta: (
+    workspaceId: string,
+    updates: Partial<
+      Pick<AmplifyWorkspaceType, "executionState" | "activeSnapshot" | "draftState">
+    >
+  ) => void;
+  isCanvasFullscreen: boolean;
+  onToggleCanvasFullscreen: () => void;
 }) {
-  const workspaceStorageKey = `${STORAGE_KEY}-${workspace.id}`;
-  const [pickerState, setPickerState] = useState<PickerState | null>(null);
-  const pendingSourceConnectionRef = useRef<PendingSourceConnection | null>(null);
-  const [reactFlowInstance, setReactFlowInstance] =
-    useState<ReactFlowInstance<AmplifyGraphNode, AmplifyGraphEdge> | null>(null);
-  const [nodes, setNodes] = useState<AmplifyGraphNode[]>(() => {
-    const initialNodes = workspace.nodes.map((node) => cloneGraphNode(node));
-
-    try {
-      const saved = localStorage.getItem(workspaceStorageKey);
-      if (!saved) {
-        return initialNodes;
-      }
-
-      const positions: Record<string, { x: number; y: number }> = JSON.parse(saved);
-      return initialNodes.map((node) =>
-        positions[node.id] ? { ...node, position: positions[node.id] } : node
-      );
-    } catch {
-      return initialNodes;
-    }
+  const {
+    canEditWorkspace,
+    nodes,
+    edges,
+    pickerState,
+    selectedPickerGroup,
+    pickerSearchQuery,
+    pickerGroups,
+    pickerItems,
+    setReactFlowInstance,
+    setSelectedPickerGroup,
+    setPickerSearchQuery,
+    closePicker,
+    handleCatalogSelect,
+    onNodeDragStop,
+    onNodesChange,
+    onEdgesChange,
+    onConnectStart,
+    onConnect,
+    onConnectEnd,
+    onPaneContextMenu,
+    updateNodeData,
+    runWorkspaceDraft,
+    enterDraftMode,
+  } = useAmplifyCanvasState({
+    workspace,
+    updateWorkspaceGraph,
+    updateWorkspaceMeta,
   });
-  const [edges, setEdges] = useState<AmplifyGraphEdge[]>(() =>
-    workspace.edges.map((edge) => cloneGraphEdge(edge))
-  );
-
-  const persistGraph = useCallback(
-    (nextNodes: AmplifyGraphNode[], nextEdges: AmplifyGraphEdge[]) => {
-      updateWorkspaceGraph(
-        workspace.id,
-        nextNodes.map((node) => cloneGraphNode(node)),
-        nextEdges.map((edge) => cloneGraphEdge(edge))
-      );
-    },
-    [updateWorkspaceGraph, workspace.id]
-  );
-
-  const onNodeDragStop = useCallback(
-    (_event: unknown, node: AmplifyGraphNode) => {
-      const nextNodes = nodes.map((currentNode) =>
-        currentNode.id === node.id ? { ...currentNode, position: node.position } : currentNode
-      );
-
-      const positions: Record<string, { x: number; y: number }> = {};
-      for (const currentNode of nextNodes) {
-        positions[currentNode.id] = currentNode.position;
-      }
-
-      localStorage.setItem(workspaceStorageKey, JSON.stringify(positions));
-      setNodes(nextNodes);
-      persistGraph(nextNodes, edges);
-    },
-    [edges, nodes, persistGraph, workspaceStorageKey]
-  );
-
-  const onNodesChange = useCallback(
-    (changes: NodeChange<AmplifyGraphNode>[]) => {
-      const nextNodes = applyNodeChanges(changes, nodes);
-      setNodes(nextNodes);
-      persistGraph(nextNodes, edges);
-    },
-    [edges, nodes, persistGraph]
-  );
-
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange<AmplifyGraphEdge>[]) => {
-      const nextEdges = applyEdgeChanges(changes, edges);
-      setEdges(nextEdges);
-      persistGraph(nodes, nextEdges);
-    },
-    [edges, nodes, persistGraph]
-  );
-
-  const onConnectStart: OnConnectStart = useCallback(
-    (_event, params) => {
-      if (
-        !workspace.isEditable ||
-        params.handleType !== "source" ||
-        !params.nodeId ||
-        !params.handleId
-      ) {
-        pendingSourceConnectionRef.current = null;
-        return;
-      }
-
-      pendingSourceConnectionRef.current = {
-        nodeId: params.nodeId,
-        outputId: params.handleId,
-      };
-    },
-    [workspace.isEditable]
-  );
-
-  const onConnect: OnConnect = useCallback(
-    (params) => {
-      const sourceNode = nodes.find((node) => node.id === params.source);
-      const targetNode = nodes.find((node) => node.id === params.target);
-      const output = getOutputById(sourceNode, params.sourceHandle);
-
-      if (!sourceNode || !targetNode || !output) {
-        return;
-      }
-
-      if (!canConnectAssetToNode(output.asset, targetNode)) {
-        return;
-      }
-
-      const hydratedTarget = applySourceAssetToNode(targetNode, output.asset);
-      const nextNodes = nodes.map((node) =>
-        node.id === hydratedTarget.id ? hydratedTarget : node
-      );
-      const nextEdges = addEdge(
-        buildAssetEdge(sourceNode.id, params.sourceHandle, targetNode.id, output.asset),
-        edges
-      );
-
-      setNodes(nextNodes);
-      setEdges(nextEdges);
-      persistGraph(nextNodes, nextEdges);
-    },
-    [edges, nodes, persistGraph]
-  );
-
-  const onConnectEnd: OnConnectEnd = useCallback(
-    (event, connectionState) => {
-      if (!workspace.isEditable || !reactFlowInstance) {
-        pendingSourceConnectionRef.current = null;
-        return;
-      }
-
-      const pendingConnection = pendingSourceConnectionRef.current;
-      pendingSourceConnectionRef.current = null;
-
-      if (!pendingConnection || connectionState.toNode) {
-        return;
-      }
-
-      const sourceNode = nodes.find((node) => node.id === pendingConnection.nodeId);
-      const output = getOutputById(sourceNode, pendingConnection.outputId);
-
-      if (!sourceNode || !output) {
-        return;
-      }
-
-      const clientPosition = getClientPosition(event);
-      setPickerState({
-        mode: "source",
-        clientPosition,
-        flowPosition: reactFlowInstance.screenToFlowPosition(clientPosition),
-        source: {
-          nodeId: pendingConnection.nodeId,
-          outputId: pendingConnection.outputId,
-          asset: output.asset,
-        },
-      });
-    },
-    [nodes, reactFlowInstance, workspace.isEditable]
-  );
-
-  const onPaneContextMenu = useCallback(
-    (event: MouseEvent | ReactMouseEvent) => {
-      if (!workspace.isEditable || !reactFlowInstance) {
-        return;
-      }
-
-      event.preventDefault();
-      setPickerState({
-        mode: "pane",
-        clientPosition: { x: event.clientX, y: event.clientY },
-        flowPosition: reactFlowInstance.screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        }),
-      });
-    },
-    [reactFlowInstance, workspace.isEditable]
-  );
-
-  const handleCatalogSelect = useCallback(
-    (item: AmplifyNodeCatalogItem) => {
-      if (!pickerState) {
-        return;
-      }
-
-      const sourceAsset = pickerState.source?.asset;
-      if (pickerState.mode === "source" && !isCatalogItemCompatible(item, sourceAsset)) {
-        return;
-      }
-
-      const basePosition =
-        pickerState.mode === "source"
-          ? {
-              x: pickerState.flowPosition.x + 220,
-              y: pickerState.flowPosition.y - 30,
-            }
-          : pickerState.flowPosition;
-      const createdNode = createAmplifyNodeFromCatalog(
-        item.id,
-        basePosition,
-        sourceAsset
-      );
-
-      if (!createdNode) {
-        return;
-      }
-
-      const nextNodes = [...nodes, createdNode];
-      let nextEdges = edges;
-
-      if (pickerState.source) {
-        nextEdges = [
-          ...edges,
-          buildAssetEdge(
-            pickerState.source.nodeId,
-            pickerState.source.outputId,
-            createdNode.id,
-            pickerState.source.asset
-          ),
-        ];
-      }
-
-      setNodes(nextNodes);
-      setEdges(nextEdges);
-      persistGraph(nextNodes, nextEdges);
-      setPickerState(null);
-    },
-    [edges, nodes, persistGraph, pickerState]
-  );
-
-  const pickerItems = useMemo(() => {
-    return amplifyNodeCatalog.map((item) => {
-      const disabled =
-        pickerState?.mode === "source" &&
-        !isCatalogItemCompatible(item, pickerState.source?.asset);
-      const disabledReason =
-        disabled && pickerState?.source
-          ? `Needs ${item.supportedInputAssets.join(" or ")} input`
-          : null;
-
-      return {
-        item,
-        disabled: Boolean(disabled),
-        disabledReason,
-      };
-    });
-  }, [pickerState]);
 
   return (
     <div className="tidal-workspace-canvas relative">
+      <div className="pointer-events-none absolute top-4 left-4 z-10">
+        <button
+          type="button"
+          onClick={onToggleCanvasFullscreen}
+          className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-lg border border-tidal-border bg-[#15202E]/95 text-tidal-accent shadow-lg shadow-black/30 transition-colors hover:border-tidal-accent/40 hover:bg-tidal-sidebar-active"
+          aria-label={
+            isCanvasFullscreen
+              ? "Show Amplify chat and header"
+              : "Focus on node canvas"
+          }
+        >
+          {isCanvasFullscreen ? (
+            <List weight="bold" className="h-4 w-4" />
+          ) : (
+            <ArrowsOutSimple weight="bold" className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+
+      <AmplifyCanvasStatus
+        workspace={workspace}
+        onEnterDraftMode={enterDraftMode}
+        onRunDraft={runWorkspaceDraft}
+      />
+
       <AmplifyBuilderContextProvider
         value={{
-          isEditable: workspace.isEditable,
+          isEditable: canEditWorkspace,
+          updateNodeData,
         }}
       >
         <ReactFlow
@@ -586,9 +441,9 @@ function AmplifyWorkspaceCanvas({
           onInit={setReactFlowInstance}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          nodesDraggable={workspace.isEditable}
-          nodesConnectable={workspace.isEditable}
-          elementsSelectable={workspace.isEditable}
+          nodesDraggable={canEditWorkspace}
+          nodesConnectable={canEditWorkspace}
+          elementsSelectable={canEditWorkspace}
           fitView
           fitViewOptions={{ padding: 0.2 }}
           colorMode="dark"
@@ -604,63 +459,17 @@ function AmplifyWorkspaceCanvas({
       </AmplifyBuilderContextProvider>
 
       {pickerState ? (
-        <>
-          <button
-            type="button"
-            aria-label="Close node picker"
-            className="fixed inset-0 z-10 cursor-default"
-            onClick={() => setPickerState(null)}
-          />
-          <div
-            className="fixed z-20 w-[320px]"
-            style={{
-              left: Math.max(12, pickerState.clientPosition.x + 10),
-              top: Math.max(12, pickerState.clientPosition.y + 10),
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <SurfaceCard className="border border-tidal-border bg-tidal-card/95 shadow-lg shadow-black/30">
-              <div className="mb-3">
-                <div className="tidal-text-eyebrow">
-                  {pickerState.mode === "source"
-                    ? `Add node from ${pickerState.source?.asset ?? "output"}`
-                    : "Create node"}
-                </div>
-                <p className="mt-1 tidal-text-caption text-tidal-muted">
-                  {pickerState.mode === "source"
-                    ? "Compatible items stay enabled. Incompatible items are shown but disabled."
-                    : "Create a disconnected node anywhere on the canvas."}
-                </p>
-              </div>
-
-              <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
-                {pickerItems.map(({ item, disabled, disabledReason }) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => handleCatalogSelect(item)}
-                    className={`flex w-full cursor-pointer flex-col items-start rounded-lg border px-3 py-3 text-left transition-colors ${
-                      disabled
-                        ? "cursor-not-allowed border-tidal-border/50 bg-background/30 text-tidal-muted"
-                        : "border-tidal-border bg-background/40 text-foreground hover:border-tidal-accent/40 hover:bg-tidal-sidebar-active"
-                    }`}
-                  >
-                    <span className="text-sm font-medium">{item.title}</span>
-                    <span className="mt-1 text-[11px] leading-tight opacity-80">
-                      {item.description}
-                    </span>
-                    {disabledReason ? (
-                      <span className="mt-2 text-[11px] leading-tight text-amber-400">
-                        {disabledReason}
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-            </SurfaceCard>
-          </div>
-        </>
+        <AmplifyPickerOverlay
+          pickerState={pickerState}
+          groups={pickerGroups}
+          items={pickerItems}
+          selectedGroup={selectedPickerGroup}
+          searchQuery={pickerSearchQuery}
+          onClose={closePicker}
+          onSearchQueryChange={setPickerSearchQuery}
+          onSelectedGroupChange={setSelectedPickerGroup}
+          onSelectItem={handleCatalogSelect}
+        />
       ) : null}
     </div>
   );

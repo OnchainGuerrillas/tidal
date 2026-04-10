@@ -5,17 +5,19 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Timer } from "@phosphor-icons/react";
 
 import { Badge } from "@/components/tidal/badge";
+import { CompactSelect } from "@/components/tidal/compact-select";
 import { SurfaceCard } from "@/components/tidal/surface-card";
-import type { RewardNodeType } from "@/mock-data/amplify/types";
-
-function formatStatusLabel(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
+import { useAmplifyBuilderContext } from "@/features/amplify/components/amplify-builder-context";
+import { formatAmplifyStatusLabel } from "@/features/amplify/lib/status";
+import { collectIntervals, type RewardNodeType } from "@/mock-data/amplify/types";
 
 export const RewardNode = memo(
-  ({ data, isConnectable }: NodeProps<RewardNodeType>) => {
+  ({ id, data, isConnectable }: NodeProps<RewardNodeType>) => {
+    const builderContext = useAmplifyBuilderContext();
+    const isEditable = builderContext?.isEditable ?? false;
+
     return (
-      <SurfaceCard className="w-[220px] bg-[#15202E]">
+      <SurfaceCard className="w-[280px] bg-[#15202E]">
         <Handle
           type="target"
           position={Position.Left}
@@ -25,7 +27,7 @@ export const RewardNode = memo(
 
         <div className="mb-3 flex items-center justify-between">
           <span className="tidal-text-eyebrow">{data.title}</span>
-          <Badge variant="status">{formatStatusLabel(data.status)}</Badge>
+          <Badge variant="status">{formatAmplifyStatusLabel(data.status)}</Badge>
         </div>
 
         <p className="mb-3 tidal-text-caption text-tidal-muted">{data.summary}</p>
@@ -41,6 +43,43 @@ export const RewardNode = memo(
           <Timer weight="bold" className="h-3.5 w-3.5" />
           <span>{data.defaultInterval}</span>
         </div>
+
+        {isEditable ? (
+          <div className="mt-3 border-t border-tidal-border/70 pt-3">
+            <div className="mb-2 tidal-text-caption text-tidal-muted">
+              Collection cadence
+            </div>
+            <CompactSelect
+              options={collectIntervals}
+              value={data.defaultInterval}
+              onChange={(nextInterval) =>
+                builderContext?.updateNodeData(id, (currentData) => {
+                  if (currentData.nodeKind !== "reward") {
+                    return currentData;
+                  }
+
+                  return {
+                    ...currentData,
+                    defaultInterval: nextInterval,
+                    outputs: currentData.outputs.map((output) => ({
+                      ...output,
+                      cadenceLabel: nextInterval,
+                    })),
+                    draftState: {
+                      hasChanges: true,
+                      changedFields: Array.from(
+                        new Set([
+                          ...(currentData.draftState?.changedFields ?? []),
+                          "defaultInterval",
+                        ])
+                      ),
+                    },
+                  };
+                })
+              }
+            />
+          </div>
+        ) : null}
 
         <Handle
           type="source"

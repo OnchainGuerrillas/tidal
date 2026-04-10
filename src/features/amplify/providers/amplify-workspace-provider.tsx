@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from "react";
 
-import { amplifyInitialWorkspaces } from "@/mock-data/amplify/mocks/workspace";
+import {
+  amplifyInitialWorkspaces,
+  createAmplifyBuilderWorkspace,
+} from "@/mock-data/amplify/mocks/workspace";
 import type {
   AmplifyGraphEdge,
   AmplifyGraphNode,
@@ -33,6 +36,11 @@ type CreateAmplifyWorkspaceInput = {
   summary?: string;
 };
 
+type PromoteAmplifyThreadResult = {
+  thread: AmplifyThread;
+  workspaceId: string;
+};
+
 type AmplifyWorkspaceContextValue = {
   workspaces: AmplifyWorkspace[];
   workspace: AmplifyWorkspace;
@@ -45,12 +53,18 @@ type AmplifyWorkspaceContextValue = {
     nodes: AmplifyGraphNode[],
     edges: AmplifyGraphEdge[]
   ) => void;
+  updateWorkspaceMeta: (
+    workspaceId: string,
+    updates: Partial<
+      Pick<AmplifyWorkspace, "executionState" | "activeSnapshot" | "draftState">
+    >
+  ) => void;
   setActiveThreadId: (threadId: string, workspaceId?: string) => void;
   createBlankThread: (workspaceId?: string) => void;
   getPromotedThreadBySourceChatId: (chatId: string) => AmplifyThread | null;
   promoteGlobalChatToThread: (
     input: PromoteGlobalChatToAmplifyThreadInput
-  ) => AmplifyThread;
+  ) => PromoteAmplifyThreadResult;
 };
 
 const AmplifyWorkspaceContext =
@@ -100,118 +114,6 @@ function buildPromotionSummary(input: PromoteGlobalChatToAmplifyThreadInput) {
       : "";
 
   return `Promoted from the global chat "${input.sourceChatTitle}" so the conversation can continue as focused Amplify work around ${linkedContext}. ${input.sourceChatPreview}${latestPrompt}`;
-}
-
-function buildBlankWorkspace(
-  input?: CreateAmplifyWorkspaceInput
-): AmplifyWorkspace {
-  const nextWorkspaceId = createId("amplify-workspace");
-  const initialThreadId = createId("amplify-thread-builder");
-  const walletNodeId = createId("wallet");
-
-  return {
-    id: nextWorkspaceId,
-    name: input?.name?.trim() || "New Amplify Strategy",
-    summary:
-      input?.summary?.trim() ||
-      "A blank builder workspace seeded with mocked wallet balances.",
-    kind: "builder",
-    isEditable: true,
-    executionState: "draft",
-    draftState: {
-      updatedAtLabel: "Not run yet",
-      changedNodeIds: [],
-      impactedNodeIds: [],
-    },
-    activeThreadId: initialThreadId,
-    threads: [
-      {
-        id: initialThreadId,
-        title: "Builder thread",
-        preview: "A fresh Amplify workspace for sketching a new reinvestment loop.",
-        lastViewedLabel: "Created just now",
-        messages: [
-          {
-            id: createId("amplify-thread-builder-ai"),
-            role: "ai",
-            content:
-              "New Amplify workspace ready. Start from the wallet node and build out the loop you want to prototype.",
-          },
-        ],
-      },
-    ],
-    suggestions: [
-      "Start from SOL",
-      "Split wallet balance",
-      "Map a reinvestment loop",
-    ],
-    nodes: [
-      {
-        id: walletNodeId,
-        type: "wallet",
-        position: { x: 0, y: 180 },
-        data: {
-          nodeKind: "wallet",
-          title: "Primary wallet",
-          summary: "Mocked wallet balances ready to seed a new Amplify loop.",
-          description:
-            "Start with mocked wallet balances and branch into a new loop.",
-          status: "ready",
-          acceptedAssets: [],
-          outputs: [
-            {
-              id: "sol",
-              label: "SOL balance",
-              asset: "SOL",
-              kind: "primary",
-              compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
-              amountLabel: "126.40 SOL",
-            },
-            {
-              id: "usdc",
-              label: "USDC balance",
-              asset: "USDC",
-              kind: "primary",
-              compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
-              amountLabel: "42,000 USDC",
-            },
-          ],
-          holdingsLabel: "$60,449 available",
-          draftState: {
-            hasChanges: false,
-            changedFields: [],
-          },
-          assets: [
-            {
-              symbol: "SOL",
-              amountLabel: "126.40 SOL",
-              valueLabel: "$18,449",
-              outputId: "sol",
-              compatibleNodeTypes: [
-                "amount",
-                "strategy",
-                "split",
-                "destination",
-              ],
-            },
-            {
-              symbol: "USDC",
-              amountLabel: "42,000 USDC",
-              valueLabel: "$42,000",
-              outputId: "usdc",
-              compatibleNodeTypes: [
-                "amount",
-                "strategy",
-                "split",
-                "destination",
-              ],
-            },
-          ],
-        },
-      },
-    ],
-    edges: [],
-  };
 }
 
 function getWorkspaceById(
@@ -275,7 +177,7 @@ export function AmplifyWorkspaceProvider({
   );
 
   const createWorkspace = useCallback((input?: CreateAmplifyWorkspaceInput) => {
-    const nextWorkspace = buildBlankWorkspace(input);
+    const nextWorkspace = createAmplifyBuilderWorkspace(input);
 
     setWorkspaces((currentWorkspaces) => [nextWorkspace, ...currentWorkspaces]);
     setActiveWorkspaceIdState(nextWorkspace.id);
@@ -296,6 +198,27 @@ export function AmplifyWorkspaceProvider({
                   style: edge.style ? { ...edge.style } : undefined,
                   data: edge.data ? { ...edge.data } : undefined,
                 })),
+              }
+            : workspace
+        )
+      );
+    },
+    []
+  );
+
+  const updateWorkspaceMeta = useCallback(
+    (
+      workspaceId: string,
+      updates: Partial<
+        Pick<AmplifyWorkspace, "executionState" | "activeSnapshot" | "draftState">
+      >
+    ) => {
+      setWorkspaces((currentWorkspaces) =>
+        currentWorkspaces.map((workspace) =>
+          workspace.id === workspaceId
+            ? {
+                ...workspace,
+                ...updates,
               }
             : workspace
         )
@@ -380,7 +303,10 @@ export function AmplifyWorkspaceProvider({
           )
         );
 
-        return existingThread;
+        return {
+          thread: existingThread,
+          workspaceId: existingMatch.id,
+        };
       }
 
       const fallbackWorkspace =
@@ -422,13 +348,17 @@ export function AmplifyWorkspaceProvider({
       );
       setActiveWorkspaceIdState(targetWorkspaceId);
 
-      return nextThread;
+      return {
+        thread: nextThread,
+        workspaceId: targetWorkspaceId,
+      };
     },
     [activeWorkspaceId, workspaces]
   );
 
   const workspace =
-    getWorkspaceById(workspaces, activeWorkspaceId) ?? buildBlankWorkspace();
+    getWorkspaceById(workspaces, activeWorkspaceId) ??
+    createAmplifyBuilderWorkspace();
   const activeThread =
     workspace.threads.find((thread) => thread.id === workspace.activeThreadId) ??
     workspace.threads[0];
@@ -445,6 +375,7 @@ export function AmplifyWorkspaceProvider({
       setActiveWorkspaceId,
       createWorkspace,
       updateWorkspaceGraph,
+      updateWorkspaceMeta,
       setActiveThreadId,
       createBlankThread,
       getPromotedThreadBySourceChatId,
@@ -458,6 +389,7 @@ export function AmplifyWorkspaceProvider({
       setActiveWorkspaceId,
       createWorkspace,
       updateWorkspaceGraph,
+      updateWorkspaceMeta,
       setActiveThreadId,
       createBlankThread,
       getPromotedThreadBySourceChatId,

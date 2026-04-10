@@ -28,7 +28,8 @@ Current routes:
 - `src/app/page.tsx`: Home global chat workspace
 - `src/app/chat/[chatId]/page.tsx`: route-backed global chat workspace for persisted chat URLs
 - `src/app/pool/page.tsx`: Pool workspace prototype
-- `src/app/amplify/page.tsx`: Amplify workspace prototype
+- `src/app/amplify/page.tsx`: client redirector that resolves `/amplify` to the active Amplify workspace URL
+- `src/app/amplify/[workspaceId]/page.tsx`: addressable Amplify workspace route
 - `src/app/layout.tsx`: shared shell with a global top header above the sidebar/content row, plus preference-profile provider, global chat provider, Pool provider, sidebar provider, and tooltip provider
 
 ### 2. Shared UI components
@@ -126,7 +127,8 @@ Examples in the current repo:
 - sidebar navigation is sourced from `src/mock-data/shell/mocks/navigation.ts`
 - hybrid chat foundations are sourced from `src/mock-data/shell/mocks/hybrid-chat.ts`
 - home suggestions are sourced from `src/mock-data/home/mocks/home-screen.ts`
-- Amplify workspaces, threads, wallet-seeded builder content, and example graph data are sourced from `src/mock-data/amplify/mocks/workspace.ts`
+- Amplify workspaces, threads, wallet-seeded builder content, and example graph data are now split across `src/mock-data/amplify/mocks/catalog.ts`, `src/mock-data/amplify/mocks/node-factories.ts`, `src/mock-data/amplify/mocks/builder-workspace.ts`, and `src/mock-data/amplify/mocks/example-workspace.ts`, with `workspace.ts` acting as a small re-export surface
+- Amplify workspace URLs are built from `src/lib/amplify-routes.ts` so the example strategy and each builder workspace have their own route-backed address
 
 ## Current Feature Breakdown
 
@@ -166,6 +168,7 @@ Current responsibilities:
 - create/open recommendation actions that add linked workspace context without creating dedicated threads
 - explicit promotion controls that turn a general chat with Pool context into a dedicated Pool thread
 - explicit promotion controls that turn a general chat with Amplify context into a dedicated Amplify thread
+- route-backed creation and opening flows for Amplify so each workspace resolves to its own `/amplify/[workspaceId]` URL
 - shared ownership banners on general chats and summary-seed panels on promoted workspace threads
 - reusable preference context panel rendering behind the shared global header dialog
 - chat-level suggestion and metadata panels around the shared composer
@@ -207,11 +210,18 @@ Current responsibilities:
 
 - Amplify route-level workspace composition
 - strategy graph and thread-capable chat layout
+- a thin workspace screen that delegates canvas graph state into `features/amplify/hooks/use-amplify-canvas-state.ts`
 - multi-workspace Amplify state with an active workspace selector
 - a blank builder workspace seeded with a wallet node for new strategy design
 - a separate seeded example workspace that preserves the original SOL loop as a running reference
 - compatibility-aware node creation from wallet assets and downstream node outputs
 - drag-from-output handle creation and right-click canvas creation using a mocked Amplify node catalog
+- a structured Amplify node picker with search, hybrid category tabs, and disabled-but-visible incompatible groups/items
+- inline node editing for amount, split, reward cadence, and strategy setup while a workspace is in draft mode
+- a lightweight draft-vs-active workspace state bar that locks inline editing once a strategy is marked active
+- mocked run validation that marks invalid or blocked nodes as errors before replacing the active strategy snapshot
+- downstream impact tracking that marks affected nodes as impacted after upstream draft changes and surfaces a persistent warning banner
+- a fullscreen canvas-focus mode that hides the local Amplify header and chat while keeping the global app header visible
 - graph persistence per workspace for created nodes, created edges, and moved nodes
 - client-side connection validation that rejects incompatible asset-to-node edges
 - promoted Amplify thread creation from the global chat system, including source metadata and summary-seeded context
@@ -236,7 +246,7 @@ Current responsibilities:
 - wallet node typing and mocked wallet balances for the blank builder state
 - strategy node typing
 - split node typing
-- mocked builder and example Amplify workspace content
+- mocked builder workspace seeding separated from the example workspace scenario
 - mocked React Flow nodes and edges for both blank and seeded workspaces
 
 ## Component Boundary Rules

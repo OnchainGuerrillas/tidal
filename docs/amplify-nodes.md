@@ -148,7 +148,7 @@ Turn the canvas into a real strategy-building surface.
 
 ### Phase 5: Inline Node Editing And Reward Routing
 
-Status: Pending
+Status: Complete
 
 #### Goal
 
@@ -156,24 +156,24 @@ Make node cards informative and directly editable while keeping active strategie
 
 #### Tasks
 
-- [ ] add inline amount controls where relevant
-- [ ] add inline protocol or action-specific controls inside node cards
-- [ ] add separate reward output handling for earning nodes
-- [ ] support routing rewards to wallet, split nodes, or downstream strategy nodes
-- [ ] show mocked amount-held in the platform on each relevant node
-- [ ] show APY or borrow cost on each relevant node
-- [ ] show a link to the mocked underlying platform destination
-- [ ] lock active nodes once a strategy is running
-- [ ] keep the example workspace non-editable
+- [x] add inline amount controls where relevant
+- [x] add inline protocol or action-specific controls inside node cards
+- [x] add separate reward output handling for earning nodes
+- [x] support routing rewards to wallet, split nodes, or downstream strategy nodes
+- [x] show mocked amount-held in the platform on each relevant node
+- [x] show APY or borrow cost on each relevant node
+- [x] show a link to the mocked underlying platform destination
+- [x] lock active nodes once a strategy is running
+- [x] keep the example workspace non-editable
 
 #### Deliverable
 
-- [ ] nodes communicate both strategy intent and mocked investment state
-- [ ] users can configure draft strategies without leaving the canvas
+- [x] nodes communicate both strategy intent and mocked investment state
+- [x] users can configure draft strategies without leaving the canvas
 
 ### Phase 6: Run Simulation And Downstream Impact States
 
-Status: Pending
+Status: Complete
 
 #### Goal
 
@@ -181,26 +181,26 @@ Make Amplify feel operational by simulating strategy execution and downstream co
 
 #### Tasks
 
-- [ ] add a workspace-level `Run` action
-- [ ] validate graph structure before run
-- [ ] validate asset compatibility before run
-- [ ] simulate mocked execution outputs across the graph
-- [ ] mark successful nodes as `active`
-- [ ] mark invalid or blocked nodes as `error`
-- [ ] preserve the last successful run as an active snapshot
-- [ ] allow edits by creating draft changes over the active snapshot
-- [ ] mark downstream descendants as `impacted` after upstream edits
-- [ ] show a persistent inline banner explaining how many downstream nodes are affected
-- [ ] require rerun before impacted draft changes become the new active state
+- [x] add a workspace-level `Run` action
+- [x] validate graph structure before run
+- [x] validate asset compatibility before run
+- [x] simulate mocked execution outputs across the graph
+- [x] mark successful nodes as `active`
+- [x] mark invalid or blocked nodes as `error`
+- [x] preserve the last successful run as an active snapshot
+- [x] allow edits by creating draft changes over the active snapshot
+- [x] mark downstream descendants as `impacted` after upstream edits
+- [x] show a persistent inline banner explaining how many downstream nodes are affected
+- [x] require rerun before impacted draft changes become the new active state
 
 #### Deliverable
 
-- [ ] Amplify communicates not just how to build a strategy, but how changes ripple through later positions
-- [ ] the prototype expresses DeFi-style downstream consequences without requiring real execution
+- [x] Amplify communicates not just how to build a strategy, but how changes ripple through later positions
+- [x] the prototype expresses DeFi-style downstream consequences without requiring real execution
 
 ### Phase 7: Polish, Navigation, And Documentation
 
-Status: Pending
+Status: Complete
 
 #### Goal
 
@@ -208,18 +208,19 @@ Make the builder legible, maintainable, and coherent with the rest of the protot
 
 #### Tasks
 
-- [ ] refine sidebar labeling for example vs user-created Amplify workspaces
-- [ ] ensure the builder works at desktop and mobile breakpoints
-- [ ] preserve the split chat + canvas layout while keeping the graph legible
-- [ ] align new node states with the existing Tidal visual system
-- [ ] update `docs/architecture.md` to reflect the new Amplify structure
-- [ ] update `docs/codex-plan.md` to reflect work completed here
-- [ ] keep this document updated as implementation progresses
+- [x] refine sidebar labeling for example vs user-created Amplify workspaces
+- [x] ensure the builder works at desktop and mobile breakpoints
+- [x] preserve the split chat + canvas layout while keeping the graph legible
+- [x] align new node states with the existing Tidal visual system
+- [x] add a fullscreen canvas toggle that hides the Amplify header and chat while preserving the global header
+- [x] update `docs/architecture.md` to reflect the new Amplify structure
+- [x] update `docs/codex-plan.md` to reflect work completed here
+- [x] keep this document updated as implementation progresses
 
 #### Deliverable
 
-- [ ] Amplify reads as a builder-first feature instead of a static graph demo
-- [ ] docs stay aligned with the resulting structure and phased progress
+- [x] Amplify reads as a builder-first feature instead of a static graph demo
+- [x] docs stay aligned with the resulting structure and phased progress
 
 ## Open Notes
 

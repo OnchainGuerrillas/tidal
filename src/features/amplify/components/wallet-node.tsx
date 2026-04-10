@@ -6,11 +6,8 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Badge } from "@/components/tidal/badge";
 import { SurfaceCard } from "@/components/tidal/surface-card";
 import { useAmplifyBuilderContext } from "@/features/amplify/components/amplify-builder-context";
+import { formatAmplifyStatusLabel } from "@/features/amplify/lib/status";
 import type { WalletNodeType } from "@/mock-data/amplify/types";
-
-function formatStatusLabel(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
 
 export const WalletNode = memo(
   ({ data, isConnectable }: NodeProps<WalletNodeType>) => {
@@ -22,7 +19,7 @@ export const WalletNode = memo(
         <div className="border-b border-tidal-border px-4 py-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="tidal-text-eyebrow">{data.title}</span>
-            <Badge variant="status">{formatStatusLabel(data.status)}</Badge>
+            <Badge variant="status">{formatAmplifyStatusLabel(data.status)}</Badge>
           </div>
           <p className="tidal-text-caption text-tidal-muted">{data.description}</p>
         </div>

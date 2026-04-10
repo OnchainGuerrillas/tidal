@@ -51,13 +51,25 @@ export type AmplifyNodeOutput = {
   cadenceLabel?: string;
 };
 
+export const amplifyNodePickerGroups = [
+  "strategy",
+  "route_math",
+  "rewards",
+  "wallet",
+] as const;
+
+export type AmplifyNodePickerGroup = (typeof amplifyNodePickerGroups)[number];
+
 export type AmplifyNodeCatalogItem = {
   id: string;
   title: string;
   description: string;
+  group: AmplifyNodePickerGroup;
   nodeKind: AmplifyNodeKind;
   supportedInputAssets: string[];
   primaryOutputAsset?: string;
+  protocolLabel?: string;
+  keywords?: string[];
 };
 
 export type AmplifyPlatformLink = {
@@ -115,6 +127,7 @@ export type StrategyNodeData = AmplifyNodeBaseData & {
   nodeKind: "strategy";
   protocol: string;
   action: string;
+  actionOptions?: string[];
   inputAsset: string;
   apy: string;
   apyType: "earn" | "cost";
@@ -147,8 +160,6 @@ export type StrategyNodeType = Node<StrategyNodeData, "strategy">;
 export type SplitNodeType = Node<SplitNodeData, "split">;
 export type RewardNodeType = Node<RewardNodeData, "reward">;
 export type DestinationNodeType = Node<DestinationNodeData, "destination">;
-export type CollectorNodeData = RewardNodeData;
-export type CollectorNodeType = RewardNodeType;
 export type AmplifyGraphNode =
   | WalletNodeType
   | AmountNodeType

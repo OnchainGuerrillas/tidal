@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Timer } from "@phosphor-icons/react";
 
@@ -8,25 +8,21 @@ import { Badge } from "@/components/tidal/badge";
 import { CompactSelect } from "@/components/tidal/compact-select";
 import { SurfaceCard } from "@/components/tidal/surface-card";
 import { useAmplifyBuilderContext } from "@/features/amplify/components/amplify-builder-context";
+import { formatAmplifyStatusLabel } from "@/features/amplify/lib/status";
 import {
   collectIntervals,
   type StrategyNodeType,
 } from "@/mock-data/amplify/types";
 
-function formatStatusLabel(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 export const StrategyNode = memo(
-  ({ data, isConnectable }: NodeProps<StrategyNodeType>) => {
+  ({ id, data, isConnectable }: NodeProps<StrategyNodeType>) => {
     const builderContext = useAmplifyBuilderContext();
     const isEditable = builderContext?.isEditable ?? false;
-    const [interval, setInterval] = useState(data.collectInterval ?? "Weekly");
     const showCollector = data.apyType === "earn";
     const primaryOutput = data.outputs.find((output) => output.kind === "primary");
 
     return (
-      <SurfaceCard className="w-[240px] bg-[#15202E]" padding="none">
+      <SurfaceCard className="w-[280px] bg-[#15202E]" padding="none">
         <Handle
           type="target"
           position={Position.Left}
@@ -37,7 +33,7 @@ export const StrategyNode = memo(
         <div className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="tidal-text-eyebrow">{data.protocol}</span>
-            <Badge variant="status">{formatStatusLabel(data.status)}</Badge>
+            <Badge variant="status">{formatAmplifyStatusLabel(data.status)}</Badge>
           </div>
 
           <div className="mb-3 tidal-text-body">{data.action}</div>
@@ -130,6 +126,39 @@ export const StrategyNode = memo(
               ))}
             </div>
           ) : null}
+
+          {isEditable && data.actionOptions && data.actionOptions.length > 1 ? (
+            <div className="mt-3 space-y-2 border-t border-tidal-border/70 pt-3">
+              <div className="tidal-text-caption text-tidal-muted">
+                Strategy setup
+              </div>
+              <CompactSelect
+                options={data.actionOptions}
+                value={data.action}
+                onChange={(nextAction) =>
+                  builderContext?.updateNodeData(id, (currentData) => {
+                    if (currentData.nodeKind !== "strategy") {
+                      return currentData;
+                    }
+
+                    return {
+                      ...currentData,
+                      action: nextAction,
+                      draftState: {
+                        hasChanges: true,
+                        changedFields: Array.from(
+                          new Set([
+                            ...(currentData.draftState?.changedFields ?? []),
+                            "action",
+                          ])
+                        ),
+                      },
+                    };
+                  })
+                }
+              />
+            </div>
+          ) : null}
         </div>
 
         {showCollector && (
@@ -140,11 +169,42 @@ export const StrategyNode = memo(
                 Fee Collector
               </span>
             </div>
-            <CompactSelect
-              options={collectIntervals}
-              value={interval}
-              onChange={(nextInterval) => setInterval(nextInterval)}
-            />
+            {isEditable ? (
+              <CompactSelect
+                options={collectIntervals}
+                value={data.collectInterval ?? "Weekly"}
+                onChange={(nextInterval) =>
+                  builderContext?.updateNodeData(id, (currentData) => {
+                    if (currentData.nodeKind !== "strategy") {
+                      return currentData;
+                    }
+
+                    return {
+                      ...currentData,
+                      collectInterval: nextInterval,
+                      outputs: currentData.outputs.map((output) =>
+                        output.kind === "reward"
+                          ? { ...output, cadenceLabel: nextInterval }
+                          : output
+                      ),
+                      draftState: {
+                        hasChanges: true,
+                        changedFields: Array.from(
+                          new Set([
+                            ...(currentData.draftState?.changedFields ?? []),
+                            "collectInterval",
+                          ])
+                        ),
+                      },
+                    };
+                  })
+                }
+              />
+            ) : (
+              <div className="tidal-text-caption text-foreground">
+                {data.collectInterval ?? "Weekly"}
+              </div>
+            )}
           </div>
         )}
       </SurfaceCard>

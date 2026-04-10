@@ -8,6 +8,7 @@ import type {
   SplitNodeData,
   StrategyNodeData,
 } from "@/mock-data/amplify/types";
+import { getAmplifyWorkspaceHref } from "@/lib/amplify-routes";
 import { getGlobalChatHref } from "@/lib/global-chat-routes";
 
 import type {
@@ -32,7 +33,7 @@ export const amplifyWorkspaceSummaries: WorkspaceSummary[] = [
   ...amplifyInitialWorkspaces.map((workspace) => ({
     id: workspace.id,
     title: workspace.name,
-    href: "/amplify",
+    href: getAmplifyWorkspaceHref(workspace.id),
     summary: workspace.summary,
     workspaceType: "amplify" as const,
   })),
@@ -107,7 +108,7 @@ export const mentionTargets: MentionTarget[] = [
         subtitle: `Strategy node in ${primaryAmplifyWorkspace.title}`,
         workspaceType: "amplify" as const,
         workspaceId: primaryAmplifyWorkspace.id,
-        href: "/amplify",
+        href: getAmplifyWorkspaceHref(primaryAmplifyWorkspace.id),
       };
     }
 
@@ -120,7 +121,7 @@ export const mentionTargets: MentionTarget[] = [
       subtitle: `Routing node in ${primaryAmplifyWorkspace.title}`,
       workspaceType: "amplify" as const,
       workspaceId: primaryAmplifyWorkspace.id,
-      href: "/amplify",
+      href: getAmplifyWorkspaceHref(primaryAmplifyWorkspace.id),
     };
   }),
 ];

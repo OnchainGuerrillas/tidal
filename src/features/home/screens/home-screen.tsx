@@ -15,6 +15,7 @@ import { homeScreenContent } from "@/mock-data/home/mocks/home-screen";
 import { useAmplifyWorkspace } from "@/features/amplify/providers/amplify-workspace-provider";
 import { WorkspacePromotionCard } from "@/components/tidal/workspace-promotion-card";
 import { WorkspaceButton } from "@/components/tidal/workspace-button";
+import { getAmplifyWorkspaceHref } from "@/lib/amplify-routes";
 
 export function HomeScreen() {
   const router = useRouter();
@@ -44,8 +45,8 @@ export function HomeScreen() {
     .reverse()
     .find((message) => message.role === "user" && message.content)?.content;
   const handleCreateAmplify = () => {
-    createAmplifyWorkspace();
-    router.push("/amplify");
+    const workspace = createAmplifyWorkspace();
+    router.push(getAmplifyWorkspaceHref(workspace.id));
   };
 
   if (isEmptyChat) {
@@ -129,7 +130,7 @@ export function HomeScreen() {
               workspaceType="amplify"
               hasDedicatedThread={Boolean(promotedAmplifyThread)}
               onOpen={() => {
-                promoteGlobalChatToAmplifyThread({
+                const result = promoteGlobalChatToAmplifyThread({
                   sourceChatId: activeChat.id,
                   sourceChatTitle: activeChat.title,
                   sourceChatPreview: activeChat.preview,
@@ -138,7 +139,7 @@ export function HomeScreen() {
                   promotedLinkLabels: amplifyLinks.map((link) => link.label),
                   targetWorkspaceId: amplifyLinks[0]?.workspaceId,
                 });
-                router.push("/amplify");
+                router.push(getAmplifyWorkspaceHref(result.workspaceId));
               }}
             />
           ) : null}

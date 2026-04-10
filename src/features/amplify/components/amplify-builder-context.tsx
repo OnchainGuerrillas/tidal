@@ -1,9 +1,14 @@
 "use client";
 
 import { createContext, useContext } from "react";
+import type { AmplifyGraphNode } from "@/mock-data/amplify/types";
 
 type AmplifyBuilderContextValue = {
   isEditable: boolean;
+  updateNodeData: (
+    nodeId: string,
+    updater: (data: AmplifyGraphNode["data"]) => AmplifyGraphNode["data"]
+  ) => void;
 };
 
 const AmplifyBuilderContext = createContext<AmplifyBuilderContextValue | null>(

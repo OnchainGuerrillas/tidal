@@ -6,19 +6,16 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Badge } from "@/components/tidal/badge";
 import { SurfaceCard } from "@/components/tidal/surface-card";
 import { useAmplifyBuilderContext } from "@/features/amplify/components/amplify-builder-context";
+import { formatAmplifyStatusLabel } from "@/features/amplify/lib/status";
 import type { SplitNodeType } from "@/mock-data/amplify/types";
 
-function formatStatusLabel(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 export const SplitNode = memo(
-  ({ data, isConnectable }: NodeProps<SplitNodeType>) => {
+  ({ id, data, isConnectable }: NodeProps<SplitNodeType>) => {
     const builderContext = useAmplifyBuilderContext();
     const isEditable = builderContext?.isEditable ?? false;
 
     return (
-      <SurfaceCard className="w-[180px] bg-[#15202E]">
+      <SurfaceCard className="w-[280px] bg-[#15202E]">
         <Handle
           type="target"
           position={Position.Left}
@@ -28,7 +25,7 @@ export const SplitNode = memo(
 
         <div className="mb-3 flex items-center justify-between">
           <div className="tidal-text-eyebrow">Split {data.asset}</div>
-          <Badge variant="status">{formatStatusLabel(data.status)}</Badge>
+          <Badge variant="status">{formatAmplifyStatusLabel(data.status)}</Badge>
         </div>
 
         <p className="mb-3 tidal-text-caption text-tidal-muted">{data.summary}</p>
@@ -76,8 +73,55 @@ export const SplitNode = memo(
         </div>
 
         {isEditable ? (
-          <div className="tidal-text-caption text-tidal-muted">
-            Drag from either path circle to continue routing.
+          <div className="space-y-2">
+            <div className="tidal-text-caption text-tidal-muted">
+              Drag from either path circle to continue routing.
+            </div>
+            <div className="space-y-2 border-t border-tidal-border/70 pt-3">
+              <div className="flex items-center justify-between tidal-text-caption text-tidal-muted">
+                <span>Path balance</span>
+                <span>{data.splitA}% / {data.splitB}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={data.splitA}
+                onChange={(event) =>
+                  builderContext?.updateNodeData(id, (currentData) => {
+                    if (currentData.nodeKind !== "split") {
+                      return currentData;
+                    }
+
+                    const nextSplitA = Number(event.target.value);
+                    const nextSplitB = 100 - nextSplitA;
+
+                    return {
+                      ...currentData,
+                      splitA: nextSplitA,
+                      splitB: nextSplitB,
+                      outputs: currentData.outputs.map((output) => ({
+                        ...output,
+                        asset:
+                          output.id === "a"
+                            ? `${nextSplitA}% ${currentData.asset}`
+                            : `${nextSplitB}% ${currentData.asset}`,
+                      })),
+                      draftState: {
+                        hasChanges: true,
+                        changedFields: Array.from(
+                          new Set([
+                            ...(currentData.draftState?.changedFields ?? []),
+                            "split",
+                          ])
+                        ),
+                      },
+                    };
+                  })
+                }
+                className="nodrag w-full accent-[#61B3CF]"
+              />
+            </div>
           </div>
         ) : null}
 
