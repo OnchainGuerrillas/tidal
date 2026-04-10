@@ -10,7 +10,6 @@ import { PoolWorkspaceProvider } from "@/features/pool/providers/pool-workspace-
 import { AppHeader } from "@/features/shell/components/app-header";
 import { AppSidebar } from "@/features/shell/components/app-sidebar";
 import { PreferenceProfileProvider } from "@/features/shell/providers/preference-profile-provider";
-import { sidebarNavigation } from "@/mock-data/shell/mocks/navigation";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -37,9 +36,9 @@ export default function RootLayout({
                 <AmplifyWorkspaceProvider>
                   <SidebarProvider>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                      <AppHeader navigation={sidebarNavigation} />
+                      <AppHeader />
                       <div className="flex min-h-0 flex-1 overflow-hidden">
-                        <AppSidebar navigation={sidebarNavigation} />
+                        <AppSidebar />
                         <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
                           {children}
                         </main>

@@ -16,6 +16,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -33,24 +34,22 @@ import {
 import { useGlobalChatWorkspace } from "@/features/home/providers/global-chat-workspace-provider";
 import { useAmplifyWorkspace } from "@/features/amplify/providers/amplify-workspace-provider";
 import { usePoolWorkspace } from "@/features/pool/providers/pool-workspace-provider";
+import { getAmplifyWorkspaceHref } from "@/lib/amplify-routes";
+import { sidebarNavigation } from "@/mock-data/shell/mocks/navigation";
 import { cn } from "@/lib/utils";
-import type { SidebarNavigation } from "@/mock-data/shell/types";
 
-type AppSidebarProps = {
-  navigation: SidebarNavigation;
-};
-
-export function AppSidebar({ navigation }: AppSidebarProps) {
+export function AppSidebar() {
   const pathname = usePathname();
   const isPoolRoute = pathname.startsWith("/pool");
   const isAmplifyRoute = pathname.startsWith("/amplify");
   const [isPoolExpanded, setIsPoolExpanded] = useState(true);
-  const [isAmplifyExpanded, setIsAmplifyExpanded] = useState(true);
   const [collapsedAmplifySectionIds, setCollapsedAmplifySectionIds] = useState<string[]>([]);
   const { activeChat, chats, setActiveChatId } = useGlobalChatWorkspace();
   const {
+    workspaces: amplifyWorkspaces,
     workspace: amplifyWorkspace,
     activeThread: activeAmplifyThread,
+    setActiveWorkspaceId,
     setActiveThreadId: setActiveAmplifyThreadId,
     createBlankThread: createBlankAmplifyThread,
   } = useAmplifyWorkspace();
@@ -67,19 +66,17 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
     href: "/pool",
     id: thread.id,
   }));
-  const amplifyChatItems = amplifyWorkspace.threads.map((thread) => ({
-    title: thread.title,
-    href: "/amplify",
-    id: thread.id,
-  }));
 
   const globalChats = chats.map((chat) => ({
     ...chat,
     href: chat.href ?? "/",
   }));
-  const extraAmplifyItems = navigation.amplifyItems.filter(
-    (item) => item.id !== amplifyWorkspace.id && item.title !== amplifyWorkspace.name
-  );
+  const userInitials = sidebarNavigation.userName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <Sidebar
@@ -173,101 +170,38 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
 
         <SidebarSeparator />
 
-        <SidebarGroup>
-          <div className="flex items-center gap-1 px-0.5">
-            <SidebarGroupLabel className="tidal-sidebar-group-title flex-1 px-0">
-              <Lightning weight="bold" className="mr-1" />
-              {amplifyWorkspace.name}
-            </SidebarGroupLabel>
-            <button
-              type="button"
-              aria-label={
-                isAmplifyExpanded
-                  ? "Collapse Amplify threads"
-                  : "Expand Amplify threads"
-              }
-              aria-expanded={isAmplifyExpanded}
-              onClick={() => setIsAmplifyExpanded((current) => !current)}
-              className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-tidal-accent transition-colors hover:bg-tidal-sidebar-active hover:text-tidal-accent"
-            >
-              <CaretDown
-                weight="bold"
-                className={cn(
-                  "h-3 w-3 transition-transform",
-                  isAmplifyExpanded ? "rotate-180" : "rotate-0"
-                )}
-              />
-            </button>
-          </div>
-          <SidebarGroupContent>
-            {isAmplifyExpanded ? (
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link href="/amplify" />}
-                    tooltip="Overview"
-                    className="tidal-sidebar-item"
-                    onClick={() => setActiveAmplifyThreadId(activeAmplifyThread.id)}
-                  >
-                    <span className="text-[0.8125rem] leading-[1.1rem]">
-                      Overview
-                    </span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                {amplifyChatItems.map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      render={<Link href="/amplify" />}
-                      tooltip={item.title}
-                      className="tidal-sidebar-item"
-                      isActive={
-                        isAmplifyRoute && item.id === activeAmplifyThread.id
-                      }
-                      onClick={() => setActiveAmplifyThreadId(item.id)}
-                    >
-                      <span className="text-[0.8125rem] leading-[1.1rem]">
-                        {item.title}
-                      </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    render={<Link href="/amplify" />}
-                    tooltip="New thread"
-                    className="tidal-sidebar-item"
-                    onClick={createBlankAmplifyThread}
-                  >
-                    <span className="text-[0.8125rem] leading-[1.1rem]">
-                      New thread
-                    </span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            ) : null}
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {extraAmplifyItems.map((item) => {
-          const sectionId = item.id ?? item.title;
+        {amplifyWorkspaces.map((workspace) => {
+          const workspaceHref = getAmplifyWorkspaceHref(workspace.id);
+          const amplifyChatItems = workspace.threads.map((thread) => ({
+            title: thread.title,
+            href: workspaceHref,
+            id: thread.id,
+          }));
+          const sectionId = workspace.id;
+          const isSectionCollapsed = collapsedAmplifySectionIds.includes(sectionId);
+          const isActiveWorkspace = amplifyWorkspace.id === workspace.id;
 
           return (
           <div key={sectionId}>
-            <SidebarSeparator />
             <SidebarGroup>
               <div className="flex items-center gap-1 px-0.5">
                 <SidebarGroupLabel className="tidal-sidebar-group-title flex-1 px-0">
                   <Lightning weight="bold" className="mr-1" />
-                  {item.title}
+                  <span className="truncate">{workspace.name}</span>
+                  {workspace.kind === "example" ? (
+                    <span className="ml-2 text-[10px] font-medium uppercase tracking-[0.04em] text-tidal-muted">
+                      Example
+                    </span>
+                  ) : null}
                 </SidebarGroupLabel>
                 <button
                   type="button"
                   aria-label={
-                    collapsedAmplifySectionIds.includes(sectionId)
-                      ? `Expand ${item.title}`
-                      : `Collapse ${item.title}`
+                    isSectionCollapsed
+                      ? `Expand ${workspace.name}`
+                      : `Collapse ${workspace.name}`
                   }
-                  aria-expanded={!collapsedAmplifySectionIds.includes(sectionId)}
+                  aria-expanded={!isSectionCollapsed}
                   onClick={() =>
                     setCollapsedAmplifySectionIds((current) =>
                       current.includes(sectionId)
@@ -281,24 +215,57 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
                     weight="bold"
                     className={cn(
                       "h-3 w-3 transition-transform",
-                      collapsedAmplifySectionIds.includes(sectionId)
-                        ? "rotate-0"
-                        : "rotate-180"
+                      isSectionCollapsed ? "rotate-0" : "rotate-180"
                     )}
                   />
                 </button>
               </div>
-              {!collapsedAmplifySectionIds.includes(sectionId) ? (
+              {!isSectionCollapsed ? (
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
-                    <SidebarMenuButton
-                      render={<Link href={item.href ?? "/amplify"} />}
-                      tooltip="Overview"
-                      className="tidal-sidebar-item"
-                    >
+                      <SidebarMenuButton
+                        render={<Link href={workspaceHref} />}
+                        tooltip="Overview"
+                        className="tidal-sidebar-item"
+                        isActive={isAmplifyRoute && isActiveWorkspace}
+                        onClick={() => setActiveWorkspaceId(workspace.id)}
+                      >
                         <span className="text-[0.8125rem] leading-[1.1rem]">
                           Overview
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    {amplifyChatItems.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          render={<Link href={item.href} />}
+                          tooltip={item.title}
+                          className="tidal-sidebar-item"
+                          isActive={
+                            isAmplifyRoute &&
+                            isActiveWorkspace &&
+                            item.id === activeAmplifyThread.id
+                          }
+                          onClick={() =>
+                            setActiveAmplifyThreadId(item.id, workspace.id)
+                          }
+                        >
+                          <span className="text-[0.8125rem] leading-[1.1rem]">
+                            {item.title}
+                          </span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        render={<Link href={workspaceHref} />}
+                        tooltip="New thread"
+                        className="tidal-sidebar-item"
+                        onClick={() => createBlankAmplifyThread(workspace.id)}
+                      >
+                        <span className="text-[0.8125rem] leading-[1.1rem]">
+                          New thread
                         </span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -306,6 +273,9 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
                 </SidebarGroupContent>
               ) : null}
             </SidebarGroup>
+            {workspace.id !== amplifyWorkspaces[amplifyWorkspaces.length - 1]?.id ? (
+              <SidebarSeparator />
+            ) : null}
           </div>
         )})}
 
@@ -382,7 +352,23 @@ export function AppSidebar({ navigation }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
+      <SidebarFooter className="border-t border-tidal-border pt-3">
+        <div className="rounded-xl border border-tidal-border bg-tidal-card/75 p-3">
+          <div className="flex items-start gap-3">
+            <div className="tidal-user-avatar text-[11px] font-semibold text-background">
+              {userInitials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-foreground">
+                {sidebarNavigation.wallet.addressLabel}
+              </div>
+              <div className="mt-0.5 truncate text-[11px] text-tidal-muted">
+                {sidebarNavigation.wallet.solBalanceLabel}
+              </div>
+            </div>
+          </div>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

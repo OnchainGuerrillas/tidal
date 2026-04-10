@@ -15,14 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { PreferenceContextPanel } from "@/components/tidal/preference-context-panel";
 import { usePreferenceProfile } from "@/features/shell/providers/preference-profile-provider";
-import { WalletSummary } from "@/features/shell/components/wallet-summary";
-import type { SidebarNavigation } from "@/mock-data/shell/types";
 
-type AppHeaderProps = {
-  navigation: SidebarNavigation;
-};
-
-export function AppHeader({ navigation }: AppHeaderProps) {
+export function AppHeader() {
   const { profile, toggleInterestOption, toggleRiskOption } = usePreferenceProfile();
   const activeRiskOption =
     profile.riskOptions.find((option) => option.checked)?.label ?? "Risk appetite";
@@ -119,8 +113,6 @@ export function AppHeader({ navigation }: AppHeaderProps) {
               />
             </DialogContent>
           </Dialog>
-
-          <WalletSummary wallet={navigation.wallet} />
         </div>
       </div>
     </header>

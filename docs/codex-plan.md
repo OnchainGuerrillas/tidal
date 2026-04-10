@@ -380,6 +380,16 @@ Turn the current visual direction into a defined system.
 - [x] Add inline AI recommendation cards that steer general chat into Pool or Amplify context without silently creating dedicated threads.
 - [x] Add explicit promotion from general chat into dedicated Pool threads using summary-seeded mock state rather than transcript copies.
 - [x] Extend Amplify into a thread-capable workspace and add explicit promotion from general chat into dedicated Amplify threads.
+- [x] Split Amplify into a blank builder workspace and a separate example workspace, with sidebar switching handled by shared Amplify state.
+- [x] Add a direct Home CTA that creates a blank Amplify workspace without requiring a chat prompt first.
+- [x] Expand the Amplify graph schema to support discriminated node kinds, asset compatibility metadata, output streams, and execution snapshots.
+- [x] Add the first real Amplify builder interactions: drag-from-output creation, compatibility-aware node picking, right-click canvas creation, and graph persistence.
+- [x] Add Phase 5 inline node editing, reward-routing-aware compatibility checks, and draft-vs-active locking for Amplify strategies.
+- [x] Add Phase 6 mocked run validation, node-level error states, active snapshot preservation, and downstream impact banners for Amplify strategies.
+- [x] Add Phase 7 workspace polish including fullscreen canvas focus mode, header/chat hiding, and documentation updates for Amplify.
+- [x] Replace the flat Amplify node picker with a shared tabbed picker using hybrid categories, search, and disabled constrained states.
+- [x] Give Amplify workspaces addressable `/amplify/[workspaceId]` URLs and route all sidebar/Home entry points to the selected workspace.
+- [x] Refactor Amplify back toward the earlier hygiene bar by splitting mock-data concerns, extracting canvas graph state into a feature hook, and deleting dead node paths.
 - [x] Standardise ownership and promotion UI across Home, Pool, and Amplify with shared banners, summary panels, and promotion cards.
 - [ ] Decide the first real Pool and Swap screens to add under the new feature structure.
 - [x] Continue replacing raw text sizes and page spacing values with the new semantic classes in `globals.css`.

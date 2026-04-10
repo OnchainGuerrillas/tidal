@@ -273,7 +273,7 @@
   }
 
   .tidal-pill-button {
-    @apply inline-flex items-center rounded-full border border-tidal-border bg-tidal-card px-4 py-2 text-[11px]/[14px] font-medium text-tidal-accent transition-colors hover:border-tidal-accent/40;
+    @apply inline-flex cursor-pointer items-center rounded-full border border-tidal-border bg-tidal-card px-4 py-2 text-[11px]/[14px] font-medium text-tidal-accent transition-colors hover:border-tidal-accent/40;
   }
 
   .tidal-context-panel {

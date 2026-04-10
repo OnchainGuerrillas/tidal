@@ -1,9 +1,14 @@
-import { amplifyInitialNodes } from "@/mock-data/amplify/mocks/workspace";
+import {
+  amplifyExampleNodes,
+  amplifyExampleWorkspace,
+  amplifyInitialWorkspaces,
+} from "@/mock-data/amplify/mocks/workspace";
 import { poolWorkspace } from "@/mock-data/pool/mocks/workspace";
 import type {
   SplitNodeData,
   StrategyNodeData,
 } from "@/mock-data/amplify/types";
+import { getAmplifyWorkspaceHref } from "@/lib/amplify-routes";
 import { getGlobalChatHref } from "@/lib/global-chat-routes";
 
 import type {
@@ -25,25 +30,19 @@ export const poolWorkspaceSummaries: WorkspaceSummary[] = [
 ];
 
 export const amplifyWorkspaceSummaries: WorkspaceSummary[] = [
-  {
-    id: "amplify-sol-yield-loop",
-    title: "SOL Yield Loop",
-    href: "/amplify",
-    summary:
-      "A composable SOL yield loop that moves across staking, borrowing, and LP positions.",
-    workspaceType: "amplify",
-  },
-  {
-    id: "amplify-staking-compounder",
-    title: "Staking Compounder",
-    href: "/amplify",
-    summary:
-      "A more focused SOL strategy for compounding staking yield back into higher-conviction positions.",
-    workspaceType: "amplify",
-  },
+  ...amplifyInitialWorkspaces.map((workspace) => ({
+    id: workspace.id,
+    title: workspace.name,
+    href: getAmplifyWorkspaceHref(workspace.id),
+    summary: workspace.summary,
+    workspaceType: "amplify" as const,
+  })),
 ];
 
-const primaryAmplifyWorkspace = amplifyWorkspaceSummaries[0];
+const primaryAmplifyWorkspace =
+  amplifyWorkspaceSummaries.find(
+    (workspace) => workspace.id === amplifyExampleWorkspace.id
+  ) ?? amplifyWorkspaceSummaries[0];
 
 export const globalPreferenceProfile: PreferenceProfile = {
   id: "alex-thompson-default-profile",
@@ -98,7 +97,7 @@ export const mentionTargets: MentionTarget[] = [
     workspaceId: poolWorkspace.id,
     href: "/pool",
   })),
-  ...amplifyInitialNodes.map((node) => {
+  ...amplifyExampleNodes.map((node) => {
     if (node.type === "strategy") {
       const strategyData = node.data as StrategyNodeData;
 
@@ -109,7 +108,7 @@ export const mentionTargets: MentionTarget[] = [
         subtitle: `Strategy node in ${primaryAmplifyWorkspace.title}`,
         workspaceType: "amplify" as const,
         workspaceId: primaryAmplifyWorkspace.id,
-        href: "/amplify",
+        href: getAmplifyWorkspaceHref(primaryAmplifyWorkspace.id),
       };
     }
 
@@ -122,7 +121,7 @@ export const mentionTargets: MentionTarget[] = [
       subtitle: `Routing node in ${primaryAmplifyWorkspace.title}`,
       workspaceType: "amplify" as const,
       workspaceId: primaryAmplifyWorkspace.id,
-      href: "/amplify",
+      href: getAmplifyWorkspaceHref(primaryAmplifyWorkspace.id),
     };
   }),
 ];
