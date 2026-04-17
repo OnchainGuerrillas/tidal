@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { globalPreferenceProfile } from "@/mock-data/shell/hybrid-chat";
+import { defaultPreferenceProfile } from "@/mock-data/shell/navigation";
 import type {
   InvestmentInterestLabel,
   PreferenceProfile,
@@ -39,7 +39,7 @@ export function PreferenceProfileProvider({
   children: ReactNode;
 }) {
   const [profile, setProfile] = useState<PreferenceProfile>(() =>
-    cloneProfile(globalPreferenceProfile)
+    cloneProfile(defaultPreferenceProfile)
   );
 
   const toggleRiskOption = useCallback((label: RiskAppetiteLabel) => {
