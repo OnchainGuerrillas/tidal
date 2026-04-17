@@ -102,7 +102,8 @@ export const SplitNode = memo(
                       splitB: nextSplitB,
                       outputs: currentData.outputs.map((output) => ({
                         ...output,
-                        asset:
+                        asset: currentData.asset,
+                        amountLabel:
                           output.id === "a"
                             ? `${nextSplitA}% ${currentData.asset}`
                             : `${nextSplitB}% ${currentData.asset}`,

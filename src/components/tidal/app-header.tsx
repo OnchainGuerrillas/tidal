@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PreferenceContextPanel } from "@/components/tidal/preference-context-panel";
-import { WorkspaceTabs } from "@/components/shell/workspace-tabs";
+import { WorkspaceTabs } from "@/components/tidal/workspace-tabs";
 import { usePreferenceProfile } from "@/providers/preference-profile-provider";
 
 export function AppHeader() {
@@ -30,7 +29,7 @@ export function AppHeader() {
   return (
     <header className="border-b border-tidal-border bg-background/95 backdrop-blur-sm">
       <div className="flex h-14 items-center justify-between gap-4 px-3 md:px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-6">
           <Link
             href="/"
             className="flex h-7 shrink-0 items-center"
@@ -45,7 +44,6 @@ export function AppHeader() {
               priority
             />
           </Link>
-          <SidebarTrigger className="shrink-0 text-tidal-muted hover:text-tidal-accent" />
           <WorkspaceTabs />
         </div>
 

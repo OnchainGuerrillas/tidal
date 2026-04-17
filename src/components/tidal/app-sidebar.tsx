@@ -11,11 +11,6 @@ import {
   type IconProps,
 } from "@phosphor-icons/react";
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { useSidePanel, type SidePanelId } from "@/providers/side-panel-provider";
 import { useWorkspace } from "@/providers/workspace-provider";
@@ -29,9 +24,9 @@ type RailItem = {
 
 const railItems: RailItem[] = [
   { id: "nodes", label: "Nodes", icon: TreeStructure },
+  { id: "chat", label: "Chat", icon: ChatCircle },
   { id: "investments", label: "Investments", icon: Coins },
   { id: "discover", label: "Discover", icon: Compass },
-  { id: "chat", label: "Chat", icon: ChatCircle },
   { id: "templates", label: "Templates", icon: SquaresFour },
 ];
 
@@ -48,11 +43,8 @@ export function AppSidebar() {
     .toUpperCase();
 
   return (
-    <Sidebar
-      collapsible="offcanvas"
-      className="top-14 h-[calc(100svh-3.5rem)] border-t border-tidal-border"
-    >
-      <SidebarContent className="tidal-sidebar-rail">
+    <aside className="tidal-sidebar-rail-shell">
+      <nav className="tidal-sidebar-rail" aria-label="Workspace panels">
         {railItems.map((item) => {
           const Icon = item.icon;
           const isActive = activePanel === item.id;
@@ -68,30 +60,22 @@ export function AppSidebar() {
               aria-pressed={isActive}
               onClick={() => togglePanel(workspace.id, item.id)}
             >
-              <Icon weight={isActive ? "fill" : "regular"} className="h-5 w-5" />
+              <Icon weight={isActive ? "fill" : "regular"} className="h-7 w-7" />
               <span className="tidal-sidebar-rail-label">{item.label}</span>
             </button>
           );
         })}
-      </SidebarContent>
-      <SidebarFooter className="border-t border-tidal-border">
+      </nav>
+      <div className="tidal-sidebar-rail-footer">
         <div className="tidal-sidebar-rail-user" role="presentation">
           <div className="tidal-sidebar-rail-user-avatar">
             <span className="text-[11px] font-semibold text-background">
               {initials}
             </span>
           </div>
-          <div className="min-w-0">
-            <div className="truncate text-[11px] font-medium text-foreground">
-              {shellUser.wallet.addressLabel}
-            </div>
-            <div className="truncate text-[10px] text-tidal-muted">
-              {shellUser.wallet.solBalanceLabel}
-            </div>
-          </div>
-          <User weight="bold" className="ml-auto h-4 w-4 text-tidal-muted" />
+          <User weight="bold" className="h-4 w-4 text-tidal-muted" />
         </div>
-      </SidebarFooter>
-    </Sidebar>
+      </div>
+    </aside>
   );
 }

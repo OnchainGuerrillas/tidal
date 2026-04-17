@@ -76,7 +76,7 @@ export const exampleNodes: WorkspaceGraphNode[] = [
         {
           id: "a",
           label: "Path A",
-          asset: "50% mSOL",
+          asset: "mSOL",
           kind: "primary",
           compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
           amountLabel: "40.6 mSOL",
@@ -84,7 +84,7 @@ export const exampleNodes: WorkspaceGraphNode[] = [
         {
           id: "b",
           label: "Path B",
-          asset: "50% mSOL",
+          asset: "mSOL",
           kind: "primary",
           compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
           amountLabel: "40.6 mSOL",
@@ -160,7 +160,7 @@ export const exampleNodes: WorkspaceGraphNode[] = [
         {
           id: "a",
           label: "Path A",
-          asset: "30% USDC",
+          asset: "USDC",
           kind: "primary",
           compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
           amountLabel: "7,140 USDC",
@@ -168,7 +168,7 @@ export const exampleNodes: WorkspaceGraphNode[] = [
         {
           id: "b",
           label: "Path B",
-          asset: "70% USDC",
+          asset: "USDC",
           kind: "primary",
           compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
           amountLabel: "16,660 USDC",

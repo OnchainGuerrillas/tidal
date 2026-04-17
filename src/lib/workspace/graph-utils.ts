@@ -39,6 +39,10 @@ export function getOutputById(
   return node.data.outputs.find((output) => output.id === outputId) ?? null;
 }
 
+export function getOutputDisplayLabel(output: WorkspaceNodeOutput) {
+  return output.amountLabel ?? output.asset;
+}
+
 export function applySourceAssetToNode(
   node: WorkspaceGraphNode,
   sourceAsset: string
@@ -74,7 +78,8 @@ export function applySourceAssetToNode(
         acceptedAssets: [sourceAsset],
         outputs: node.data.outputs.map((output) => ({
           ...output,
-          asset: `50% ${sourceAsset}`,
+          asset: sourceAsset,
+          amountLabel: `50% ${sourceAsset}`,
         })),
         holdingsLabel: `${sourceAsset} ready to route`,
         asset: sourceAsset,

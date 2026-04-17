@@ -1,54 +1,93 @@
-## Constraints
+# AGENTS.md
 
-This is a prototype/experimentation repo only. There should be no external API calls, no blockchain connections, and no real wallet integrations. All data should be mocked.
+## Project
 
-## About
+Tidal Prototype is a frontend and design experimentation repo for a Solana DeFi product concept. It is not the production app.
 
-This repo is a prototype repo for a Solana DeFi project named Tidal. This repo is a frontend and design experimentation space only.
+The live product is a single unified **workspace** experience. A workspace combines:
 
-The prototype will look to experiment around three areas:
+- a React Flow node canvas
+- per-workspace chat transcript and chat history
+- active investments panel
+- discovery/recommendation panel
+- node catalog panel
+- template gallery panel
 
-### Tidal Pool
+Multiple workspaces are available as tabs in the header. Workspace URLs are top-level routes like `/<workspaceId>`.
 
-An AI natural language interface which suggests DeFi investments within the Solana ecosystem that users can invest their funds into.
+## Hard Constraints
 
-- There should be a manual mode where the user chats and builds up their pool, being presented with actions cards they need to confirm as they develop their strategy
-- An autonomous mode where the chat informs the AI strategy, the AI will then go off and execute on that vision.
+- All product data must be mocked.
+- Do not add external API calls for product data.
+- Do not add blockchain, RPC, Solana program, or wallet-adapter connections.
+- Do not add real wallet integrations.
+- Do not import live code from `_archive/`.
+- Use Bun for commands and package changes.
 
-### Tidal Swap
+## Commands
 
-An AI natural language interface which allows users to swap many-to-many tokens within Solana.
+Use:
 
-- The user may wish to select multiple assets they have in their wallet for a whole new set of tokens
-- The user may wish to select a singular asset and swap it out for multiple others
-- The key here is to make this one smooth process, batching transaction into one to improve the user experience and time it takes to swap
+- `bun install`
+- `bun run dev`
+- `bun run lint`
+- `bun run build`
+- `bun add <package>`
+- `bunx <tool>`
 
-### Tidal Amplify
+Do not use `npm install`, `npm run`, `yarn`, `pnpm`, or `npx` in this repo.
 
-A node based editor that allows users to create looping and reinvestment nodes corresponding to opportunities in the Solana ecosystem.
+## Live Architecture
 
-- The user may invest in one platform and use assets to invest in anoter platform
-- This maximises the returns that they can get by utilising different areas of the DeFi ecosystem
-- Nodes are used to connect these strategies together, showing the connection and how they fit together
+Key docs:
 
-## Current Docs
+- `docs/architecture.md`: current live architecture.
+- `README.md`: developer overview.
+- `docs/product-vision.md`: product vision.
+- `docs/product-strategy.md`: product strategy.
+- `_archive/README.md`: archive rules.
 
-Project docs live in the `docs/` folder of this repo.
+Live code is organized around:
 
-- `docs/product-vision.md` contains the product vision
-- `docs/product-strategy.md` contains the product strategy
-- `docs/codex-plan.md` contains the frontend cleanup and refactor plan
-- `docs/architecture.md` contains the high-level prototype architecture and integration-facing structure
+- `src/app`: thin Next.js routes and global shell.
+- `src/components/ui`: generic primitives.
+- `src/components/tidal`: branded Tidal UI and app-frame components.
+- `src/components/workspace`: the only live product area.
+- `src/providers`: mocked client state.
+- `src/hooks/workspace`: canvas and graph interaction behavior.
+- `src/lib/workspace`: pure graph, picker, and status helpers.
+- `src/mock-data`: mocked shell and workspace data.
 
-When structural frontend changes are made, update `docs/architecture.md` so it continues to reflect how the prototype is organised.
+## Workspace Rules
 
-When work progresses against the frontend refactor plan, keep `docs/codex-plan.md` updated as well.
+- Keep route files thin.
+- Keep workspace product UI under `src/components/workspace`.
+- Keep branded reusable components under `src/components/tidal`.
+- Keep generic primitives product-agnostic under `src/components/ui`.
+- Keep mocked content in `src/mock-data` where practical.
+- Prefer prop/data boundaries that will be easy to replace with production adapters later.
 
-## Runtime & Package Manager
+## Graph Rules
 
-This project uses Bun. Always use `bun` for running scripts, installing packages, and executing commands:
+The graph uses React Flow.
 
-- `bun install` (not `npm install` or `yarn`)
-- `bun run dev` (not `npm run dev`)
-- `bun add <package>` (not `npm install <package>`)
-- `bunx` (not `npx`)
+- `WorkspaceNodeOutput.asset` is canonical asset identity for compatibility checks.
+- `WorkspaceNodeOutput.amountLabel` is display text.
+- Edge `data.asset` is a display label.
+- Do not store values like `50% SOL` in `output.asset`; use `asset: "SOL"` and `amountLabel: "50% SOL"`.
+
+The React Flow canvas is intentionally loaded client-only in `workspace-screen.tsx` with SSR disabled. Do not re-enable SSR for the canvas unless hydration has been tested.
+
+## Archive Rules
+
+`_archive/` contains frozen reference code from older Home, Pool, Swap, Global Chat, Amplify, and promotion experiments. It is excluded from the live build and should not be treated as current architecture.
+
+You may read `_archive/` for patterns, but copy any useful pattern into the live workspace structure rather than importing from archive.
+
+## Docs Maintenance
+
+When structural frontend changes are made:
+
+- update `docs/architecture.md`
+- update `README.md` if developer-facing orientation changes
+- update `AGENTS.md` and `CLAUDE.md` if AI guidance changes

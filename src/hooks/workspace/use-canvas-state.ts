@@ -33,6 +33,7 @@ import {
   cloneGraphNode,
   getClientPosition,
   getDescendantNodeIds,
+  getOutputDisplayLabel,
   getOutputById,
   toNodeMap,
 } from "@/lib/workspace/graph-utils";
@@ -63,6 +64,7 @@ type PickerState = {
     nodeId: string;
     outputId: string;
     asset: string;
+    displayLabel: string;
   };
 };
 
@@ -352,7 +354,12 @@ export function useCanvasState({
         node.id === hydratedTarget.id ? hydratedTarget : node
       );
       const nextEdges = addEdge(
-        buildAssetEdge(sourceNode.id, params.sourceHandle, targetNode.id, output.asset),
+        buildAssetEdge(
+          sourceNode.id,
+          params.sourceHandle,
+          targetNode.id,
+          getOutputDisplayLabel(output)
+        ),
         edges
       );
 
@@ -393,6 +400,7 @@ export function useCanvasState({
           nodeId: pendingConnection.nodeId,
           outputId: pendingConnection.outputId,
           asset: output.asset,
+          displayLabel: getOutputDisplayLabel(output),
         },
       });
     },
@@ -401,20 +409,25 @@ export function useCanvasState({
 
   const onPaneContextMenu = useCallback(
     (event: MouseEvent | ReactMouseEvent) => {
-      if (!canEditWorkspace || !reactFlowInstance) {
+      event.preventDefault();
+
+      if (!canEditWorkspace) {
         return;
       }
 
-      event.preventDefault();
+      const flowPosition = reactFlowInstance
+        ? reactFlowInstance.screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          })
+        : { x: event.clientX, y: event.clientY };
+
       setPickerSearchQuery("");
       setSelectedPickerGroup("strategy");
       setPickerState({
         mode: "pane",
         clientPosition: { x: event.clientX, y: event.clientY },
-        flowPosition: reactFlowInstance.screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        }),
+        flowPosition,
       });
     },
     [canEditWorkspace, reactFlowInstance]
@@ -477,7 +490,7 @@ export function useCanvasState({
             pickerState.source.nodeId,
             pickerState.source.outputId,
             createdNode.id,
-            pickerState.source.asset
+            pickerState.source.displayLabel
           ),
         ];
       }

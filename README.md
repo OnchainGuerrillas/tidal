@@ -2,200 +2,154 @@
 
 Frontend and design experimentation repo for Tidal, a Solana DeFi product concept.
 
-This repo is intentionally prototype-only. It is used to explore interface patterns, screen flows, and visual structure before another developer connects the work into the real application.
+This repo is prototype-only. It exists to explore the unified workspace experience, visual language, graph interactions, side panels, and integration-facing frontend structure before the work moves into a production application.
 
-## Constraints
+## Core Rules
 
-- No external API calls
-- No blockchain connections
-- No real wallet integrations
-- All data must be mocked
+- All data is mocked.
+- No external API calls for product data.
+- No blockchain, RPC, Solana program, or wallet-adapter connections.
+- No real wallet integrations.
+- Use Bun for package and script commands.
 
-## Product Surfaces
+## Current Product Shape
 
-- Tidal Pool: conversational investing and pool-building flows
-- Tidal Amplify: node-based strategy composition flows
-- Tidal Swap: planned, but not currently being built out in this prototype phase
+The live product is a single unified **workspace** experience.
 
-## What This Repo Is
+A workspace is a node-based canvas with five contextual side panels:
 
-This is not the production app.
+- **Nodes**: searchable catalog of nodes that can be dropped onto the canvas.
+- **Chat**: mocked per-workspace transcript and chat history.
+- **Investments**: mocked active positions and performance chart.
+- **Discover**: mocked recommendations and discovery opportunities.
+- **Templates**: placeholder gallery of starter graphs and teaching examples.
 
-The current goal of the repo is to:
+Multiple workspaces can be open at once and are shown as tabs in the header. Workspace URLs are top-level routes such as:
 
-- prototype the frontend and interaction model
-- keep all data mocked
-- separate feature UI from mock content
-- make the work easy for another developer to integrate into the real application later
+```text
+/workspace-sol-yield-loop
+```
 
-That means the codebase is intentionally structured around:
+Earlier Home, Pool, Swap, Global Chat, and Amplify experiments are archived under `_archive/`. They are reference material only and are not part of the live app.
 
-- thin route files
-- feature-owned screens and components
-- shared Tidal design components
-- a separate mock-data layer
-- a central styling system in `src/app/globals.css`
-
-## Runtime
-
-This repo uses Bun.
-
-Common commands:
+## Quick Start
 
 ```bash
 bun install
 bun run dev
+```
+
+Useful commands:
+
+```bash
 bun run lint
 bun run build
 ```
 
-## High-Level Structure
+This project currently uses `next/font/google` for Inter, so production builds may need network access for the font fetch unless that is changed to a local font.
 
-The repo is organised around a few clear layers:
+## Live Routes
 
-### `src/app`
+- `src/app/layout.tsx`: app shell and providers.
+- `src/app/page.tsx`: root bootstrap route that moves to the active workspace.
+- `src/app/[workspaceId]/page.tsx`: addressable workspace route.
 
-Thin Next.js route entrypoints only.
+There are no live `/pool`, `/swap`, `/chat`, `/home`, or `/amplify` routes.
 
-Routes should mostly render product-area screens rather than contain large amounts of inline UI or mocked content.
+## Folder Map
 
-Current routes:
+```text
+src/app
+  Next.js routes, global layout, and global CSS
 
-- `src/app/page.tsx`: Home global chat workspace
-- `src/app/chat/[chatId]/page.tsx`: route-backed global chat pages
-- `src/app/pool/page.tsx`: Pool workspace prototype
-- `src/app/amplify/page.tsx`: redirector to the active Amplify workspace URL
-- `src/app/amplify/[workspaceId]/page.tsx`: addressable Amplify workspace route
-- `src/app/layout.tsx`: shared shell and providers
+src/components/ui
+  generic reusable UI primitives
 
-### `src/components`
+src/components/tidal
+  branded Tidal components and app shell pieces
 
-React UI lives under `src/components`.
+src/components/workspace
+  the live product surface: canvas, nodes, panels, cards, and picker
 
-The structure is split between generic primitives, shared Tidal design components, and product-area UI:
+src/providers
+  mocked client-side app state
 
-- `src/components/ui`: generic reusable primitives
-- `src/components/tidal`: shared branded Tidal components
-- `src/components/shell`: shared app frame and sidebar UI
-- `src/components/home`: global chat-first Home screen composition
-- `src/components/pool`: Pool workspace screen composition and Pool-only UI
-- `src/components/amplify`: Amplify workspace screen composition and Amplify-only UI
-- `src/components/swap`: reserved for future Swap UI
+src/hooks/workspace
+  React Flow canvas behavior and graph interaction state
 
-### `src/providers`, `src/hooks`, and `src/lib`
+src/lib/workspace
+  pure graph, picker, and status helpers
 
-Non-UI frontend code lives outside component folders.
+src/mock-data/shell
+  mocked shell and preference data
 
-- `src/providers`: local mocked prototype state contexts
-- `src/hooks`: reusable React behaviour and product-area hooks
-- `src/lib`: pure helpers, product-area utilities, and route builders
+src/mock-data/workspace
+  mocked workspace data, types, catalog, graph seeds, investments, discover, templates
 
-### `src/mock-data`
+docs
+  product and architecture documentation
 
-Mocked content and lightweight frontend-facing types.
+_archive
+  frozen reference code from earlier experiments, excluded from the live app
+```
 
-This layer exists so mocked state does not get embedded directly into UI components.
+## Architecture At A Glance
 
-Current mock-data areas:
+Data flow is intentionally simple:
 
-- `src/mock-data/shell`
-- `src/mock-data/home`
-- `src/mock-data/pool`
-- `src/mock-data/amplify`
+```text
+src/mock-data/*
+  -> src/providers/*
+  -> src/components/workspace/workspace-screen.tsx
+  -> workspace panels, canvas nodes, and tidal components
+```
 
-Amplify mock data is now split further into:
+The main composition file is `src/components/workspace/workspace-screen.tsx`.
 
-- `src/mock-data/amplify/catalog.ts`: picker catalog definitions and compatibility-facing catalog metadata
-- `src/mock-data/amplify/node-factories.ts`: node creation helpers for builder flows
-- `src/mock-data/amplify/builder-workspace.ts`: blank builder workspace seeding
-- `src/mock-data/amplify/example-workspace.ts`: seeded example strategy workspace
-- `src/mock-data/amplify/workspace.ts`: small re-export surface for the rest of the app
+It coordinates:
 
-### `src/app/globals.css`
+- the active workspace
+- the active side panel
+- React Flow nodes and edges
+- node creation from the Nodes panel and node picker
+- mocked draft/run states
+- node edit context for canvas node components
 
-The styling system home.
+The React Flow canvas is client-only. It is dynamically loaded with SSR disabled to avoid hydration mismatches caused by browser-measured viewport transforms.
 
-This file owns:
+## Important Graph Convention
 
-- theme tokens
-- semantic typography classes
-- shared layout helpers
-- shared button/tab/pill treatments
-- small reusable interface patterns
+Keep graph identity and display text separate.
 
-The intention is to avoid scattering arbitrary one-off Tailwind values across product-area component files when a shared semantic class would do.
+- `WorkspaceNodeOutput.asset` is the canonical asset used for compatibility checks.
+- `WorkspaceNodeOutput.amountLabel` is display text.
+- Edge `data.asset` is a display label.
 
-## Data And UI Flow
+For example, a split output should use:
 
-The intended frontend flow is:
+```ts
+{
+  asset: "mSOL",
+  amountLabel: "50% mSOL"
+}
+```
 
-`src/mock-data/*` -> `src/providers/*` and `src/components/*/*-screen` -> product-area components and `src/components/tidal`
-
-In practice that means:
-
-- mocked content should live in `src/mock-data`, not directly inside UI files
-- routes in `src/app` should stay thin
-- product-area screens should assemble the page
-- shared Tidal components should own repeated visual patterns
-
-## Current Prototype Capabilities
-
-The prototype currently focuses on the shared shell plus Home, Pool, and Amplify.
-
-- Home: global chat-first entry flow with route-backed chats, linked context, `@` mentions, inline recommendation cards, and a direct CTA to create a new blank Amplify workspace
-- Pool: overview state, dedicated Pool threads, promoted threads from global chat, and a right-hand workspace panel for positions, recommendations, discovery, and activity
-- Amplify: multi-workspace strategy surface with addressable workspace URLs, a blank builder workspace, a seeded example loop, structured node creation, inline node editing, mocked run states, and fullscreen canvas focus mode
-- Shared shell: global top header with risk and investment-type controls, plus sidebar navigation across Home, Pool, and Amplify
-
-Swap is intentionally not included in the current implementation pass. The repo still preserves space for it structurally, but the active prototype work is centered on Home, Pool, and Amplify.
-
-## Current Pool Example
-
-The Pool workspace is the clearest example of how the repo is intended to work.
-
-- `src/app/pool/page.tsx` is just the route
-- `src/components/pool` owns Pool screen composition and Pool-only UI
-- `src/providers/pool-workspace-provider.tsx` owns shared client-side Pool workspace state
-- `src/mock-data/pool` owns seeded Pool content and types
-
-So if another developer needs to integrate Pool into the real app later, the main job should be replacing the mocked Pool state and data sources rather than untangling the UI structure first.
-
-## Current Amplify Example
-
-Amplify is now structured in the same spirit:
-
-- `src/app/amplify/[workspaceId]/page.tsx` is the addressable route
-- `src/components/amplify` owns workspace-level composition, node cards, picker UI, and Amplify-only presentational pieces
-- `src/hooks/amplify` owns the main canvas graph state and interaction logic
-- `src/lib/amplify` owns pure graph and picker helpers
-- `src/providers/amplify-workspace-provider.tsx` owns local mocked multi-workspace state
-- `src/mock-data/amplify` owns the seeded builder/example workspaces, node catalog, and node factory helpers
-
-That means future integration work can replace mocked Amplify state and execution behavior without first unpicking the UI and route structure.
+Do not put `50% mSOL` into `asset`, because downstream compatibility checks expect canonical assets such as `SOL`, `USDC`, or `mSOL`.
 
 ## Docs
 
-- `docs/product-vision.md`
-- `docs/product-strategy.md`
-- `docs/codex-plan.md`
-- `docs/architecture.md`
-- `docs/codex-pool-plan.md`
-- `docs/amplify-nodes.md`
+- `docs/architecture.md`: current live architecture and integration guidance.
+- `docs/product-vision.md`: product vision.
+- `docs/product-strategy.md`: product strategy.
+- `docs/codex-refactor.md`: historical frontend cleanup playbook.
+- `_archive/README.md`: archive contents and rules.
 
-## Working Rules
+## Development Notes
 
-- All data remains mocked in this repo
-- No external API calls
-- No wallet integration
-- No Solana execution
-- Use Bun for all commands
-- Keep `docs/architecture.md` updated when structural frontend changes are made
-
-## Frontend Direction
-
-- business logic and mock data stay separate from visual components
-- shared UI primitives remain generic
-- Tidal-specific design patterns become reusable
-- feature code is grouped by product area
-- styling decisions are centralised in `globals.css`
-- the prototype stays easy to hand off for later integration
+- Route files should stay thin.
+- Mock content should live in `src/mock-data`, not inside UI components.
+- Product-specific UI should live under `src/components/workspace`.
+- Reusable branded UI should live under `src/components/tidal`.
+- Generic primitives should stay under `src/components/ui`.
+- Prefer semantic classes in `src/app/globals.css` over repeated one-off Tailwind values.
+- Do not import from `_archive/` into live code.

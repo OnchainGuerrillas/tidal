@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 
 import {
   initialWorkspaces,
@@ -98,17 +99,29 @@ function getWorkspaceById(
   );
 }
 
+function getWorkspaceIdFromPathname(pathname: string | null) {
+  const segment = pathname?.split("/").filter(Boolean)[0];
+
+  return segment ? decodeURIComponent(segment) : null;
+}
+
 function getWorkspaceKindLabel(kind: WorkspaceKind) {
   return kind === "example" ? "Example" : "Workspace";
 }
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const routeWorkspaceId = getWorkspaceIdFromPathname(pathname);
   const [workspaces, setWorkspaces] = useState<Workspace[]>(() =>
     initialWorkspaces.map(cloneWorkspace)
   );
-  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(
-    initialWorkspaces[0]?.id
-  );
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(() => {
+    const routeWorkspace = initialWorkspaces.find(
+      (workspace) => workspace.id === routeWorkspaceId
+    );
+
+    return routeWorkspace?.id ?? initialWorkspaces[0]?.id;
+  });
 
   const setActiveWorkspaceId = useCallback((workspaceId: string) => {
     setActiveWorkspaceIdState(workspaceId);

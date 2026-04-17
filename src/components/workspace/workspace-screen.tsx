@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, type ComponentType } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   Background,
@@ -8,8 +9,8 @@ import {
   BaseEdge,
   Controls,
   EdgeLabelRenderer,
-  ReactFlow,
   getBezierPath,
+  type ReactFlowProps,
   type Edge,
   type EdgeProps,
 } from "@xyflow/react";
@@ -17,7 +18,6 @@ import "@xyflow/react/dist/style.css";
 
 import { Badge } from "@/components/tidal/badge";
 import { SurfaceCard } from "@/components/tidal/surface-card";
-import { useSidebar } from "@/components/ui/sidebar";
 import { AmountNode } from "@/components/workspace/amount-node";
 import { WorkspaceBuilderContextProvider } from "@/components/workspace/workspace-builder-context";
 import { ChatPanel } from "@/components/workspace/panels/chat-panel";
@@ -42,7 +42,23 @@ import { useSidePanel } from "@/providers/side-panel-provider";
 import type {
   NodePickerGroup,
   Workspace,
+  WorkspaceGraphEdge,
+  WorkspaceGraphNode,
 } from "@/mock-data/workspace/types";
+
+const ReactFlowClient = dynamic(
+  () =>
+    import("@xyflow/react").then(
+      (module) =>
+        module.ReactFlow as ComponentType<
+          ReactFlowProps<WorkspaceGraphNode, WorkspaceGraphEdge>
+        >
+    ),
+  {
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-tidal-card" />,
+  }
+);
 
 function AssetEdge({
   sourceX,
@@ -201,6 +217,7 @@ type PickerOverlayProps = {
     mode: "pane" | "source";
     source?: {
       asset: string;
+      displayLabel?: string;
     };
   };
   groups: NodePickerGroupState[];
@@ -240,7 +257,11 @@ function PickerOverlay({
           <NodePicker
             title={
               pickerState.mode === "source"
-                ? `Add node from ${pickerState.source?.asset ?? "output"}`
+                ? `Add node from ${
+                    pickerState.source?.displayLabel ??
+                    pickerState.source?.asset ??
+                    "output"
+                  }`
                 : "Create node"
             }
             description={
@@ -273,10 +294,18 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId?: string }) {
     setActiveWorkspaceId,
   } = useWorkspace();
   const router = useRouter();
-  const { setOpen } = useSidebar();
-  const hasMounted = useRef(false);
   const { getActivePanel, setActivePanel } = useSidePanel();
-  const activePanel = getActivePanel(workspace.id);
+  const routedWorkspace = workspaceId
+    ? workspaces.find((candidateWorkspace) => candidateWorkspace.id === workspaceId)
+    : null;
+  const renderedWorkspace = routedWorkspace ?? workspace;
+  const renderedActiveThread =
+    renderedWorkspace.threads.find(
+      (thread) => thread.id === renderedWorkspace.activeThreadId
+    ) ??
+    activeThread ??
+    renderedWorkspace.threads[0];
+  const activePanel = getActivePanel(renderedWorkspace.id);
 
   useEffect(() => {
     if (!workspaceId) {
@@ -302,23 +331,18 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId?: string }) {
     }
   }, [router, setActiveWorkspaceId, workspace.id, workspaceId, workspaces]);
 
-  useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      setOpen(true);
-    }
-  }, [setOpen]);
-
   return (
     <WorkspaceCanvasHost
-      key={workspace.id}
-      workspace={workspace}
-      activeThread={activeThread}
+      key={renderedWorkspace.id}
+      workspace={renderedWorkspace}
+      activeThread={renderedActiveThread}
       updateWorkspaceGraph={updateWorkspaceGraph}
       updateWorkspaceMeta={updateWorkspaceMeta}
       activePanel={activePanel}
-      onClosePanel={() => setActivePanel(workspace.id, null)}
-      onSelectThread={setActiveThreadId}
+      onClosePanel={() => setActivePanel(renderedWorkspace.id, null)}
+      onSelectThread={(threadId) =>
+        setActiveThreadId(threadId, renderedWorkspace.id)
+      }
     />
   );
 }
@@ -445,7 +469,7 @@ function WorkspaceCanvasHost({
               updateNodeData,
             }}
           >
-            <ReactFlow
+            <ReactFlowClient
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
@@ -472,7 +496,7 @@ function WorkspaceCanvasHost({
                 lineWidth={0.75}
                 color="#1C2533"
               />
-            </ReactFlow>
+            </ReactFlowClient>
           </WorkspaceBuilderContextProvider>
 
           {pickerState ? (
