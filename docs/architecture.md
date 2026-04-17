@@ -6,7 +6,7 @@ This repo is a prototype frontend for Tidal. It exists to explore product flows,
 
 It is not the production app and should not contain real data integrations, wallet connections, or blockchain execution.
 
-Feature-specific implementation planning can live in dedicated docs alongside this file, such as `docs/codex-pool-plan.md`.
+Feature-specific implementation planning can live in dedicated docs alongside this file, such as [docs/workflow-refactor.md](workflow-refactor.md).
 
 ## Core Constraints
 
@@ -17,52 +17,34 @@ Feature-specific implementation planning can live in dedicated docs alongside th
 
 ## Current Shape
 
-After the repo-wide cleanup phases, the first full Pool implementation, and the feature-folder removal, the repo is organised around six broad areas:
+After the workspace refactor the product is a single unified experience: every surface is a workspace (a node-based canvas plus its chat, investments, and discovery context). The earlier Home, Global Chat, Pool, and Swap product areas have been archived under `_archive/` for reference and are excluded from the build.
 
 ### 1. App routes
 
-Thin route files in `src/app` assemble screens and pass mocked data into components.
+Thin route files in `src/app`.
 
 Current routes:
 
-- `src/app/page.tsx`: Home global chat workspace
-- `src/app/chat/[chatId]/page.tsx`: route-backed global chat workspace for persisted chat URLs
-- `src/app/pool/page.tsx`: Pool workspace prototype
-- `src/app/amplify/page.tsx`: client redirector that resolves `/amplify` to the active Amplify workspace URL
-- `src/app/amplify/[workspaceId]/page.tsx`: addressable Amplify workspace route
-- `src/app/layout.tsx`: shared shell with a global top header above the sidebar/content row, plus preference-profile provider, global chat provider, Pool provider, sidebar provider, and tooltip provider
+- `src/app/page.tsx`: bootstrap — resolves the active workspace id and replaces the URL with `/workspace/<id>`
+- `src/app/workspace/page.tsx`: client redirector that resolves `/workspace` to the active workspace URL
+- `src/app/workspace/[workspaceId]/page.tsx`: addressable workspace route
+- `src/app/layout.tsx`: shared shell with global header + sidebar, wrapping preference profile, workspace, side panel, sidebar, and tooltip providers
 
 ### 2. Shared UI components
 
-Generic reusable primitives live in `src/components/ui`.
-
-These components should remain product-agnostic and focused on rendering and interaction primitives rather than Tidal-specific meaning.
-
-Examples:
-
-- buttons
-- inputs
-- cards
-- dropdown menus
-- sidebar primitives
+Generic reusable primitives live in `src/components/ui` and remain product-agnostic (buttons, inputs, cards, dropdown menus, sidebar primitives).
 
 ### 3. Tidal design components
 
 Reusable branded product-facing building blocks live in `src/components/tidal`.
 
-These components encode recurring Tidal interface patterns without owning feature data.
-
-Current examples:
+Current set:
 
 - `PromptComposer`
 - `PreferenceContextPanel`
 - `SuggestionAction`
 - `SectionLabel`
 - `ChatMessage`
-- `ThreadOwnershipBanner`
-- `PromotionSummaryPanel`
-- `WorkspacePromotionCard`
-- `WorkspaceButton`
 - `WorkspaceHeader`
 - `SurfaceCard`
 - `Badge`
@@ -74,218 +56,108 @@ Product-area UI lives under `src/components` by product area.
 
 Current product-area component folders:
 
-- `src/components/shell`
-- `src/components/home`
-- `src/components/pool`
-- `src/components/swap`
-- `src/components/amplify`
-
-These folders are for UI and screen composition that only makes sense for one Tidal product area. They should not become state, mock-data, or backend integration folders.
-
-Examples:
-
-- `src/components/home/home-screen.tsx`
-- `src/components/pool/pool-screen.tsx`
-- `src/components/amplify/amplify-workspace.tsx`
-- `src/components/shell/app-sidebar.tsx`
+- `src/components/shell` — `AppHeader`, `AppSidebar`, `WorkspaceTabs`, `WalletSummary`
+- `src/components/workspace` — the unified workspace surface
+  - `workspace-screen.tsx`: canvas + side-panel composition
+  - `workspace-builder-context.tsx`: node-level editing context
+  - `node-picker.tsx`: overlay picker for output-drag and pane context-menu creation
+  - canvas node components: `wallet-node`, `amount-node`, `strategy-node`, `split-node`, `reward-node`, `destination-node`
+  - `investments/`: `InvestmentCard`, `InvestmentPerformanceChart`
+  - `discover/`: `RecommendationCard`, `DiscoveryCard`
+  - `panels/`: `PanelShell`, `NodesPanel`, `InvestmentsPanel`, `DiscoverPanel`, `ChatPanel`, `TemplatesPanel`
 
 ### 5. Providers, hooks, and frontend helpers
 
-Shared prototype state, React behaviour, and pure frontend helpers live outside UI folders.
-
-Current locations:
-
-- `src/providers`: local mocked workspace/app state contexts
-- `src/hooks`: reusable React hooks and product-area behaviour hooks
-- `src/lib`: pure utilities, route helpers, and product-area helper functions
-
-Current examples:
-
-- `src/providers/global-chat-workspace-provider.tsx`
-- `src/providers/pool-workspace-provider.tsx`
-- `src/providers/amplify-workspace-provider.tsx`
-- `src/hooks/amplify/use-amplify-canvas-state.ts`
-- `src/lib/amplify/graph-utils.ts`
-- `src/lib/amplify/picker-utils.ts`
-- `src/lib/routes/amplify.ts`
-- `src/lib/routes/global-chat.ts`
+- `src/providers/workspace-provider.tsx`: local mocked multi-workspace state (list, active, chats per workspace, graph updates)
+- `src/providers/side-panel-provider.tsx`: per-workspace active side-panel selection, supports closing for canvas-focus mode
+- `src/providers/preference-profile-provider.tsx`: global risk and investment-interest preferences
+- `src/hooks/workspace/use-canvas-state.ts`: React Flow canvas behaviour, including `addCatalogNodeAtCenter` used by the Nodes panel
+- `src/lib/workspace/graph-utils.ts`, `picker-utils.ts`, `status.ts`: pure graph and picker helpers
+- `src/lib/routes/workspace.ts`: `getWorkspaceHref`
 
 ### 6. Mock-data layer
 
 Mocked data and lightweight types live under `src/mock-data`.
 
-Current feature modules:
-
-- `src/mock-data/shell`
-- `src/mock-data/home`
-- `src/mock-data/pool`
-- `src/mock-data/amplify`
-
-These modules currently provide:
-
-- typed mock navigation data for the shared shell
-- typed hybrid chat foundations for global chats, chat links, mention targets, promoted workspace thread seeds, and shared preferences
-- typed mock home screen suggestions
-- typed mock Pool workspace state, threads, panel tabs, positions, recommendations, discovery items, activity, and health data
-- typed mock Amplify chat content and graph data
+- `src/mock-data/shell`: types and seed data for the shared shell (preference profile default, wallet/user summary)
+- `src/mock-data/workspace`: node catalog, node factories, builder-workspace seed, example-workspace seed, types, investments per workspace, discover per workspace, templates
 
 ## Data Flow
 
-The intended prototype data flow is:
-
-Current:
-
-`mock-data/*` -> `providers/*` and `components/*/*-screen` -> product-area components and `components/tidal`
+`mock-data/*` → `providers/*` and `components/workspace/workspace-screen` → panel components, canvas nodes, and `components/tidal`.
 
 Styling system:
 
-`src/app/globals.css` -> semantic typography/layout classes -> `components/tidal` and product-area components
+`src/app/globals.css` → semantic typography/layout/sidebar/tab classes → `components/tidal` and `components/workspace`.
 
-That means:
+Rules:
 
 - mock content should not live directly inside UI component files
 - components should receive content via props where practical
 - route files should compose screens using feature data instead of embedding it
 - backend or blockchain integration clients should not be introduced in this prototype repo
 
-Examples in the current repo:
-
-- sidebar navigation is sourced from `src/mock-data/shell/navigation.ts`
-- hybrid chat foundations are sourced from `src/mock-data/shell/hybrid-chat.ts`
-- home suggestions are sourced from `src/mock-data/home/home-screen.ts`
-- Amplify workspaces, threads, wallet-seeded builder content, and example graph data are split across `src/mock-data/amplify/catalog.ts`, `src/mock-data/amplify/node-factories.ts`, `src/mock-data/amplify/builder-workspace.ts`, and `src/mock-data/amplify/example-workspace.ts`, with `workspace.ts` acting as a small re-export surface
-- Amplify workspace URLs are built from `src/lib/routes/amplify.ts` so the example strategy and each builder workspace have their own route-backed address
-
 ## Current Feature Breakdown
 
 ### Shell
 
-`src/mock-data/shell` contains app-wide prototype definitions that support the shared frame of the application.
+`src/mock-data/shell` holds app-wide prototype definitions supporting the shared frame.
 
-Current responsibilities:
+- preference profile types (risk appetite, investment interests) and default seed
+- wallet/user shell summary
 
-- app mode types
-- sidebar navigation types
-- mocked sidebar navigation content
-- global chat, chat-link, mention-target, preference-profile, and workspace-thread typing for the hybrid chat-first model
-- mocked global chats, mention targets, promoted workspace thread seeds, and shared preference state
+`src/components/shell` owns the frame:
 
-### Home
+- `AppHeader`: logo, sidebar trigger, `WorkspaceTabs`, risk appetite dialog, investment interests dialog
+- `WorkspaceTabs`: horizontal scrollable tabs backed by `WorkspaceProvider.workspaces`, with close (×) and `+` affordances
+- `AppSidebar`: five-mode icon+label rail (Nodes, Investments, Discover, Chat, Templates) with user block at the bottom; selecting the active item again closes the panel for canvas focus
 
-`src/mock-data/home` currently holds the mocked content for the Home global chat surface.
+### Workspace
 
-Current responsibilities:
+`src/components/workspace` owns the unified canvas + panel experience.
 
-- home screen content types
-- mocked suggestion content
+- `WorkspaceScreen`: wires `WorkspaceProvider` to `useCanvasState`, reads `useSidePanel` to select which panel renders alongside the canvas
+- panel switching swaps the contents of the left-side column; with no active panel the canvas fills the full screen
+- `WorkspaceBuilderContextProvider` exposes node-level edit and updateNodeData to canvas node components
+- the existing `NodePicker` overlay is still available for output-drag and pane context-menu creation; the `NodesPanel` is the primary discovery path
 
-`src/components/home` owns the global chat-first surface used on `/`.
+`src/providers/workspace-provider.tsx`:
 
-`src/providers/global-chat-workspace-provider.tsx` owns the local mocked global-chat state shared by Home and the sidebar.
+- list of workspaces, active workspace, active chat per workspace, chat history per workspace
+- `createWorkspace`, `closeWorkspace`, `setActiveWorkspaceId`, `setActiveThreadId`, `createBlankThread`, `updateWorkspaceGraph`, `updateWorkspaceMeta`
 
-Current responsibilities:
+`src/providers/side-panel-provider.tsx`:
 
-- client-side global chat workspace state shared by Home and the sidebar
-- route-backed active general-chat selection and recent-chat derivation
-- Home screen composition for the active global chat
-- empty-state Home CTA that can create a new blank Amplify workspace directly from below the shared composer
-- linked-context rendering for referenced Pools, Amplify workspaces, and nested items
-- mention-aware composer state and `@` target selection for Pools, Amplify workspaces, and nested items
-- chat submission flow that turns selected mentions into structured `ChatLink` entries on the active global chat
-- heuristic inline recommendation cards that suggest creating or opening Pool and Amplify workspaces inside the chat stream
-- create/open recommendation actions that add linked workspace context without creating dedicated threads
-- explicit promotion controls that turn a general chat with Pool context into a dedicated Pool thread
-- explicit promotion controls that turn a general chat with Amplify context into a dedicated Amplify thread
-- route-backed creation and opening flows for Amplify so each workspace resolves to its own `/amplify/[workspaceId]` URL
-- shared ownership banners on general chats and summary-seed panels on promoted workspace threads
-- reusable preference context panel rendering behind the shared global header dialog
-- chat-level suggestion and metadata panels around the shared composer
+- per-workspace active side panel, defaulting to `chat`
+- `setActivePanel`, `togglePanel` (clicking the active mode again closes the panel)
 
-### Pool
+`src/hooks/workspace/use-canvas-state.ts`:
 
-`src/mock-data/pool` currently holds the seeded mock content and types for the Pool workspace prototype.
+- React Flow node/edge state, draft/impact propagation, context-menu and drag-from-output creation
+- `addCatalogNodeAtCenter(catalogItemId)` used by `NodesPanel` to drop a node at the canvas viewport centre
 
-Current responsibilities:
+### Panels
 
-- Pool workspace typing
-- Pool thread and thread-context typing
-- Pool panel tab typing
-- mocked positions, recommendations, discovery items, and activity
-- mocked pending actions and Pool health state
-- mocked performance chart data
+- `NodesPanel`: searchable, group-filtered node catalog; clicking a card drops the node on the canvas via `addCatalogNodeAtCenter`
+- `InvestmentsPanel`: performance chart + active position cards sourced from `mock-data/workspace/investments.ts`
+- `DiscoverPanel`: tabbed view of recommendations and discovery items from `mock-data/workspace/discover.ts`
+- `ChatPanel`: per-workspace chat transcript with a history disclosure that lists past chats for this workspace and a new-chat button
+- `TemplatesPanel`: placeholder template gallery backed by `mock-data/workspace/templates.ts`; shown as a responsive card grid matching the reference layout
 
-### Pool
+### Mock data
 
-`src/components/pool` owns the first full Pool workspace surface.
+`src/mock-data/workspace` currently provides:
 
-`src/providers/pool-workspace-provider.tsx` owns the local mocked Pool workspace state shared by the Pool screen and sidebar.
-
-Current responsibilities:
-
-- Pool route-level screen composition
-- Pool overview as the default `/pool` landing state
-- Pool workspace header with an overview tab and chat tabs
-- left-side conversation and overview panes
-- right-side tabbed Pool panel with holdings, recommendations, discovery, and activity surfaces
-- shared client-side Pool workspace state used by both the workspace and the sidebar, including active thread, active panel tab, and pending actions
-- promoted Pool thread creation from the global chat system, including source metadata and summary-seeded context
-- shared global preference panel mounted on both Pool overview and focused Pool thread surfaces
-- sidebar Pool navigation that treats the Pool as a named workspace section with an overview item and flat thread items beneath it
-
-### Amplify
-
-`src/components/amplify` owns the strategy workspace and chat surface.
-
-`src/providers/amplify-workspace-provider.tsx` owns the local mocked multi-workspace Amplify state.
-
-`src/hooks/amplify/use-amplify-canvas-state.ts` owns the React Flow canvas behaviour, while pure graph and picker helpers live under `src/lib/amplify`.
-
-Current responsibilities:
-
-- Amplify route-level workspace composition
-- strategy graph and thread-capable chat layout
-- a thin workspace screen that delegates canvas graph state into `src/hooks/amplify/use-amplify-canvas-state.ts`
-- multi-workspace Amplify state with an active workspace selector
-- a blank builder workspace seeded with a wallet node for new strategy design
-- a separate seeded example workspace that preserves the original SOL loop as a running reference
-- compatibility-aware node creation from wallet assets and downstream node outputs
-- drag-from-output handle creation and right-click canvas creation using a mocked Amplify node catalog
-- a structured Amplify node picker with search, hybrid category tabs, and disabled-but-visible incompatible groups/items
-- inline node editing for amount, split, reward cadence, and strategy setup while a workspace is in draft mode
-- a lightweight draft-vs-active workspace state bar that locks inline editing once a strategy is marked active
-- mocked run validation that marks invalid or blocked nodes as errors before replacing the active strategy snapshot
-- downstream impact tracking that marks affected nodes as impacted after upstream draft changes and surfaces a persistent warning banner
-- a fullscreen canvas-focus mode that hides the local Amplify header and chat while keeping the global app header visible
-- graph persistence per workspace for created nodes, created edges, and moved nodes
-- client-side connection validation that rejects incompatible asset-to-node edges
-- promoted Amplify thread creation from the global chat system, including source metadata and summary-seeded context
-- sidebar Amplify navigation that treats each strategy workspace as its own section with its own thread list
-- shared global preference panel mounted on the Amplify chat surface
-
-### Amplify Mock Data
-
-`src/mock-data/amplify` currently holds the mock content and types for the Amplify prototype.
-
-Current responsibilities:
-
-- chat message typing
-- Amplify workspace and thread typing
-- Amplify workspace kind typing for builder vs example workspaces
-- Amplify node kind typing for wallet, amount, strategy, split, reward, and destination nodes
-- compatibility metadata for allowed input assets and downstream node types
-- output metadata for primary and reward streams
-- node status typing plus active-snapshot and draft-state metadata
-- mocked Amplify node catalog definitions used by the builder picker
-- mocked node factory helpers used for output-based creation and disconnected canvas creation
-- wallet node typing and mocked wallet balances for the blank builder state
-- strategy node typing
-- split node typing
-- mocked builder workspace seeding separated from the example workspace scenario
-- mocked React Flow nodes and edges for both blank and seeded workspaces
+- chat message and thread typing, workspace typing, workspace kind typing
+- node kind, status, and execution state typing
+- compatibility metadata for allowed input assets and downstream node types, plus output metadata for primary and reward streams
+- node catalog definitions and factory helpers used by `NodesPanel`, the `NodePicker`, and the canvas
+- builder and example workspace seeds (example SOL yield loop kept as reference)
+- per-workspace investment positions + performance snapshots for `InvestmentsPanel`
+- per-workspace recommendation and discovery seeds for `DiscoverPanel`
+- template placeholder data for `TemplatesPanel`
 
 ## Component Boundary Rules
-
-These are the current architectural rules for this repo:
 
 ### UI primitives
 
@@ -305,61 +177,33 @@ Files under `src/components/tidal` should:
 - prefer semantic classes from `src/app/globals.css` before introducing new one-off values
 - avoid owning feature-specific mock content
 
-These components now cover:
-
-- prompt/composer styling
-- suggestion row and chip styling
-- chat message treatments
-- ownership banners for general chat and promotion summary panels for promoted workspace threads
-- small workspace actions
-- node/panel shells
-- small badges and pills
-- compact dropdown fields
-
 ### Product-area components
 
-Files such as `src/components/shell/app-sidebar.tsx` should:
+Files such as `src/components/shell/app-sidebar.tsx` or the panel components should:
 
-- accept data and state via props where practical
+- accept data and state via props or consume providers
 - avoid owning embedded mock content
-- contain product-area UI that does not belong in `components/tidal`
 - keep the route layer thin
 - stay separate from the `mock-data` layer
 - keep raw visual values light, and promote repeated styling into `components/tidal` or `src/app/globals.css`
 
 ## Styling Conventions
 
-The styling system now lives in `src/app/globals.css`.
-
-That file should own:
+The styling system lives in `src/app/globals.css`:
 
 - theme tokens and brand colours
 - semantic typography classes
 - shared layout and spacing helpers
-- small shared interaction treatments
-- React Flow theme overrides used across the Amplify workspace
-
-The styling split should be:
-
-- `src/app/globals.css`: design tokens and semantic utility classes such as `tidal-text-*`, `tidal-page`, `tidal-workspace`, and sidebar helpers
-- `src/components/tidal`: reusable branded components and variants built on those semantic classes
-- `src/components/{shell,home,pool,swap,amplify}`: screen composition and light product-area layout only
+- shared interaction treatments
+- sidebar rail, workspace tabs, panel shell, node catalog item, template grid classes
+- React Flow theme overrides used by the workspace canvas
 
 Rules for future work:
 
-- prefer semantic classes from `globals.css` over introducing new arbitrary `text-[...]`, `px-[...]`, and `gap-[...]` values
+- prefer semantic classes from `globals.css` over introducing new arbitrary `text-[...]`, `px-[...]`, `gap-[...]` values
 - if the same visual treatment appears in more than one place, move it into `components/tidal` or a shared semantic class
 - keep new screens responsive by default, starting from narrow/mobile layouts and widening deliberately
-- avoid creating a separate `src/styles` layer unless the current `globals.css` approach becomes a proven bottleneck
-- when Pool and Swap screens are added, build them on the same `globals.css` and `components/tidal` system rather than introducing a parallel styling pattern
-
-Pool now uses this semantic styling layer directly for repeated workspace treatments such as:
-
-- tab buttons and workspace tabs
-- primary, secondary, and danger action buttons
-- metric/value readouts and change labels
-- meta pills and static chips
-- contextual panels and subtle inset panels
+- avoid creating a separate `src/styles` layer unless `globals.css` becomes a proven bottleneck
 
 ### Mock-data modules
 
@@ -368,6 +212,10 @@ Files under `src/mock-data/*` should:
 - define lightweight frontend-facing types
 - provide mocked content for the prototype
 - be easy to replace later with integration adapters or real data sources
+
+## Archive
+
+`_archive/` at the repo root holds the earlier Pool, Swap, Home, and Global Chat surfaces — including their components, providers, mock data, app routes, and the tidal promotion helpers that were specific to promoting a general chat into a workspace thread. It is excluded from `tsconfig.json`, ESLint, and the Next.js build. Nothing under `_archive/` is imported from live code; it exists only as reference material if a pattern needs to be copied back out.
 
 ## Integration Guidance
 
@@ -378,24 +226,9 @@ When this prototype is later integrated into the real app, the intended replacem
 3. Preserve the prop boundaries rather than moving business logic back into UI files.
 4. Continue to keep generic UI primitives separate from product-specific components.
 
-The main integration goal is to swap data sources and state wiring, not to rewrite the visual layer from scratch.
-
-## Planned Evolution
-
-The architecture is expected to move further in this direction as `docs/codex-plan.md` progresses:
-
-- continue expanding `src/components/tidal` for reusable branded product components
-- keep product-area UI under `src/components/{shell,home,pool,swap,amplify}`
-- keep providers, hooks, and pure helpers outside UI folders
-- expand `src/mock-data` to include clearer Pool and Swap mock content
-- continue centralising semantic typography and layout rules in `src/app/globals.css`
-- continue replacing raw product-area styling values with semantic classes from `globals.css`
-- keep `src/app` route files thin
-- continue reducing screen-specific Tailwind duplication
-
 ## Maintenance Rule
 
 Whenever structural frontend changes are made:
 
 - update this file to reflect the new repo shape
-- update `docs/codex-plan.md` to reflect progress against the cleanup plan
+- update [docs/codex-plan.md](codex-plan.md) to reflect progress against the cleanup plan

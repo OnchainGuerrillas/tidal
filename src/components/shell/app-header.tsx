@@ -14,12 +14,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PreferenceContextPanel } from "@/components/tidal/preference-context-panel";
+import { WorkspaceTabs } from "@/components/shell/workspace-tabs";
 import { usePreferenceProfile } from "@/providers/preference-profile-provider";
 
 export function AppHeader() {
-  const { profile, toggleInterestOption, toggleRiskOption } = usePreferenceProfile();
+  const { profile, toggleInterestOption, toggleRiskOption } =
+    usePreferenceProfile();
   const activeRiskOption =
-    profile.riskOptions.find((option) => option.checked)?.label ?? "Risk appetite";
+    profile.riskOptions.find((option) => option.checked)?.label ??
+    "Risk appetite";
   const selectedInterestCount = profile.interestOptions.filter(
     (option) => option.checked
   ).length;
@@ -27,10 +30,10 @@ export function AppHeader() {
   return (
     <header className="border-b border-tidal-border bg-background/95 backdrop-blur-sm">
       <div className="flex h-14 items-center justify-between gap-4 px-3 md:px-4">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <Link
             href="/"
-            className="flex h-7 items-center"
+            className="flex h-7 shrink-0 items-center"
             aria-label="Tidal home"
           >
             <Image
@@ -42,10 +45,11 @@ export function AppHeader() {
               priority
             />
           </Link>
-          <SidebarTrigger className="text-tidal-muted hover:text-tidal-accent" />
+          <SidebarTrigger className="shrink-0 text-tidal-muted hover:text-tidal-accent" />
+          <WorkspaceTabs />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <Dialog>
             <DialogTrigger
               render={
@@ -62,14 +66,14 @@ export function AppHeader() {
               <DialogHeader className="pr-10">
                 <DialogTitle>Risk appetite</DialogTitle>
                 <DialogDescription>
-                  This is your global Tidal risk setting. It shapes how chat,
-                  Pool, and Amplify suggestions are framed across the prototype.
+                  This is your global Tidal risk setting. It shapes how
+                  suggestions are framed across your workspaces.
                 </DialogDescription>
               </DialogHeader>
 
               <PreferenceContextPanel
                 title="Global risk appetite"
-                description="Update your standing risk appetite here. This applies across all chat and workspace surfaces."
+                description="Update your standing risk appetite here. It applies across every workspace."
                 riskOptions={profile.riskOptions}
                 interestOptions={profile.interestOptions}
                 onRiskToggle={toggleRiskOption}
@@ -97,14 +101,14 @@ export function AppHeader() {
               <DialogHeader className="pr-10">
                 <DialogTitle>Investment types</DialogTitle>
                 <DialogDescription>
-                  These are your global Tidal investment interests. They shape how
-                  chat, Pool, and Amplify opportunities are framed across the prototype.
+                  These are your global Tidal investment interests. They shape
+                  how opportunities are framed across every workspace.
                 </DialogDescription>
               </DialogHeader>
 
               <PreferenceContextPanel
                 title="Global investment interests"
-                description="Update the investment categories you want Tidal to prioritise across all chat and workspace surfaces."
+                description="Update the investment categories you want Tidal to prioritise across every workspace."
                 riskOptions={profile.riskOptions}
                 interestOptions={profile.interestOptions}
                 onRiskToggle={toggleRiskOption}

@@ -345,6 +345,99 @@
     @apply flex-1;
     min-height: 50vh;
   }
+
+  .tidal-sidebar-rail {
+    @apply flex flex-col gap-1.5 px-1.5 py-3;
+  }
+
+  .tidal-sidebar-rail-item {
+    @apply flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-transparent px-2 py-2.5 text-tidal-muted transition-colors hover:bg-tidal-sidebar-active/70 hover:text-tidal-accent;
+  }
+
+  .tidal-sidebar-rail-item--active {
+    @apply border-tidal-border bg-tidal-sidebar-active text-tidal-accent;
+  }
+
+  .tidal-sidebar-rail-label {
+    @apply text-[10px] font-medium leading-tight;
+  }
+
+  .tidal-sidebar-rail-user {
+    @apply flex items-center gap-2 rounded-lg border border-tidal-border bg-tidal-card/60 px-2 py-2;
+  }
+
+  .tidal-sidebar-rail-user-avatar {
+    @apply flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-tidal-accent;
+  }
+
+  .tidal-workspace-tabs {
+    @apply flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pr-2;
+    scrollbar-width: none;
+  }
+
+  .tidal-workspace-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tidal-workspace-tab {
+    @apply flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-transparent bg-transparent pl-3 pr-1.5 text-[11px] text-tidal-muted transition-colors hover:border-tidal-border hover:bg-tidal-card/60 hover:text-tidal-accent;
+    max-width: 180px;
+  }
+
+  .tidal-workspace-tab--active {
+    @apply border-tidal-border bg-tidal-sidebar-active text-tidal-accent;
+  }
+
+  .tidal-workspace-tab-label {
+    @apply flex min-w-0 cursor-pointer items-center text-[11px] font-medium;
+  }
+
+  .tidal-workspace-tab-close {
+    @apply flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded text-tidal-muted opacity-0 transition-opacity hover:bg-tidal-sidebar-active hover:text-tidal-accent group-hover:opacity-100;
+  }
+
+  .tidal-workspace-tab--active .tidal-workspace-tab-close {
+    @apply opacity-100;
+  }
+
+  .tidal-workspace-tab-add {
+    @apply flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent text-tidal-muted transition-colors hover:border-tidal-border hover:bg-tidal-card/60 hover:text-tidal-accent;
+  }
+
+  .tidal-tab-button {
+    @apply inline-flex cursor-pointer items-center rounded-md border border-tidal-border bg-tidal-card/60 px-3 py-1.5 text-[11px] font-medium text-tidal-muted transition-colors hover:border-tidal-accent/40 hover:text-tidal-accent;
+  }
+
+  .tidal-tab-button--active {
+    @apply border-tidal-accent bg-tidal-sidebar-active text-tidal-accent;
+  }
+
+  .tidal-node-catalog-item {
+    @apply flex w-full cursor-pointer flex-col items-start gap-1 rounded-lg border border-tidal-border bg-background/40 px-3 py-3 text-left transition-colors hover:border-tidal-accent/40 hover:bg-tidal-sidebar-active disabled:cursor-not-allowed disabled:border-tidal-border/50 disabled:bg-background/20 disabled:text-tidal-muted;
+  }
+
+  .tidal-template-grid {
+    @apply grid gap-3;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .tidal-template-card {
+    @apply flex cursor-pointer flex-col overflow-hidden rounded-xl border border-tidal-border bg-tidal-card/60 text-left transition-colors hover:border-tidal-accent/40 hover:bg-tidal-sidebar-active;
+  }
+
+  .tidal-template-card-thumb {
+    @apply h-24 w-full;
+    background-size: cover;
+    background-position: center;
+  }
+
+  .tidal-template-card-body {
+    @apply flex flex-col gap-1 px-3 py-3;
+  }
+
+  .tidal-template-card-tag {
+    @apply inline-flex items-center rounded-full border border-tidal-border bg-background/40 px-2 py-0.5 text-[10px] font-medium text-tidal-muted;
+  }
 }
 
 @media (min-width: 768px) {

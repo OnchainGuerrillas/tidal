@@ -4,10 +4,10 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useWorkspace } from "@/providers/workspace-provider";
-import { getWorkspaceHref } from "@/lib/routes/workspace";
 import { WorkspaceScreen } from "@/components/workspace/workspace-screen";
+import { getWorkspaceHref } from "@/lib/routes/workspace";
 
-export default function RootPage() {
+export default function WorkspaceIndexPage() {
   const router = useRouter();
   const { workspace } = useWorkspace();
 

@@ -404,10 +404,15 @@ Turn the current visual direction into a defined system.
 - [x] Refactor Amplify back toward the earlier hygiene bar by splitting mock-data concerns, extracting canvas graph state into `src/hooks/amplify`, and deleting dead node paths.
 - [x] Standardise ownership and promotion UI across Home, Pool, and Amplify with shared banners, summary panels, and promotion cards.
 - [x] Remove the redundant `src/features` layer and split its contents into product-area components, providers, hooks, and lib helpers.
-- [ ] Decide the first real Swap screen to add under the product-area component structure.
 - [x] Continue replacing raw text sizes and page spacing values with the new semantic classes in `globals.css`.
 - [x] Decide the intentional mobile layout behaviour for Amplify.
 - [x] Document the semantic styling conventions now living in `globals.css`.
+- [x] Collapse Home, Pool, Swap, and the Global Chat surface into `_archive/` so the unified workspace can become the entire product. See [docs/workflow-refactor.md](workflow-refactor.md) for the plan.
+- [x] Rename every `amplify` surface (components, providers, hooks, lib, mock-data, routes) to the unified `workspace` naming, and drop global-chat promotion logic from the workspace provider.
+- [x] Build the five-mode sidebar rail (Nodes, Investments, Discover, Chat, Templates) driven by a per-workspace `SidePanelProvider` that also powers canvas-focus mode.
+- [x] Add workspace tabs to the header so multiple workspaces can be switched and closed like browser tabs, with a `+` button that creates a fresh builder workspace.
+- [x] Port the archived pool position/recommendation/discovery/performance-chart UI into `components/workspace/{investments,discover}` under new investment-focused naming and data keyed per workspace.
+- [x] Stand up the Templates panel as a placeholder gallery matching the reference layout, backed by a small `mock-data/workspace/templates.ts` seed.
 
 ### Success Criteria
 

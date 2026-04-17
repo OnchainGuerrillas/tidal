@@ -4,12 +4,11 @@ import "./globals.css";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AmplifyWorkspaceProvider } from "@/providers/amplify-workspace-provider";
-import { GlobalChatWorkspaceProvider } from "@/providers/global-chat-workspace-provider";
-import { PoolWorkspaceProvider } from "@/providers/pool-workspace-provider";
+import { WorkspaceProvider } from "@/providers/workspace-provider";
+import { SidePanelProvider } from "@/providers/side-panel-provider";
+import { PreferenceProfileProvider } from "@/providers/preference-profile-provider";
 import { AppHeader } from "@/components/shell/app-header";
 import { AppSidebar } from "@/components/shell/app-sidebar";
-import { PreferenceProfileProvider } from "@/providers/preference-profile-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -31,23 +30,21 @@ export default function RootLayout({
       <body className="flex h-screen flex-col overflow-hidden">
         <TooltipProvider>
           <PreferenceProfileProvider>
-            <GlobalChatWorkspaceProvider>
-              <PoolWorkspaceProvider>
-                <AmplifyWorkspaceProvider>
-                  <SidebarProvider>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                      <AppHeader />
-                      <div className="flex min-h-0 flex-1 overflow-hidden">
-                        <AppSidebar />
-                        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                          {children}
-                        </main>
-                      </div>
+            <WorkspaceProvider>
+              <SidePanelProvider>
+                <SidebarProvider>
+                  <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <AppHeader />
+                    <div className="flex min-h-0 flex-1 overflow-hidden">
+                      <AppSidebar />
+                      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        {children}
+                      </main>
                     </div>
-                  </SidebarProvider>
-                </AmplifyWorkspaceProvider>
-              </PoolWorkspaceProvider>
-            </GlobalChatWorkspaceProvider>
+                  </div>
+                </SidebarProvider>
+              </SidePanelProvider>
+            </WorkspaceProvider>
           </PreferenceProfileProvider>
         </TooltipProvider>
       </body>
