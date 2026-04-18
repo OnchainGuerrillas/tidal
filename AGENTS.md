@@ -91,3 +91,44 @@ When structural frontend changes are made:
 - update `docs/architecture.md`
 - update `README.md` if developer-facing orientation changes
 - update `AGENTS.md` and `CLAUDE.md` if AI guidance changes
+
+## Backend Integration Phase (Active)
+
+The frontend prototype is complete. The repo is evolving into a working product per `docs/tidal-prd.md` (v2.1). Backend integration is now in scope.
+
+### Scope Of The Hard Constraints Above
+
+The "no external API calls / no blockchain / no wallet integrations" rules apply to **workspace UI and mock-data patterns**. They do not block the backend layer. Specifically:
+
+- Workspace UI continues to consume data through `src/providers/*` boundaries.
+- `src/mock-data/*` stays as the seed/fallback path and source of truth for UI-facing types.
+- New adapters slot behind existing providers so the partner's UI keeps working as real calls come online.
+- UI components must not import SDK clients directly — route through providers or API routes.
+
+### Backend Layout
+
+- `src/lib/solana/*` — protocol adapters (Kamino, Jupiter Lend, Jito, Sanctum, Jupiter swap, registry, connection)
+- `src/lib/ai/*` — Vercel AI SDK v6 tools, prompts, Solana tool definitions
+- `src/app/api/*` — route handlers (`chat`, `yields`, `solana/rates`, `solana/positions`)
+
+Keep route handlers thin. Business logic belongs in `src/lib/*`.
+
+### Stack Additions
+
+- **Wallet/Auth:** Privy with `walletChainType: 'ethereum-and-solana'`
+- **AI:** Vercel AI SDK v6 + Claude (default to latest Claude 4.x)
+- **Swaps:** Jupiter Ultra API direct (`/order` → `/execute`, Beam relayer)
+- **Lending:** `@kamino-finance/klend-sdk`, Jupiter Lend API
+- **Staking:** Jito stake pool SDK, Sanctum router
+- **Yield Data:** DeFi Llama Yields API (filter `chain === "Solana"`)
+
+Confirm exact package names against the PRD before installing.
+
+### Out Of Scope (Parked From v1)
+
+Do not re-introduce without approval: EVM chain configs (Base/Arbitrum/Optimism), Li.Fi SDK, AAVE V3 adapters, ERC-4626 vault adapter, wagmi hooks.
+
+### Testing
+
+- Mainnet with small amounts. Kamino, Jupiter, and Jito lack reliable devnet deployments.
+- Never commit secrets, API keys, or RPC URLs with embedded auth. Use `.env.local`.
