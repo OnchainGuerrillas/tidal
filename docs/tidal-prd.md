@@ -1,8 +1,8 @@
 # Tidal: Solana-First Consumer DeFi Product
 
-**Version:** 2.1
-**Date:** March 9, 2026
-**Status:** Active — replaces v1 hackathon PRD
+**Version:** 2.2
+**Date:** April 18, 2026
+**Status:** Active — supersedes v2.1
 **Transition:** EVM hackathon prototype (Base) → Solana-first consumer product
 **Team:** 0xSardius (engineering) + 0xJulo (design engineering)
 
@@ -10,11 +10,16 @@
 
 ## Executive Summary
 
-Tidal is an AI-powered DeFi yield advisor that makes Solana DeFi accessible, safe, and effortless. Users tell Tidal their risk comfort level, and the AI finds, explains, and executes the best yield strategies across Solana protocols — in plain English.
+Tidal is **ComfyUI for Solana DeFi**: a visual, typed, composable canvas where users build yield strategies as node graphs. An AI agent composes graphs on the user's behalf, drops them onto the canvas for inspection, and the user runs them with one click. Every step is visible, every parameter is editable, and every transaction is explained before signing.
 
-### One-Liner
+### Taglines
 
-> "Your AI tidekeeper for Solana DeFi."
+- **User-facing:** "Your AI tidekeeper for Solana DeFi."
+- **Architectural:** "Compose Solana yield like a workflow."
+
+### Design Thesis
+
+The composition paradigm is the differentiator. See `docs/design-thesis.md` — required reading before product or architecture decisions. The short version: nobody on Solana ships a composition surface today. Phantom is a wallet, Jupiter is an aggregator, Step is a dashboard, Griffain is a token, The Hive is multi-agent chat. None of them are a graph.
 
 ### Why Solana-First
 
@@ -26,7 +31,9 @@ Tidal is an AI-powered DeFi yield advisor that makes Solana DeFi accessible, saf
 
 ### Product Philosophy
 
-**Help consumers use DeFi as easily and seamlessly as possible — no wallet juggling, no protocol hopping, no jargon.** The user says what they want ("I want to earn yield on my USDC"), and Tidal handles everything: finding the best rate, explaining the risks, and executing the transaction.
+**Make Solana DeFi composable, visible, and shareable.** Users build strategies the way ComfyUI users build image pipelines — by dragging typed nodes onto a canvas. The AI agent composes graphs on the user's behalf when asked ("earn yield on my USDC"), but the user always sees the graph before it runs. No black-box execution. No buried parameters. Every step is a node, every connection is typed, every widget is editable.
+
+Comfort and safety are side effects of the paradigm: when every step is visible before signing, users don't sign things they don't understand.
 
 ### Core Value Proposition
 
@@ -145,130 +152,226 @@ app/api/
 
 ## Features (Phased)
 
-### Phase 1: Solana Foundation (MVP — 3-4 weeks)
+### Phase 1: Composition Foundation + Two Protocols (MVP — 4-5 weeks)
 
-**Product philosophy**: Help consumers use DeFi as easily and seamlessly as possible. No wallet juggling, no protocol hopping, no jargon. The user says what they want, the AI handles the rest.
+**Phase thesis:** Ship the composition paradigm with the smallest set of real protocol adapters that demonstrates it. Two protocols (one staking, one stablecoin lending) plus Jupiter swap as a bridge leg is enough to show typed edges, widget editing, agent-composed graphs, and end-to-end execution on mainnet. The point of Phase 1 is to prove the paradigm works on real Solana, not to maximize protocol count.
 
-**F1: Solana Wallet Connection**
+#### Composition Engine (must ship before any protocol feature is meaningful)
 
-- Connect Phantom, Backpack, or Privy embedded wallet
-- Email/social login creates an embedded Solana wallet automatically (zero friction)
-- Display SOL, USDC, and major token balances
-- Show current staking/lending positions if any
+**E1: Graph execution engine**
 
-**F2: JitoSOL Staking (Shallows — SOL holders)**
+- Topological execution from any sink node
+- Per-node state machine: `pending → running → succeeded → failed`
+- Error propagation halts downstream nodes and surfaces the failure
+- Cancellation: user can abort a running graph mid-execution
+- Per-workspace execution history (last N runs, viewable)
 
-- Stake SOL → receive JitoSOL (~5.9% APY)
-- Unstake JitoSOL → receive SOL
-- Display position value and earned rewards
-- AI explains MEV tips and staking mechanics in plain English
+**E2: Widget system (data-driven)**
 
-**F3: Kamino USDC Lending (Shallows — stablecoin holders)**
+- Per-node parameter UI rendered from a schema (`number`, `percentage`, `asset-selector`, `address`, `threshold`, `deadline`)
+- Adding a new node type adds a schema entry, not new UI components
+- Widget changes mark downstream nodes as `impacted` (already modeled in `WorkspaceNodeStatus`)
 
-- Supply USDC to Kamino Lend
+**E3: Workflow serialization**
+
+- Versioned JSON format: `tidal.workflow.v1`
+- Export current graph to JSON (download or copy)
+- Import a workflow JSON into a new or existing workspace
+- Shareable URL: workspace state encoded into URL query (with size cap and a fallback to JSON paste)
+- Migration scaffold for future format versions
+
+**E4: Type-colored edges**
+
+- Each canonical asset (`SOL`, `USDC`, `mSOL`, `JitoSOL`, `INF`, `kTokens`) gets a distinct edge color
+- Color-coded handles on node inputs/outputs
+- Visual feedback when a drag-from-output hovers over an incompatible input
+
+**E5: Node ↔ Adapter contract**
+
+- TypeScript interface `ProtocolAdapter` in `src/lib/solana/registry.ts`
+- Required methods: `readPosition`, `readRate`, `buildTransaction`, `metadata`
+- Each adapter exports a `nodeDefinition` (catalog entry + widget schema + handle types) so the catalog is generated, not hand-maintained
+
+**E6: Signing UX**
+
+- Single confirm-and-sign sheet used whether the user clicks Run on a single node, runs the whole graph, or accepts an agent-proposed graph from chat
+- Sheet shows: full step list, expected outcome per step (from `simulateTransaction`), fees (network + priority), slippage budget, plain-English summary
+- Wallet signature always required (Privy embedded or external)
+
+#### Protocol Adapters
+
+**P1: Wallet (Privy)**
+
+- Privy with `walletChainType: 'ethereum-and-solana'`
+- External connectors: Phantom, Backpack
+- Embedded wallets: email/social login → auto-provisioned Solana wallet
+- Display SOL, USDC, and major SPL token balances on the wallet node
+
+**P2: JitoSOL staking adapter (Shallows)**
+
+- Stake SOL → mint JitoSOL (~5.9% APY)
+- Unstake JitoSOL → SOL (epoch delay disclosed in widget)
+- Position read: JitoSOL balance + accrued yield
+- Rate read: live APY from Jito stake pool
+
+**P3: Kamino USDC lending adapter (Shallows)**
+
+- Supply USDC → receive kToken position (Kamino main market)
 - Withdraw USDC + interest
-- Read live APY from Kamino
-- AI compares Kamino rate vs Jupiter Lend in real-time
+- Position read: kToken balance → underlying USDC value
+- Rate read: live supply APY from Kamino
 
-**F4: Jupiter Lend USDC (Shallows — stablecoin holders)**
+**P4: Jupiter Ultra swap adapter**
 
-- Supply USDC to Jupiter Lend vaults
-- Withdraw USDC + interest
-- Read live APY from Jupiter Lend
-- AI compares vs Kamino and recommends the better rate
-- Example: "Kamino is at 4.2%, but Jupiter Lend has 5.8% right now. Both are solid for your risk level. Want me to go with Jupiter Lend?"
+- Used as a bridge leg when the user has the wrong asset for a chosen strategy
+- 2-endpoint flow: `/order` → user signs → `/execute` (Beam relayer)
+- No RPC required for the swap itself
+- Slippage and route-display widgets exposed on the swap node
 
-**F5: Jupiter Swap Integration**
+#### AI Agent
 
-- Swap any Solana token via Jupiter Ultra API
-- AI uses this automatically when user has the wrong token for a strategy
-- "You have SOL but want stablecoin yield. I'll swap to USDC first, then deposit."
-- Route display showing path and rate
+**A1: Vercel AI SDK v6 + Claude chat endpoint**
 
-**F6: AI Tools (Solana)**
+- `src/app/api/chat/route.ts`
+- Streaming responses, tool-call surface
+- Per-workspace transcript persisted in `WorkspaceProvider`
 
-- `stakeSOL` — Prepare JitoSOL staking transaction
-- `lendUSDC` — Prepare Kamino OR Jupiter Lend supply transaction (AI picks the better rate)
-- `withdrawLend` — Withdraw from either lending protocol
-- `swapToken` — Prepare Jupiter swap
-- `scanSolanaYields` — Scan DeFi Llama for Solana opportunities
-- `getSolanaRates` — Live APY from on-chain protocol reads
-- `compareYields` — Side-by-side comparison of stablecoin yield options
+**A2: Composition-mode tools**
 
-**F7: Risk-Tiered Recommendations**
+- `composeStrategy({ goal, riskTier })` — agent returns graph mutations (`addNode`, `connect`, `setWidget`) that the canvas applies
+- `explainGraph({ workspaceId })` — agent returns plain-English summary of the current graph
+- `scanSolanaYields({ asset, riskTier })` — DeFi Llama scan filtered by chain and tier
+- `compareYields({ asset })` — side-by-side comparison surface
 
-- Reuse risk depth selection UI from v1
-- AI filters strategies by tier
-- Shallows users see: JitoSOL staking + Kamino/Jupiter Lend stablecoin yield
-- Explain risk in plain English before every action
-- "This is a Shallows-safe strategy. Your USDC stays as USDC — you earn interest, and you can withdraw anytime."
+**A3: Risk-tier filtering**
+
+- Reuse existing `PreferenceProfileProvider`
+- Risk tier filters the node catalog (Shallows users see staking + base lending only)
+- Risk tier is passed to `composeStrategy` and constrains the agent's choices
+
+#### Comfort Baseline (pulled forward from Phase 2)
+
+**C1: Pre-sign breakdown (minimal F11)**
+
+- Plain-English summary of every transaction in the queue, generated from adapter metadata
+- Anomaly flags: high slippage (>1%), unknown program, unusually large amount
+
+**C2: Protocol risk badges (minimal F12)**
+
+- Per-protocol badge on every node: audit count, TVL, age in months
+- Sourced from a static `protocol-risk.ts` table in Phase 1; live data lands in Phase 2
+
+#### Deferred to Phase 2
+
+- **F4 Jupiter Lend** — second stablecoin lender, not required for MVP demo
+- Full F11 (live `simulateTransaction` integration), full F12 (live risk data)
+
+#### Phase 1 Done When
+
+A user can:
+
+1. Connect a wallet (Privy embedded or Phantom/Backpack)
+2. Ask the agent for "safe USDC yield"
+3. Receive a composed graph onto the canvas
+4. Edit a widget (e.g., increase deposit amount)
+5. See the pre-sign breakdown with risk badges
+6. Sign once
+7. Watch the graph execute end-to-end on Solana mainnet
+8. Export the resulting graph as JSON and share it
 
 ### Phase 2: Protocol Expansion + Differentiation (3 weeks)
 
+**P5: Jupiter Lend USDC adapter (deferred from Phase 1)**
+
+- Second stablecoin lending option as a separate node
+- Agent can propose Kamino or Jupiter Lend depending on live rates
+- Same `ProtocolAdapter` shape as Kamino
+
 **F8: Kamino Curated Earn Vaults (Mid-Depth)**
 
-- Deposit into Gauntlet/Steakhouse curated vaults
-- Higher yields than base lending
-- AI explains the risk tradeoff vs base Kamino lending
+- Gauntlet/Steakhouse curated vaults as separate node types
+- Higher yields with explicit manager attribution shown on the node
+- AI explains the risk tradeoff vs. base Kamino lending
 
-**F9: Sanctum INF Staking**
+**F9: Sanctum INF staking adapter**
 
-- Stake via Sanctum for best-in-class LST APY (~6.4%)
+- Best-in-class LST APY (~6.4%)
+- Sanctum router node enables LST swaps as a graph leg (e.g., JitoSOL → INF)
 - AI recommends JitoSOL vs INF vs mSOL based on current rates
 
-**F10: Drift Lending (Mid-Depth)**
+**F10: Drift lending adapter (Mid-Depth)**
 
 - Supply USDC/SOL to Drift's money market
-- Integrated with Drift's cross-margin system
+- Cross-margin awareness disclosed in the widget
 - AI surfaces when Drift rates beat Kamino/Jupiter
 
-**F11: Transaction Explanation Engine**
+**F11 (full): Transaction explanation engine**
 
-- Before every signature, show plain-English breakdown of what the transaction does
-- Flag unusual patterns (high slippage, unknown programs, excessive token approvals)
-- "This transaction will stake 10 SOL with Jito and give you 9.83 JitoSOL in return. You can unstake anytime."
+- Live `simulateTransaction` integration replaces the Phase 1 static breakdown
+- Per-step expected balance changes and post-state preview
+- Configurable slippage and deadline budgets at the graph level
 
-**F12: Protocol Risk Scoring**
+**F12 (full): Live protocol risk scoring**
 
-- Display per-protocol: audit status, TVL trend, age, exploit history
-- AI references these in recommendations: "Kamino has been audited by OtterSec and Kudelski, $3B TVL, no exploits."
+- Replace the static `protocol-risk.ts` table with live data
+- TVL trend (24h, 7d), exploit history, last audit date
+- Surfaced both on the node badge and in the pre-sign breakdown
+
+**E7: Per-node execution modes**
+
+- `Always` / `Manual` / `Bypass` / `Mute` per node, mirroring ComfyUI
+- Foundation for Phase 3 autopilot — `Always` nodes re-run when upstream rates change
+- `Bypass` lets a user skip a leg without deleting it; `Mute` pauses an entire branch
 
 ### Phase 3: Intelligence + Differentiation (3 weeks)
 
-**F13: Auto-Rebalancing**
+**F13: Auto-rebalancing (built on execution modes)**
 
-- Monitor yield rates on a schedule (Vercel Cron)
-- Alert user when a better opportunity appears
-- Autopilot mode: auto-execute rebalance if delta > threshold
-- "Kamino USDC dropped to 3.1%, Jupiter Lend is offering 5.8%. Want me to move your funds?"
+- Vercel Cron triggers `Always`-mode nodes when upstream rate conditions change
+- Per-node thresholds (delta APY, time since last run, max gas) as widgets
+- Pre-execution notification window with one-click "pause" — never blind execute
+- Daily caps and emergency-pause-all controls (the safety rails autopilot needs)
 
-**F14: Portfolio View**
+**F14: Portfolio view**
 
-- Unified view of all Solana positions (staking, lending, LP)
-- Show total yield earned, current APY, allocation breakdown
-- Historical performance chart
+- Unified Solana positions across all adapters
+- Total yield earned, APY history, allocation breakdown
+- Per-graph performance attribution: which workflow earned what
 
-**F15: DeFi Education Mode**
+**F15: DeFi education mode**
 
-- Contextual explanations triggered by user questions
-- "What is impermanent loss?" → AI explains with user's actual positions as examples
-- Progressive learning: track what concepts user has been exposed to
+- Inline term explanations on every widget and node (hover/click)
+- Contextual explanations triggered from chat using the user's actual positions
+- Concept tracking — don't re-explain what the user has already seen
+
+**E8: Subgraphs / saved compositions**
+
+- Collapse a multi-node strategy into a reusable group node
+- Save to a personal library; share via the same workflow JSON format
+- Saved subgraphs become candidate building blocks for the AI agent's `composeStrategy` tool
 
 ### Phase 4: Agent Infrastructure + Monetization (4 weeks)
 
-**F16: Lucid Agents + x402 API**
+**F16: Lucid Agents + x402 paid API**
 
-- Expose Tidal's yield intelligence as a paid API
-- Other AI agents pay per-call to scan Solana yields, get recommendations, or prepare transactions
-- Pricing: $0.01/yield scan, $0.05/recommendation, $0.10/tx preparation
+- Expose Tidal as a paid composition surface for other agents
+- Endpoints: yield scan, recommendation, transaction prep, **graph composition** (other agents pay to receive a strategy graph for a stated goal)
+- Pricing: $0.01/yield scan, $0.05/recommendation, $0.10/tx prep, $0.20/graph composition
 - Revenue dashboard for tracking agent API income
 
-**F17: Points System**
+**F17: Points system**
 
-- Points per action: staking (10), lending (15), vault deposit (25), rebalance (50)
+- Points per action: stake (10), lend (15), vault deposit (25), rebalance (50), share workflow (30)
 - Streak multiplier for weekly activity
-- Leaderboard (pseudonymous, wallet-based)
+- Pseudonymous wallet-based leaderboard
 - Creates token-launch optionality
+
+**E9: Custom node authoring (platform play)**
+
+- Third-party protocols can publish their own Tidal nodes
+- Node manifest format extends `ProtocolAdapter` with publisher metadata
+- Review process before new nodes appear in the public catalog
+- This is the long-term moat — when Drift, Marginfi, or a new protocol ships their own node, the catalog becomes an ecosystem
 
 ---
 
@@ -358,32 +461,49 @@ app/api/
 ## Phase Dependency Graph
 
 ```
-Phase 1: Solana Foundation (MVP)
-├── Wallet connection
-├── JitoSOL staking
-├── Kamino USDC lending
-├── Jupiter swaps
-├── AI tools (Solana)
-└── Risk-tiered recommendations
+Phase 1: Composition Foundation + Two Protocols (MVP)
+├── Engine
+│   ├── E1 Graph execution engine
+│   ├── E2 Widget system (data-driven)
+│   ├── E3 Workflow serialization (JSON + share URL)
+│   ├── E4 Type-colored edges
+│   ├── E5 Node ↔ Adapter contract
+│   └── E6 Signing UX
+├── Adapters
+│   ├── P1 Wallet (Privy)
+│   ├── P2 JitoSOL staking
+│   ├── P3 Kamino USDC lending
+│   └── P4 Jupiter Ultra swap (bridge leg)
+├── AI
+│   ├── A1 Chat endpoint (AI SDK v6 + Claude)
+│   ├── A2 Composition tools (composeStrategy, explainGraph, ...)
+│   └── A3 Risk-tier filtering
+└── Comfort baseline
+    ├── C1 Pre-sign breakdown (minimal)
+    └── C2 Protocol risk badges (static)
     │
     ▼
-Phase 2: Protocol Expansion
-├── Jupiter Lend
-├── Kamino Earn Vaults
-├── Sanctum INF
-├── Transaction explanation engine
-└── Protocol risk scoring
+Phase 2: Protocol Expansion + Differentiation
+├── P5 Jupiter Lend (deferred from Phase 1)
+├── F8 Kamino Earn Vaults
+├── F9 Sanctum INF
+├── F10 Drift lending
+├── F11 (full) Live tx simulation
+├── F12 (full) Live protocol risk scoring
+└── E7 Per-node execution modes
     │
     ▼
-Phase 3: Intelligence
-├── Auto-rebalancing
-├── Portfolio view
-└── Education mode
+Phase 3: Intelligence + Differentiation
+├── F13 Auto-rebalancing (built on E7)
+├── F14 Portfolio view
+├── F15 Education mode
+└── E8 Subgraphs / saved compositions
     │
     ▼
-Phase 4: Infrastructure + Monetization
-├── Lucid Agents + x402 API
-└── Points system
+Phase 4: Agent Infrastructure + Monetization
+├── F16 Lucid Agents + x402 (incl. graph composition endpoint)
+├── F17 Points system
+└── E9 Custom node authoring (platform play)
 ```
 
 ---
@@ -430,11 +550,13 @@ Phase 4: Infrastructure + Monetization
 
 ### Phase 1 Launch
 
-- [ ] Working demo: connect wallet → select risk → get recommendation → execute stake/lend
-- [ ] At least 2 Solana protocols integrated (Jito + Kamino)
-- [ ] AI explains every action before execution
-- [ ] Risk tiers affect recommendations
-- [ ] < 3 second time-to-first-recommendation
+- [ ] Working demo: connect wallet → ask agent for safe USDC yield → graph appears on canvas → user edits a widget → pre-sign breakdown shown → user signs once → graph executes end-to-end on mainnet → graph exported as JSON
+- [ ] Composition engine functional: graph execution, widget editing, JSON export/import, type-colored edges, signing sheet
+- [ ] At least 2 Solana protocol adapters (Jito + Kamino) plus Jupiter Ultra swap as a bridge leg
+- [ ] AI agent can compose graphs (`composeStrategy`) and explain them (`explainGraph`)
+- [ ] Risk tier filters the node catalog and constrains agent compositions
+- [ ] Pre-sign breakdown shown for every signed transaction
+- [ ] < 3 second time-to-first-graph-on-canvas after user prompt
 
 ### Product-Market Fit Signals
 
@@ -452,4 +574,4 @@ Phase 4: Infrastructure + Monetization
 
 ---
 
-_Tidal v2: From hackathon prototype to Solana-first consumer product._
+_Tidal v2.2: ComfyUI for Solana DeFi — visual, typed, composable yield workflows._
