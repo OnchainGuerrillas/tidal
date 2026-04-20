@@ -1,93 +1,128 @@
 # Checkpoint
 
-**Last updated:** 2026-04-18
+**Last updated:** 2026-04-19
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `7aaaaa1` — docs: cite design thesis as required reading
+**Latest commit:** `48d8d09` — feat(auth): wire Privy + Solana deps and add smoke-test page (P1)
 
 ---
 
 ## Where We Are
 
-Tidal Prototype has transitioned from **frontend-only prototype** to **working-product repo**. The frontend architecture (0xJulo's work) is complete. The backend phase is about to start (0xSardius).
+Phase 1 (Composition Foundation + Two Protocols) is in flight. Docs locked. First real backend code landed. Privy wiring is complete and awaiting a browser smoke test from the user before moving to P2 (JitoSOL adapter).
 
-**Major reframe this session:** the product is not "AI yield advisor that happens to have a node canvas." It is **ComfyUI for Solana DeFi** — a visual, typed, composable canvas is the differentiator. The AI agent's role is *composer*, not *executor*. This is now the foundational design thesis.
+**ComfyUI-for-DeFi** remains the foundational design thesis. Agent is a *composer*, not an executor. See `docs/design-thesis.md`.
 
-## What We Did This Session (2026-04-18)
+## Session Work (2026-04-18 and 2026-04-19)
 
-### Doc infrastructure commits (on `main`, all pushed)
+### Docs committed
 
-1. `c3a7838` — Marked backend integration phase in `CLAUDE.md` and `docs/architecture.md`. Scoped existing "no API / no blockchain / no wallet" rules to UI/mock-data patterns so backend work is unblocked.
-2. `c2bf241` — Same phase-shift note added to `AGENTS.md`.
-3. `5c1a8b4` — Listed Claude Code skills to use for backend work in `CLAUDE.md` (load-bearing: `solana-dev`, `integrating-jupiter`, `ai-sdk-core`, `ai-sdk-ui`, `claude-api`, `prompt-engineering-patterns`). Flagged not-for-this-repo: `wagmi`, `viem`, `solana-anchor-claude-skill`.
-4. `e9333ac` — New `docs/design-thesis.md` naming ComfyUI as the paradigm, mapping concepts to Tidal, defining anti-paradigm, listing engineering implications.
-5. `8ecc574` — PRD restructured to v2.2 around composition paradigm. Phase 1 now covers composition engine (E1–E6) + 2 adapters + AI + comfort baseline. Jupiter Lend deferred to Phase 2. Per-node execution modes (E7) in Phase 2 enable Phase 3 autopilot (F13). F16 paid API gains graph-composition endpoint. E9 custom node authoring added as long-term platform play.
-6. `7aaaaa1` — `CLAUDE.md` and `AGENTS.md` cite the thesis as required reading and instruct agents to reject anti-paradigm requests.
+1. `c3a7838` — Backend integration phase marked in `CLAUDE.md` and `docs/architecture.md`. Scoped existing frontend constraints to UI/mock-data patterns.
+2. `c2bf241` — Same phase-shift in `AGENTS.md`.
+3. `5c1a8b4` — Claude Code skills list in `CLAUDE.md`.
+4. `e9333ac` — New `docs/design-thesis.md` naming ComfyUI paradigm.
+5. `8ecc574` — PRD restructured to v2.2 around composition paradigm. Phase 1 now covers composition engine (E1-E6) + 2 adapters + AI + comfort baseline.
+6. `7aaaaa1` — `CLAUDE.md` and `AGENTS.md` cite thesis as required reading.
+7. `5315452` — First checkpoint at paradigm pivot.
+8. `26596a6` — `docs/phase-1-plan.md` with critical path, week-by-week, decisions to resolve, test plan, risks.
 
-### Key decisions
+### Code committed
 
-- **Single repo, not separate.** Partner agreed to evolve this repo into the working product rather than fork. `tidal-prototype` name stays for now.
-- **ComfyUI framing is load-bearing.** Every feature decision goes through the "does this preserve the typed-graph mental model" filter.
-- **Phase 1 scope deliberately expanded.** Four protocols shrank to two, but composition engine, widget system, workflow serialization, type-colored edges, node-adapter contract, and signing UX were added. Timeline: 4-5 weeks, not 3-4.
-- **Agent's role shifted.** Not "chat executes trades." It is "chat proposes graphs onto the canvas; user inspects, edits, signs." The `composeStrategy` tool returns graph mutations, not text.
-- **Comfort baseline pulled forward.** Minimal F11 (pre-sign breakdown) and minimal F12 (static protocol risk badges) land in Phase 1 so the first signed tx demonstrates the thesis. Full live versions in Phase 2.
+9. `31a389a` — **E5 ProtocolAdapter scaffolding**. `src/lib/solana/types.ts` + `registry.ts`. Pure TypeScript contract. Every adapter binds to a `NodeCatalogItem.id` and implements `readPosition` / `readRate` / `buildTransaction`. Registry is in-memory.
+10. `48d8d09` — **P1 Privy wiring**. Installed `@privy-io/react-auth@3.22.1` + Solana peers (`@solana/kit`, `@solana-program/{system,token,memo}`). Created `src/components/providers/privy-provider.tsx` with Tidal dark theme + Solana embedded/external wallets. Wired at outermost layer in `layout.tsx`. Added `/privy-smoke` debug page exercising login, wallet listing, and `signMessage` on first Solana wallet.
+
+### Key decisions locked
+
+- **Single repo** — evolving the prototype into the working product. No fork.
+- **ComfyUI framing** — every product/arch decision goes through the typed-graph filter.
+- **Server-side tx build** — adapters run in `src/app/api/*`, client just signs returned base64 tx. Keeps RPC key server-only.
+- **Env var naming** (locked): `NEXT_PUBLIC_PRIVY_APP_ID` (public by design), `PRIVY_APP_SECRET` (server-only), `HELIUS_RPC_URL` (server-only). `.env*` gitignored (`.gitignore:35`).
+- **RPC provider**: Helius free tier.
+- **No substantive design changes** — reuse existing primitives from `src/components/ui` and `src/components/tidal`. 0xJulo's frontend architecture stays intact.
+- **Minimal 0xJulo asks**: (1) review 6-asset color palette, (2) "graph appears" animation preference (or ship "just appear" for MVP).
+- **Agent's role** — composer, not executor. Tools return `GraphMutation[]` which the client applies to `WorkspaceProvider`.
+
+### Package decisions
+
+- Privy 3.22.1 — uses `@privy-io/react-auth/solana` subpath for `useWallets`, `useSignMessage`, `useSignTransaction`, `toSolanaWalletConnectors`
+- `@solana/kit` 6.x (modern replacement for `@solana/web3.js`) — new Solana toolkit
+- `@solana-program/{system,token,memo}` — program bindings per the new SDK pattern
 
 ## Current Repo State
 
 ### Frontend (complete, 0xJulo)
 
-- Next.js 16, React 19, Tailwind v4, React Flow (`@xyflow/react`), shadcn, `@base-ui/react`
-- Single live route: `/<workspaceId>` with a `workspace-screen.tsx` that composes canvas + side panels
-- Three providers: `WorkspaceProvider`, `SidePanelProvider`, `PreferenceProfileProvider`
-- Six node kinds: `wallet`, `amount`, `strategy`, `split`, `reward`, `destination`
-- Five side panels: `nodes`, `chat`, `investments`, `discover`, `templates`
-- All data mocked under `src/mock-data/*`
-- Canonical asset identity in `WorkspaceNodeOutput.asset`; display text in `.amountLabel`
-- React Flow client-only via `next/dynamic({ ssr: false })`
+Unchanged from last checkpoint. Tree is: `TooltipProvider` (now nested under `PrivyProvider`) → `PreferenceProfileProvider` → `WorkspaceProvider` → `SidePanelProvider`.
 
-### Backend (not yet started)
+### Backend (in progress)
 
-Target layout per PRD v2.2:
-- `src/lib/solana/*` — protocol adapters (empty)
-- `src/lib/ai/*` — agent tools (empty)
-- `src/app/api/*` — route handlers (empty)
+- `src/lib/solana/types.ts` — `ProtocolAdapter` interface + supporting types
+- `src/lib/solana/registry.ts` — `registerAdapter` / `getAdapter` / `listAdaptersByRiskTier` / `clearAdaptersForTesting`
+- `src/components/providers/privy-provider.tsx` — configured for Solana
+- `src/app/privy-smoke/page.tsx` — debug smoke-test page (remove after verified)
 
-Nothing committed yet beyond docs.
+Still empty: `src/lib/ai/*`, `src/app/api/*`.
 
 ## Next Session Starts Here
 
-### Immediate next step
+### Immediate blocker
 
-**Plan Phase 1 execution.** The user (0xSardius) asked to do Phase 1 execution planning — actual week-by-week build order for E1–E6 + P1–P4 + A1–A3 across 4-5 weeks.
+**User must run the Privy smoke test in a browser.** Steps at `/privy-smoke` after `bun run dev`:
 
-Suggested structure for that plan:
-1. Critical-path identification — what blocks what (E5 node-adapter contract blocks P2/P3/P4; E1 engine blocks A2 composition tools; E2 widgets block E6 signing UX)
-2. Week-by-week allocation
-3. Decision points that need to be resolved before coding (RPC provider — Helius vs Triton; Privy Solana embedded wallet ergonomics; signing UX mockup)
-4. Test plan per week (LiteSVM for unit tests, mainnet with small amounts for integration, per the `solana-dev` skill)
+1. Page loads without console errors (Privy initialized)
+2. Click "Login" → modal opens → log in with email or connect Phantom/Backpack
+3. After login, a Solana address appears under "Solana wallets"
+4. Click "Sign 'tidal-smoke-test'" → modal asks to sign → approve → hex signature appears
 
-### Blockers / decisions to resolve early in Phase 1
+If all 4 pass: Phase 1 is de-risked; proceed to P2.
 
-- **RPC provider** for Kamino + Jito reads. Not decided. Helius or Triton likely. Jupiter Ultra uses Beam relayer so doesn't need one.
-- **Privy Solana integration specifics** — does `walletChainType: 'ethereum-and-solana'` work cleanly with embedded wallets on Solana? Needs verification.
-- **Signing UX mockup** — single confirm-and-sign sheet used whether the user clicks Run on a node, runs the whole graph, or accepts an agent-proposed graph. No design yet.
-- **Workflow JSON schema** — `tidal.workflow.v1` format needs spec before E3 lands.
+Common failure modes:
+- Origin error → add `http://localhost:3000` in Privy dashboard (Settings → Domains)
+- Sign fails → likely embedded-wallet config issue in Privy dashboard
 
-### Open questions from PRD
+### After smoke test passes
 
-- Colosseum hackathon cycle timing (not resolved)
-- Jupiter API tier (free 60 req/min vs Pro) — probably free for MVP
-- Integrator fees on Jupiter swaps day-one — design decision, not blocker
+**P2 JitoSOL adapter (reads first, writes next)**
+
+1. Create `src/lib/solana/connection.ts` using `HELIUS_RPC_URL` (server-only)
+2. Create `src/lib/solana/jito.ts` implementing `ProtocolAdapter`:
+   - `readPosition` — fetch JitoSOL token balance for a wallet
+   - `readRate` — fetch current JitoSOL APY from Jito stake pool state
+   - `buildTransaction` — stake SOL (`depositSol` IX) and unstake paths
+3. Register via `registerAdapter(...)` in a bootstrap module
+4. Server routes at `src/app/api/solana/positions/route.ts` and `src/app/api/solana/rates/route.ts`
+5. LiteSVM unit tests for `buildTransaction`
+6. Mainnet smoke test — stake 0.01 SOL
+
+### Parallel side tracks (can start anytime)
+
+- **E4 type-colored edges** (pure frontend, awaits color palette from 0xJulo)
+- **E3 prep**: draft `tidal.workflow.v1` JSON schema spec
+- **A2 prep**: design `GraphMutation` type + `applyMutations` helper in `src/lib/workspace/` — unblocks the agent's composition-mode tools
+
+### Decisions still to resolve
+
+- Signing UX sheet design (0xJulo, needed before Week 3 E6 lands) — minimal: assemble from existing Sheet/Dialog primitives, so this is implementation more than design
+- Asset color palette (10-min review by 0xJulo)
+- "Graph appears" animation (10-min decision, fine to ship "just appear")
+
+### Risks unchanged
+
+1. Privy Solana embedded wallet maturity — addressed by the pending smoke test
+2. Kamino SDK docs quality — test when we get to P3 in Week 3
+3. AI SDK v6 tool-call → graph mutation pattern — prove with hello-world in Week 1 after smoke test passes
+4. Mainnet testing costs time — budgeted
 
 ## Useful Pointers
 
-- Read `docs/design-thesis.md` first — foundational.
-- Then `docs/tidal-prd.md` v2.2 — feature roadmap.
-- Then `docs/architecture.md` — frontend architecture + backend layer plan.
-- `CLAUDE.md` and `AGENTS.md` — current agent instructions including skills list.
-- User is 0xSardius (engineering). Partner 0xJulo owns design/frontend.
-- Single-repo decision: this repo evolves into the working product. No fork.
+- `docs/design-thesis.md` — foundational. Read first.
+- `docs/tidal-prd.md` (v2.2) — feature roadmap.
+- `docs/phase-1-plan.md` — critical path + week-by-week.
+- `docs/architecture.md` — frontend architecture + backend plan.
+- `CLAUDE.md` + `AGENTS.md` — agent instructions including Claude Code skills list.
+- User: 0xSardius (engineering). Partner: 0xJulo (frontend/design).
+- Single-repo: this repo becomes the working product.
 
-## Command Reminders (Bun only, never npm)
+## Command Reminders (Bun only)
 
 ```bash
 bun install
