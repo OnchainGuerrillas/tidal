@@ -1,10 +1,16 @@
 import "server-only";
 
 import { address } from "@solana/kit";
+import { depositSol } from "@solana/spl-stake-pool";
+import {
+  PublicKey,
+  TransactionMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
 
 import type { NodeCatalogItem } from "@/mock-data/workspace/types";
 
-import { getSolanaRpc } from "./connection";
+import { getSolanaRpc, getSolanaWeb3Connection } from "./connection";
 import type {
   APYQuote,
   BuildTransactionParams,
@@ -18,6 +24,9 @@ import type {
 
 export const JITOSOL_MINT_ADDRESS =
   "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn";
+
+export const JITO_STAKE_POOL_ADDRESS =
+  "Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb";
 
 const CATALOG_ITEM: NodeCatalogItem = {
   id: "jito-sol-stake",
@@ -109,9 +118,66 @@ async function readRate(): Promise<APYQuote> {
 async function buildTransaction(
   params: BuildTransactionParams,
 ): Promise<BuildTransactionResult> {
-  throw new Error(
-    `JitoSOL buildTransaction is not implemented yet (called for wallet ${params.walletPublicKey}) — lands in the P2 write path after the Privy Solana signing smoke test passes.`,
+  const lamports = params.inputAmount;
+  if (lamports <= 0n) {
+    throw new Error(
+      `JitoSOL stake requires a positive lamport amount (got ${lamports.toString()})`,
+    );
+  }
+  // @solana/spl-stake-pool's depositSol takes a JS number for lamports.
+  // Guard against overflow before converting.
+  if (lamports > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(
+      `stake amount exceeds JS number safe range: ${lamports.toString()} lamports`,
+    );
+  }
+
+  const connection = getSolanaWeb3Connection();
+  const fromPubkey = new PublicKey(params.walletPublicKey);
+  const stakePool = new PublicKey(JITO_STAKE_POOL_ADDRESS);
+
+  const { instructions, signers } = await depositSol(
+    connection,
+    stakePool,
+    fromPubkey,
+    Number(lamports),
   );
+  if (signers.length > 0) {
+    throw new Error(
+      `JitoSOL depositSol returned ${signers.length} ephemeral signers; server-side signing not supported yet`,
+    );
+  }
+
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  const message = new TransactionMessage({
+    payerKey: fromPubkey,
+    recentBlockhash: blockhash,
+    instructions,
+  }).compileToV0Message();
+  const tx = new VersionedTransaction(message);
+  const transactionBase64 = Buffer.from(tx.serialize()).toString("base64");
+
+  const warnings: string[] = [];
+  const minStakeLamports = 10_000_000n; // 0.01 SOL, conservative floor
+  if (lamports < minStakeLamports) {
+    warnings.push(
+      `staking ${lamports.toString()} lamports (< 0.01 SOL) - small-stake economics may not be worthwhile after fees`,
+    );
+  }
+
+  return {
+    transactionBase64,
+    // Stake pool exchange rate is >= 1.0 (JitoSOL appreciates vs SOL over
+    // time). We return the input lamports as a lower bound; the actual
+    // JitoSOL minted is slightly less because of the stake pool's deposit
+    // fee and the exchange-rate denominator. Fetching the pool's exact
+    // rate for an accurate quote is a follow-up.
+    expectedOutputAmount: lamports,
+    fees: {
+      networkLamports: 5000n,
+    },
+    warnings,
+  };
 }
 
 function formatTokenAmount(
