@@ -1,16 +1,16 @@
 # Checkpoint
 
-**Last updated:** 2026-04-20
+**Last updated:** 2026-04-21
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `09f3139` — feat(solana): JitoSOL adapter reads + positions API route (P2 part 1)
+**Latest commit:** `f3b9dbe` — refactor: proxy RPC through server + use sign-only flow (prod architecture)
 
 ---
 
 ## Where We Are
 
-Phase 1 (Composition Foundation + Two Protocols) is in flight. Docs locked. **Privy Solana smoke test PASSED** on 2026-04-20 — all 4 gates cleared (page init, login, Solana wallet provisioned, signMessage returned a valid signature). Phase 1 foundation is de-risked; every downstream signing flow can build on this.
+Phase 1 (Composition Foundation + Two Protocols) is in flight. Docs locked. **Privy Solana smoke test PASSED** on 2026-04-20 — all 4 gates cleared (page init, login, Solana wallet provisioned, signMessage returned a valid signature).
 
-JitoSOL read path is live end-to-end (`/api/solana/positions` returns real data from Helius RPC). Next substantive work is the P2 write path: real `readRate` from Jito stake pool state, and `buildTransaction` for stake/unstake.
+**🎉 P2 JitoSOL write path LANDED ON MAINNET on 2026-04-21.** Staked 0.01 SOL → received 0.0078 JitoSOL (tx signature `5TERmKWNBNHai62GCB22mJhYTyZDioCdrBMLLQwmYzwhRr7NU91Au9VUFjG4SNtNEWrwHJ2efbLtXcntzppQDx2c`, wallet `BdPGUFcYUQ2FsLqjit9BKhccwUvpzeMFwhJvNs2y5pLa`). Position verified via `/api/solana/positions`. The entire build-sign-submit architecture is proven and generalizes to every future adapter.
 
 **ComfyUI-for-DeFi** remains the foundational design thesis. Agent is a *composer*, not an executor. See `docs/design-thesis.md`.
 
@@ -69,22 +69,29 @@ Still empty: `src/lib/ai/*`, `src/app/api/*`.
 
 ## Next Session Starts Here
 
-### Immediate next work
+### Immediate next work — P3 Kamino USDC adapter
 
-**P2 write path (JitoSOL stake/unstake):**
+With P2 proven end-to-end on mainnet, P3 is the next natural step. It validates the adapter pattern against a second protocol (lending, not staking) and gives us the multi-lender comparison narrative the PRD leans on.
 
-1. Replace stub `readRate` in `src/lib/solana/jito.ts` with real APY computation — either from Jito stake pool account state (exchange rate delta over epochs) or from Jito's public yield endpoint
-2. Implement `buildTransaction` for JitoSOL stake pool `depositSol` instruction and unstake/withdraw path. Returns base64-encoded `VersionedTransaction`.
-3. Add `/api/solana/build-transaction` route that takes catalogItemId + wallet + widgets, calls `adapter.buildTransaction`, returns the tx
-4. Client flow: user clicks Run on node → hit build-transaction → Privy `useSignTransaction` signs → submit via `sendTransaction` RPC → poll status
-5. Mainnet smoke test: stake 0.01 SOL from the same wallet that passed the smoke test, verify the transaction lands on Solana mainnet
-6. LiteSVM unit tests for `buildTransaction` output shape
+1. `bun add @kamino-finance/klend-sdk`
+2. `src/lib/solana/kamino.ts` implementing `ProtocolAdapter`:
+   - `readPosition` — kToken balance → underlying USDC value
+   - `readRate` — supply APY from Kamino main market
+   - `buildTransaction` — supply USDC → kToken, withdraw path
+3. Register in `src/lib/solana/adapters.ts`
+4. Should work with the existing `/api/solana/build-transaction` and `/api/solana/submit-transaction` routes without change (that's the whole point of the contract)
+5. Mainnet test: supply 1 USDC from the smoke-test wallet
+
+### Followup polish from P2 landing
+
+- Real `readRate` for Jito (replace 5.9% stub) — fetch from Jito's public yield endpoint or derive from stake pool exchange rate
+- Better `expectedOutputAmount` in `buildTransaction` (read pool exchange rate)
+- Unstake path for JitoSOL (`withdrawSol` or `withdrawStake`)
 
 ### Parallel side tracks (can ship anytime)
 
 - **E4 type-colored edges** (CSS + React Flow edge styling; palette defaults approved)
 - **A2 `composeStrategy` tool shape** — draft the AI SDK v6 tool that returns `GraphMutation[]`. Pairs with the `GraphMutation` work already committed.
-- **Consider bumping tsconfig target** from ES2017 → ES2022 (enables bigint literals, cleaner async, modern syntax across backend). Low-risk one-liner commit.
 
 ### Parallel side tracks (can start anytime)
 
@@ -100,11 +107,11 @@ Still empty: `src/lib/ai/*`, `src/app/api/*`.
 
 ### Risks (updated)
 
-1. ~~Privy Solana embedded wallet maturity~~ — **RESOLVED 2026-04-20 by smoke test**
-2. Kamino SDK docs quality — test when we get to P3 in Week 3
-3. AI SDK v6 tool-call → graph mutation pattern — `GraphMutation` type and `applyMutations` helper are committed; still need to prove the wire with a hello-world AI tool
-4. Mainnet testing costs time — budgeted
-5. **New:** Privy `signTransaction` hook behavior — `signMessage` works, but full Solana transaction signing + submission may surface additional quirks. De-risk early in P2 write path.
+1. ~~Privy Solana embedded wallet maturity~~ — **RESOLVED 2026-04-20** by smoke test
+2. ~~Privy `signTransaction` hook behavior~~ — **RESOLVED 2026-04-21** by successful mainnet stake
+3. Kamino SDK docs quality — to be tested in P3 (now the next priority)
+4. AI SDK v6 tool-call → graph mutation pattern — `GraphMutation` + `applyMutations` are committed; still need a hello-world tool call to prove the wire
+5. Mainnet testing costs time — budgeted
 
 ## Useful Pointers
 
