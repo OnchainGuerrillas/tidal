@@ -7,6 +7,12 @@ import {
   useWallets,
 } from "@privy-io/react-auth/solana";
 
+import {
+  executeGraph,
+  type ExecutableEdge,
+  type ExecutableNode,
+  type GraphExecutionEvent,
+} from "@/lib/workspace/graph-exec";
 import { useAdapterNodeRunner } from "@/hooks/workspace/use-adapter-node-runner";
 
 const JITO_CATALOG_ITEM_ID = "jito-sol-stake";
@@ -46,6 +52,8 @@ export default function PrivySmokePage() {
   const [swapState, setSwapState] = useState<AdapterRunState>(
     initialRunState,
   );
+  const [graphLog, setGraphLog] = useState<GraphExecutionEvent[]>([]);
+  const [graphBusy, setGraphBusy] = useState(false);
 
   const handleSign = async () => {
     setSignError(null);
@@ -66,6 +74,36 @@ export default function PrivySmokePage() {
       setSignature(hex);
     } catch (err) {
       setSignError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const runPipeline = async () => {
+    setGraphBusy(true);
+    setGraphLog([]);
+    const nodes: ExecutableNode[] = [
+      {
+        id: "swap",
+        catalogItemId: JUPITER_SWAP_CATALOG_ITEM_ID,
+        widgets: {},
+        sourceAmount: BigInt(SWAP_LAMPORTS),
+      },
+      {
+        id: "supply",
+        catalogItemId: KAMINO_CATALOG_ITEM_ID,
+        widgets: {},
+      },
+    ];
+    const edges: ExecutableEdge[] = [{ source: "swap", target: "supply" }];
+    try {
+      for await (const event of executeGraph({
+        nodes,
+        edges,
+        runNode,
+      })) {
+        setGraphLog((prev) => [...prev, event]);
+      }
+    } finally {
+      setGraphBusy(false);
     }
   };
 
@@ -207,8 +245,74 @@ export default function PrivySmokePage() {
           }
         />
       )}
+
+      {authenticated && wallets.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="opacity-60">
+            Multi-node pipeline: Swap 0.01 SOL → USDC → Supply Kamino (MAINNET)
+          </h2>
+          <p className="opacity-60">
+            Exercises the graph execution engine end-to-end. Topologically
+            runs both nodes, chaining the swap&apos;s USDC output into the
+            Kamino supply input. Confirms each tx before advancing.
+          </p>
+          <button
+            disabled={graphBusy}
+            className="w-fit rounded border border-white/30 px-3 py-1 hover:bg-white/5 disabled:opacity-50"
+            onClick={runPipeline}
+          >
+            {graphBusy ? "Running pipeline…" : "Run 2-node pipeline"}
+          </button>
+          {graphLog.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {graphLog.map((event, i) => (
+                <li key={i} className={eventColor(event)}>
+                  {renderEvent(event)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
   );
+}
+
+function eventColor(event: GraphExecutionEvent): string {
+  switch (event.kind) {
+    case "node-succeeded":
+    case "graph-completed":
+      return "text-emerald-400";
+    case "node-failed":
+    case "graph-failed":
+    case "graph-cancelled":
+      return "text-red-400";
+    case "node-skipped":
+      return "text-amber-400";
+    default:
+      return "opacity-80";
+  }
+}
+
+function renderEvent(event: GraphExecutionEvent): string {
+  switch (event.kind) {
+    case "graph-started":
+      return "→ graph started";
+    case "node-started":
+      return `→ ${event.nodeId}: starting`;
+    case "node-succeeded":
+      return `✓ ${event.nodeId}: ${event.result.txSignature} (output ${event.result.outputAmount.toString()})`;
+    case "node-failed":
+      return `✗ ${event.nodeId}: ${event.error}`;
+    case "node-skipped":
+      return `○ ${event.nodeId}: skipped (${event.reason})`;
+    case "graph-completed":
+      return "✓ graph completed";
+    case "graph-failed":
+      return `✗ graph failed: ${event.reason}`;
+    case "graph-cancelled":
+      return "○ graph cancelled";
+  }
 }
 
 function AdapterRunSection({
