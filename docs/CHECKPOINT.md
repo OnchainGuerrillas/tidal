@@ -1,8 +1,8 @@
 # Checkpoint
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-04-23
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `44061e0` — feat(solana): Kamino USDC supply write path + mainnet supply UI (P3 part 2)
+**Latest commit:** `d604cd8` — feat(solana): Jupiter Ultra SOL→USDC swap adapter (P4)
 
 ---
 
@@ -12,7 +12,9 @@ Phase 1 (Composition Foundation + Two Protocols) is in flight. Docs locked. **Pr
 
 **🎉 P2 JitoSOL write path LANDED ON MAINNET on 2026-04-21.** Staked 0.01 SOL → 0.0078 JitoSOL (tx `5TERmKWN...`).
 
-**🎉 P3 Kamino USDC supply path LANDED ON MAINNET on 2026-04-22.** Supplied 1 USDC to Kamino main market (tx `4RxYqWUSbjfCuZoTNAr8aMjVtQmh1mFtZ3rqRA6qfBEivRaqnDy1ZmgFKX9GJRfGFAHgTy7AG4EeSvduHZc4DV1c`). The `ProtocolAdapter` contract is now validated across two different protocol shapes (staking + lending). Single-node end-to-end mainnet execution is fully proven.
+**🎉 P3 Kamino USDC supply path LANDED ON MAINNET on 2026-04-22.** Supplied 1 USDC to Kamino main market (tx `4RxYqWUSbjfCuZoTNAr8aMjVtQmh1mFtZ3rqRA6qfBEivRaqnDy1ZmgFKX9GJRfGFAHgTy7AG4EeSvduHZc4DV1c`). The `ProtocolAdapter` contract is now validated across two different protocol shapes (staking + lending).
+
+**🎉 P4 Jupiter Ultra SOL→USDC swap LANDED ON MAINNET on 2026-04-23.** Swapped 0.01 SOL to USDC (tx `ku369YjfNfG1N3z6cFWDXapiVNKkdQ4WnRFaUc26MoXvYL13ii63D6wRCC3AxqADANQHiNepA6nx5DJAntMVMuv`). Third protocol shape validated — asset-transformation (SOL→USDC) vs. asset-consumption (stake/lend). The three adapters together cover the vocabulary needed for compelling multi-hop strategies.
 
 **ComfyUI-for-DeFi** remains the foundational design thesis. Agent is a *composer*, not an executor. See `docs/design-thesis.md`.
 
@@ -71,29 +73,45 @@ Still empty: `src/lib/ai/*`, `src/app/api/*`.
 
 ## Next Session Starts Here
 
-### Immediate next work — P3 Kamino USDC adapter
+### Immediate next work — E1 Graph Execution Engine
 
-With P2 proven end-to-end on mainnet, P3 is the next natural step. It validates the adapter pattern against a second protocol (lending, not staking) and gives us the multi-lender comparison narrative the PRD leans on.
+With three adapter types proven (stake, lend, swap) the backend is ready for the piece that ACTUALLY demonstrates the thesis: multi-node topological execution. The canvas currently is cosmetic; after E1 it runs workflows.
 
-1. `bun add @kamino-finance/klend-sdk`
-2. `src/lib/solana/kamino.ts` implementing `ProtocolAdapter`:
-   - `readPosition` — kToken balance → underlying USDC value
-   - `readRate` — supply APY from Kamino main market
-   - `buildTransaction` — supply USDC → kToken, withdraw path
-3. Register in `src/lib/solana/adapters.ts`
-4. Should work with the existing `/api/solana/build-transaction` and `/api/solana/submit-transaction` routes without change (that's the whole point of the contract)
-5. Mainnet test: supply 1 USDC from the smoke-test wallet
+Scope:
+1. Topological sort over `WorkspaceGraphNode[]` + `WorkspaceGraphEdge[]`
+2. Per-node state machine: `pending → running → succeeded | failed | cancelled`
+3. For each node: resolve which adapter to invoke by `catalogItemId`, call `buildTransaction`, sign via Privy, submit
+4. Error propagation: a failed upstream node halts downstream execution, surfaces the failure to the user
+5. Cancellation: user can abort a running graph mid-execution
+6. Demo case: the "SOL → Jupiter swap → Kamino supply" pipeline (swap 0.01 SOL to USDC, then supply USDC to Kamino, all in one graph run)
 
-### Followup polish from P2 landing
+Leverage existing:
+- `src/lib/workspace/mutations.ts` (GraphMutation / applyMutations) - useful as the graph is built by the AI later, but E1 itself just needs to traverse
+- `src/lib/workspace/workflow-schema.ts` - serialize for history
+- `WorkspaceNodeStatus` enum from frontend types already models the states
 
-- Real `readRate` for Jito (replace 5.9% stub) — fetch from Jito's public yield endpoint or derive from stake pool exchange rate
-- Better `expectedOutputAmount` in `buildTransaction` (read pool exchange rate)
-- Unstake path for JitoSOL (`withdrawSol` or `withdrawStake`)
+### Critical path remaining for thesis demo
 
-### Parallel side tracks (can ship anytime)
+| Piece | Status |
+|---|---|
+| ProtocolAdapter contract (E5) | ✅ Done |
+| Wallet (P1) | ✅ Done |
+| JitoSOL (P2) | ✅ Done + mainnet verified |
+| Kamino USDC (P3) | ✅ Done + mainnet verified |
+| Jupiter swap (P4) | ✅ Done + mainnet verified |
+| **E1 Graph execution engine** | **Next** |
+| **E2 Widget system** | Queued |
+| **A1 Chat endpoint (AI SDK v6 + Claude)** | Queued |
+| **A2 composeStrategy tool** | Queued |
 
-- **E4 type-colored edges** (CSS + React Flow edge styling; palette defaults approved)
-- **A2 `composeStrategy` tool shape** — draft the AI SDK v6 tool that returns `GraphMutation[]`. Pairs with the `GraphMutation` work already committed.
+### Followup polish that is not on the critical path
+
+- Real `readRate` for Jito (replace 5.9% stub)
+- Real `readPosition` for Kamino (obligation lookup for existing depositors)
+- Unstake/withdraw paths for P2 and P3
+- Bidirectional Jupiter swap (currently only SOL→USDC)
+- E4 type-colored edges (purely visual)
+- C1, C2 comfort baseline (polish once thesis demo is working)
 
 ### Parallel side tracks (can start anytime)
 
