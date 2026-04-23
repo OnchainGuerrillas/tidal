@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-04-23
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `d604cd8` — feat(solana): Jupiter Ultra SOL→USDC swap adapter (P4)
+**Latest commit:** `431a7d6` — feat(smoke): multi-node pipeline demo button (E1 part 3b)
 
 ---
 
@@ -15,6 +15,14 @@ Phase 1 (Composition Foundation + Two Protocols) is in flight. Docs locked. **Pr
 **🎉 P3 Kamino USDC supply path LANDED ON MAINNET on 2026-04-22.** Supplied 1 USDC to Kamino main market (tx `4RxYqWUSbjfCuZoTNAr8aMjVtQmh1mFtZ3rqRA6qfBEivRaqnDy1ZmgFKX9GJRfGFAHgTy7AG4EeSvduHZc4DV1c`). The `ProtocolAdapter` contract is now validated across two different protocol shapes (staking + lending).
 
 **🎉 P4 Jupiter Ultra SOL→USDC swap LANDED ON MAINNET on 2026-04-23.** Swapped 0.01 SOL to USDC (tx `ku369YjfNfG1N3z6cFWDXapiVNKkdQ4WnRFaUc26MoXvYL13ii63D6wRCC3AxqADANQHiNepA6nx5DJAntMVMuv`). Third protocol shape validated — asset-transformation (SOL→USDC) vs. asset-consumption (stake/lend). The three adapters together cover the vocabulary needed for compelling multi-hop strategies.
+
+**🎉 E1 GRAPH EXECUTION ENGINE LANDED ON MAINNET on 2026-04-23.** First multi-node pipeline through Tidal: Jupiter swap → Kamino supply, programmatically composed and executed via `executeGraph`. Two transactions chained automatically:
+- swap `2ZFQMdWThetGX3t5u2qLayMSNk9UFPp153fFAwRtxkxhG3b1ZTJBwwdLYd5cfgUYiJGNyRCC7dNsYhLMQpFVKfPW`
+- supply `2HET2RRvKZjMmUp4gf5rKSnNvT2DL7598k8TbJXE2paWxq3Wzr7WxQUuF7Ljent5EDRbKTNwpNNoQJ4W9VWi86Gc`
+
+Engine architecture: pure topological sort + state machine + async generator (`graph-exec.ts`), plus a React hook (`useAdapterNodeRunner`) that binds the build-sign-submit pipeline as the runner. Confirmation polling in the submit route ensures downstream nodes see upstream state. UI streaming via `for await...of` over the event stream.
+
+The ComfyUI-for-DeFi thesis is functionally proven. Remaining for the full Phase 1 demo: A1+A2 (chat endpoint + composeStrategy tool that produces GraphMutation[] consumed by the canvas), and E2 (widget editing on nodes). E1 + the three adapters means everything from "user has a graph" forward already works on mainnet.
 
 **ComfyUI-for-DeFi** remains the foundational design thesis. Agent is a *composer*, not an executor. See `docs/design-thesis.md`.
 
@@ -99,10 +107,10 @@ Leverage existing:
 | JitoSOL (P2) | ✅ Done + mainnet verified |
 | Kamino USDC (P3) | ✅ Done + mainnet verified |
 | Jupiter swap (P4) | ✅ Done + mainnet verified |
-| **E1 Graph execution engine** | **Next** |
-| **E2 Widget system** | Queued |
-| **A1 Chat endpoint (AI SDK v6 + Claude)** | Queued |
-| **A2 composeStrategy tool** | Queued |
+| **E1 Graph execution engine** | ✅ Done + mainnet verified |
+| **A1 Chat endpoint (AI SDK v6 + Claude)** | **Next** |
+| **A2 composeStrategy tool** | **Next** (returns GraphMutation[], applied to canvas) |
+| **E2 Widget system** | After A1+A2 |
 
 ### Followup polish that is not on the critical path
 
