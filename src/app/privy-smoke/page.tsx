@@ -6,6 +6,7 @@ import {
   useSignMessage,
   useWallets,
 } from "@privy-io/react-auth/solana";
+import { useChat } from "@ai-sdk/react";
 
 import {
   executeGraph,
@@ -246,6 +247,8 @@ export default function PrivySmokePage() {
         />
       )}
 
+      <ChatSection />
+
       {authenticated && wallets.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="opacity-60">
@@ -313,6 +316,64 @@ function renderEvent(event: GraphExecutionEvent): string {
     case "graph-cancelled":
       return "○ graph cancelled";
   }
+}
+
+function ChatSection() {
+  const { messages, sendMessage, status } = useChat();
+  const [input, setInput] = useState("");
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    sendMessage({ text: input });
+    setInput("");
+  };
+
+  const busy = status === "submitted" || status === "streaming";
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="opacity-60">Chat with Tidal (AI SDK v6 + Claude Sonnet 4.6)</h2>
+      <p className="opacity-60">
+        Smoke test for /api/chat. Tools come later (A2); this just verifies
+        streaming plumbing.
+      </p>
+      <form onSubmit={submit} className="flex gap-2">
+        <input
+          className="flex-1 rounded border border-white/30 bg-transparent px-3 py-1 focus:outline-none focus:border-white/60"
+          placeholder="Ask about Solana yield options…"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={busy}
+        />
+        <button
+          type="submit"
+          disabled={busy || input.trim().length === 0}
+          className="rounded border border-white/30 px-3 py-1 hover:bg-white/5 disabled:opacity-50"
+        >
+          {busy ? "…" : "Send"}
+        </button>
+      </form>
+      {messages.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {messages.map((m) => (
+            <li key={m.id} className="flex flex-col gap-1">
+              <span className="opacity-60">
+                {m.role === "user" ? "you" : "tidal"}:
+              </span>
+              <div className="whitespace-pre-wrap">
+                {m.parts
+                  .filter((p) => p.type === "text")
+                  .map((p, i) => (
+                    <span key={i}>{p.text}</span>
+                  ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 function AdapterRunSection({
