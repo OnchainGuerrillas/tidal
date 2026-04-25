@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-04-25
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** Workspace chat panel wired to composeStrategy + run-graph button
+**Latest commit:** Bridge: catalogItemId on StrategyNodeData + adapters in picker
 
 ---
 
@@ -43,6 +43,14 @@ The ComfyUI-for-DeFi thesis is now functionally proven end-to-end **on the API s
 - New `StrategyComposeMessage` (`src/components/workspace/strategy-compose-message.tsx`) renders the tool result as a chat bubble with summary, warnings, and a **Run graph** button. The button derives `ExecutableNode[]` from `output.executable.nodes` (converting the wire-friendly string `sourceAmount` back to `bigint`), runs `executeGraph` with `useAdapterNodeRunner`, and streams `GraphExecutionEvent`s inline.
 
 End-to-end demo path on `/<workspaceId>`: open chat panel → "swap 0.01 SOL to USDC and lend it on Kamino" → graph nodes appear on the canvas → click Run graph → two transactions execute on mainnet, events stream in the bubble.
+
+**🎉 BRIDGE LANDED on 2026-04-25.** Hand-built strategy nodes are now identifiable as runnable, and the picker offers the registered adapters.
+- New `src/lib/solana/adapter-catalog.ts` — client-safe single source of truth for adapter `NodeCatalogItem`s plus display hints (action label, APY display, output asset, primary handle id/label). The three adapter modules (`jito.ts`, `kamino.ts`, `jupiter-swap.ts`) now import their `CATALOG_ITEM` from here, so the registry and the workspace UI can never drift.
+- `StrategyNodeData` gains an optional `catalogItemId` field. Set when a strategy node is bound to a registered `ProtocolAdapter`. Visual-only entries (Marinade, Kamino-borrow, Marginfi, Drift, Orca, Raydium) leave it undefined and remain non-runnable until adapters land for them.
+- `nodeCatalog` (the picker source) now appends the three adapter-backed entries (Jito, Kamino USDC, Jupiter swap). Picking any of them creates a strategy node with `catalogItemId` stamped on its data.
+- `createNodeFromCatalog` gained a generic `buildAdapterStrategyNode(entry, position)` path that synthesizes nodes from `AdapterCatalogEntry`. The compose-strategy tool reuses the same metadata (no more hardcoded action/APY strings in the tool).
+
+What this unlocks: a user can drop "Lend USDC on Kamino" from the picker, drop "Swap SOL → USDC (Jupiter)" too, wire them up, and the graph is structurally identifiable as runnable (`node.data.catalogItemId !== undefined` for every strategy node). What it does NOT unlock yet: actually pressing Run, because the source-amount widget input doesn't exist yet — that's E2.
 
 **ComfyUI-for-DeFi** remains the foundational design thesis. Agent is a *composer*, not an executor. See `docs/design-thesis.md`.
 
@@ -116,14 +124,6 @@ If anything misbehaves on the canvas, common gotchas to check first:
 - React Flow doesn't reflow on programmatic add — may need to nudge the viewport
 - The strategy nodes the tool emits have `data.holdingsLabel`, etc. but no `catalogItemId` on the node itself — the run-graph button works because it uses `output.executable.nodes`, not the canvas state. That split is documented in CLAUDE.md as the bridge problem.
 
-### Bridge problem (active design call)
-
-The compose tool emits `mutations` (for the canvas) and `executable` (for the runner) as parallel shapes because `WorkspaceGraphNode` doesn't carry `catalogItemId`. This works for chat-driven runs but means hand-built canvas graphs can't be run yet. Options:
-- **(a) Stamp `catalogItemId` into `StrategyNodeData`.** Picker + AI both produce runnable nodes uniformly. Small additive type change.
-- **(b) Keep them separate.** Hand-built graphs stay non-runnable until the user goes through chat.
-
-Option (a) wins long-term but needs the picker UX to know which catalog items are runnable (today the visual catalog and the executable adapter list are disjoint).
-
 ### Critical path remaining for thesis demo
 
 | Piece | Status |
@@ -137,8 +137,9 @@ Option (a) wins long-term but needs the picker UX to know which catalog items ar
 | A1 Chat endpoint | ✅ Done |
 | A2 composeStrategy tool | ✅ Done (smoke-verified) |
 | Workspace chat panel + run-graph wire | ✅ Built (mainnet verification pending) |
-| **Bridge: catalogItemId on StrategyNodeData** | **Next** (so hand-built graphs are runnable) |
-| **E2 Widget system** | After bridge |
+| Bridge: catalogItemId on StrategyNodeData + adapters in picker | ✅ Done |
+| **E2 Widget system** | **Next** — per-node amount/slippage inputs so hand-built graphs are runnable |
+| **Run-graph from canvas state** | After E2 — derive `ExecutableNode[]` from canvas instead of relying on tool output |
 
 ### Followup polish that is not on the critical path
 

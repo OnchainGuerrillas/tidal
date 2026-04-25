@@ -1,7 +1,6 @@
 import "server-only";
 
-import type { NodeCatalogItem } from "@/mock-data/workspace/types";
-
+import { getAdapterCatalogEntry } from "./adapter-catalog";
 import { USDC_MINT_ADDRESS } from "./kamino";
 import type {
   APYQuote,
@@ -17,18 +16,7 @@ import type {
 const SOL_MINT_ADDRESS = "So11111111111111111111111111111111111111112";
 const JUPITER_ULTRA_ORDER_URL = "https://api.jup.ag/ultra/v1/order";
 
-const CATALOG_ITEM: NodeCatalogItem = {
-  id: "jupiter-swap-sol-usdc",
-  title: "Swap SOL → USDC (Jupiter)",
-  description:
-    "Swap SOL for USDC via Jupiter Ultra. Returns best-of-route price with MEV protection.",
-  group: "route_math",
-  nodeKind: "strategy",
-  supportedInputAssets: ["SOL"],
-  primaryOutputAsset: "USDC",
-  protocolLabel: "Jupiter",
-  keywords: ["swap", "jupiter", "ultra", "exchange", "convert"],
-};
+const CATALOG_ITEM = getAdapterCatalogEntry("jupiter-swap-sol-usdc")!.catalogItem;
 
 const WIDGETS: WidgetSchema[] = [
   {

@@ -131,6 +131,13 @@ export type StrategyNodeData = WorkspaceNodeBaseData & {
   apy: string;
   apyType: "earn" | "cost";
   collectInterval?: CollectInterval;
+  /**
+   * If set, this node is bound to a registered ProtocolAdapter and is
+   * runnable via the graph execution engine. Visual-only catalog entries
+   * (Marinade, Marginfi, Drift, Orca, Raydium today) leave this
+   * undefined and are not yet executable.
+   */
+  catalogItemId?: string;
 };
 
 export type SplitNodeData = WorkspaceNodeBaseData & {

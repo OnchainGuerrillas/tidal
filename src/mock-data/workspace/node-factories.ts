@@ -1,3 +1,9 @@
+import {
+  ADAPTER_CATALOG_ENTRIES,
+  getAdapterCatalogEntry,
+  type AdapterCatalogEntry,
+} from "@/lib/solana/adapter-catalog";
+
 import type {
   WorkspaceGraphNode,
   AmountNodeType,
@@ -8,6 +14,10 @@ import type {
   WalletNodeType,
 } from "./types";
 import { workspaceSupportedAssets } from "./catalog";
+
+const ADAPTER_CATALOG_IDS = new Set(
+  ADAPTER_CATALOG_ENTRIES.map((entry) => entry.catalogItem.id),
+);
 
 function createNodeId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -516,6 +526,44 @@ function buildStrategyNode(
   }
 }
 
+function buildAdapterStrategyNode(
+  entry: AdapterCatalogEntry,
+  position: { x: number; y: number },
+): StrategyNodeType {
+  const item = entry.catalogItem;
+  const inputAsset = item.supportedInputAssets[0];
+
+  return {
+    id: createNodeId("strategy"),
+    type: "strategy",
+    position,
+    data: {
+      nodeKind: "strategy",
+      title: item.title,
+      summary: item.description,
+      protocol: item.protocolLabel ?? "",
+      action: entry.actionLabel,
+      inputAsset,
+      acceptedAssets: [...item.supportedInputAssets],
+      outputs: [
+        {
+          id: entry.primaryHandleId,
+          label: entry.primaryHandleLabel,
+          asset: entry.outputAsset,
+          kind: "primary",
+          compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
+        },
+      ],
+      status: "draft",
+      holdingsLabel: `Awaiting ${inputAsset} input`,
+      draftState: { hasChanges: true, changedFields: ["from-picker"] },
+      apy: entry.apyDisplay,
+      apyType: entry.apyType,
+      catalogItemId: item.id,
+    },
+  };
+}
+
 export function createNodeFromCatalog(
   itemId: string,
   position: { x: number; y: number },
@@ -538,6 +586,11 @@ export function createNodeFromCatalog(
     case "raydium-lp":
       return buildStrategyNode(itemId, position);
     default:
+      if (ADAPTER_CATALOG_IDS.has(itemId)) {
+        const entry = getAdapterCatalogEntry(itemId);
+        if (!entry) return null;
+        return buildAdapterStrategyNode(entry, position);
+      }
       return null;
   }
 }

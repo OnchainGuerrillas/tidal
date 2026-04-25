@@ -8,8 +8,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 
-import type { NodeCatalogItem } from "@/mock-data/workspace/types";
-
+import { getAdapterCatalogEntry } from "./adapter-catalog";
 import { getSolanaRpc, getSolanaWeb3Connection } from "./connection";
 import type {
   APYQuote,
@@ -28,18 +27,7 @@ export const JITOSOL_MINT_ADDRESS =
 export const JITO_STAKE_POOL_ADDRESS =
   "Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb";
 
-const CATALOG_ITEM: NodeCatalogItem = {
-  id: "jito-sol-stake",
-  title: "Stake with Jito",
-  description:
-    "Stake SOL and receive JitoSOL (liquid staking with MEV tips, ~5.9% APY).",
-  group: "strategy",
-  nodeKind: "strategy",
-  supportedInputAssets: ["SOL"],
-  primaryOutputAsset: "JitoSOL",
-  protocolLabel: "Jito",
-  keywords: ["stake", "lst", "liquid staking", "mev", "jito"],
-};
+const CATALOG_ITEM = getAdapterCatalogEntry("jito-sol-stake")!.catalogItem;
 
 const WIDGETS: WidgetSchema[] = [
   {

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { registerAllAdapters } from "@/lib/solana/adapters";
 import { getAdapter } from "@/lib/solana/registry";
+import { getAdapterCatalogEntry } from "@/lib/solana/adapter-catalog";
 import type { GraphMutation } from "@/lib/workspace/mutations";
 import type {
   ExecutableEdge,
@@ -87,11 +88,6 @@ function newId(prefix: string): string {
 function strategyNodeFromAdapter(params: {
   catalogItemId: string;
   position: { x: number; y: number };
-  action: string;
-  apy: string;
-  apyType: "earn" | "cost";
-  inputAsset: string;
-  outputAsset: string;
   sourceAmountLabel?: string;
 }): StrategyNodeType {
   const adapter = getAdapter(params.catalogItemId);
@@ -100,12 +96,17 @@ function strategyNodeFromAdapter(params: {
       `composeStrategy: adapter "${params.catalogItemId}" is not registered`,
     );
   }
-  const item = adapter.catalogItem;
-
-  const nodeId = newId(params.catalogItemId);
+  const entry = getAdapterCatalogEntry(params.catalogItemId);
+  if (!entry) {
+    throw new Error(
+      `composeStrategy: no AdapterCatalogEntry for "${params.catalogItemId}"`,
+    );
+  }
+  const item = entry.catalogItem;
+  const inputAsset = item.supportedInputAssets[0];
 
   return {
-    id: nodeId,
+    id: newId(params.catalogItemId),
     type: "strategy",
     position: params.position,
     data: {
@@ -113,14 +114,14 @@ function strategyNodeFromAdapter(params: {
       title: item.title,
       summary: item.description,
       protocol: item.protocolLabel ?? adapter.protocol.name,
-      action: params.action,
-      inputAsset: params.inputAsset,
-      acceptedAssets: item.supportedInputAssets,
+      action: entry.actionLabel,
+      inputAsset,
+      acceptedAssets: [...item.supportedInputAssets],
       outputs: [
         {
-          id: "next",
-          label: `${params.outputAsset} output`,
-          asset: params.outputAsset,
+          id: entry.primaryHandleId,
+          label: entry.primaryHandleLabel,
+          asset: entry.outputAsset,
           kind: "primary",
           compatibleNodeTypes: ["amount", "strategy", "split", "destination"],
           amountLabel: params.sourceAmountLabel,
@@ -129,10 +130,11 @@ function strategyNodeFromAdapter(params: {
       status: "draft",
       holdingsLabel: params.sourceAmountLabel
         ? `${params.sourceAmountLabel} queued`
-        : `Awaiting ${params.inputAsset} input`,
+        : `Awaiting ${inputAsset} input`,
       draftState: { hasChanges: true, changedFields: ["composed-by-ai"] },
-      apy: params.apy,
-      apyType: params.apyType,
+      apy: entry.apyDisplay,
+      apyType: entry.apyType,
+      catalogItemId: item.id,
     },
   };
 }
@@ -157,11 +159,6 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
       const node = strategyNodeFromAdapter({
         catalogItemId: JITO_ID,
         position: { x: 320, y: 240 },
-        action: "Stake SOL",
-        apy: "~5.9%",
-        apyType: "earn",
-        inputAsset: "SOL",
-        outputAsset: "JitoSOL",
         sourceAmountLabel: lamportsToSolLabel(sourceAmount),
       });
       return {
@@ -195,11 +192,6 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
       const node = strategyNodeFromAdapter({
         catalogItemId: KAMINO_ID,
         position: { x: 320, y: 240 },
-        action: "Supply USDC",
-        apy: "variable",
-        apyType: "earn",
-        inputAsset: "USDC",
-        outputAsset: "kUSDC",
         sourceAmountLabel: rawUsdcToUsdcLabel(sourceAmount),
       });
       return {
@@ -228,21 +220,11 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
       const swap = strategyNodeFromAdapter({
         catalogItemId: JUPITER_ID,
         position: { x: 200, y: 240 },
-        action: "Swap SOL → USDC",
-        apy: "n/a",
-        apyType: "earn",
-        inputAsset: "SOL",
-        outputAsset: "USDC",
         sourceAmountLabel: lamportsToSolLabel(sourceAmount),
       });
       const supply = strategyNodeFromAdapter({
         catalogItemId: KAMINO_ID,
         position: { x: 700, y: 240 },
-        action: "Supply USDC",
-        apy: "variable",
-        apyType: "earn",
-        inputAsset: "USDC",
-        outputAsset: "kUSDC",
       });
       const edge: WorkspaceGraphEdge = {
         id: `e-${swap.id}-${supply.id}`,

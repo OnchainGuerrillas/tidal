@@ -1,3 +1,5 @@
+import { ADAPTER_CATALOG_ITEMS } from "@/lib/solana/adapter-catalog";
+
 import type { NodeCatalogItem } from "./types";
 
 export const workspaceSuggestions = [
@@ -11,6 +13,8 @@ export const workspaceSupportedAssets = [
   "USDC",
   "mSOL",
   "mSOL yield",
+  "JitoSOL",
+  "kUSDC",
   "LP Fees",
   "Interest",
   "MNDE rewards",
@@ -19,7 +23,7 @@ export const workspaceSupportedAssets = [
   "RAY rewards",
 ] as const;
 
-export const nodeCatalog: NodeCatalogItem[] = [
+const visualOnlyCatalog: NodeCatalogItem[] = [
   {
     id: "amount",
     title: "Set amount",
@@ -133,6 +137,15 @@ export const nodeCatalog: NodeCatalogItem[] = [
     protocolLabel: "Raydium",
     keywords: ["raydium", "lp", "liquidity", "fees", "amm"],
   },
+];
+
+// Adapter-backed entries (Jito / Kamino USDC / Jupiter swap) appear after
+// the visual-only entries. These are the only items the graph runner can
+// execute today; visual-only entries (Marinade, Marginfi, etc.) render
+// fine but are not runnable until adapters land for them.
+export const nodeCatalog: NodeCatalogItem[] = [
+  ...visualOnlyCatalog,
+  ...ADAPTER_CATALOG_ITEMS,
 ];
 
 export function isCatalogItemCompatible(

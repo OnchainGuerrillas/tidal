@@ -15,8 +15,7 @@ import {
   VersionedTransaction,
 } from "@solana/web3.js";
 
-import type { NodeCatalogItem } from "@/mock-data/workspace/types";
-
+import { getAdapterCatalogEntry } from "./adapter-catalog";
 import { getSolanaRpc, getSolanaWeb3Connection } from "./connection";
 import type {
   APYQuote,
@@ -40,18 +39,7 @@ export const KAMINO_MAIN_MARKET_ADDRESS =
 // annualize accrued interest for APR/APY calculations.
 const RECENT_SLOT_DURATION_MS = 450;
 
-const CATALOG_ITEM: NodeCatalogItem = {
-  id: "kamino-usdc-supply",
-  title: "Lend USDC on Kamino",
-  description:
-    "Supply USDC to the Kamino main market lending pool and earn variable supply APY.",
-  group: "strategy",
-  nodeKind: "strategy",
-  supportedInputAssets: ["USDC"],
-  primaryOutputAsset: "kUSDC",
-  protocolLabel: "Kamino",
-  keywords: ["lend", "supply", "stablecoin", "kamino", "yield"],
-};
+const CATALOG_ITEM = getAdapterCatalogEntry("kamino-usdc-supply")!.catalogItem;
 
 const WIDGETS: WidgetSchema[] = [
   {
