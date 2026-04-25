@@ -1,8 +1,8 @@
 # Checkpoint
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-04-25
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `431a7d6` — feat(smoke): multi-node pipeline demo button (E1 part 3b)
+**Latest commit:** A2 composeStrategy tool
 
 ---
 
@@ -22,7 +22,19 @@ Phase 1 (Composition Foundation + Two Protocols) is in flight. Docs locked. **Pr
 
 Engine architecture: pure topological sort + state machine + async generator (`graph-exec.ts`), plus a React hook (`useAdapterNodeRunner`) that binds the build-sign-submit pipeline as the runner. Confirmation polling in the submit route ensures downstream nodes see upstream state. UI streaming via `for await...of` over the event stream.
 
-The ComfyUI-for-DeFi thesis is functionally proven. Remaining for the full Phase 1 demo: A1+A2 (chat endpoint + composeStrategy tool that produces GraphMutation[] consumed by the canvas), and E2 (widget editing on nodes). E1 + the three adapters means everything from "user has a graph" forward already works on mainnet.
+**🎉 A1 CHAT PLUMBING LANDED on 2026-04-23.** Streaming chat works end-to-end via AI SDK v6 + Claude Sonnet 4.6.
+- `ede017b` — A1 part 1: `/api/chat` route using `streamText` with `convertToModelMessages` (v6 returns `Promise<ModelMessage[]>`, must `await`). System prompt primes Claude on the composition paradigm, current adapter vocabulary (Jito / Kamino / Jupiter), and risk-tier framework. Returns `result.toUIMessageStreamResponse()`.
+- `076cd67` — A1 part 2: chat section in `/privy-smoke` using `useChat` from `@ai-sdk/react`. v6 caller now holds input state and calls `sendMessage({ text })`; messages render via `UIMessage.parts` (typed content array) — text parts only for now, tool parts will render when A2 lands.
+- Requires `ANTHROPIC_API_KEY` in `.env.local` (server-only). Route returns 500 with a clear message if missing.
+
+**🎉 A2 composeStrategy TOOL LANDED on 2026-04-25.** The agent stops being a chat bot and becomes a *composer*.
+- New tool `composeStrategyTool` in `src/lib/ai/tools/compose-strategy.ts` using AI SDK v6's `tool({ description, inputSchema, execute })` with a Zod schema. Three canonical intents: `liquid-stake-sol`, `lend-usdc-kamino`, `swap-sol-then-supply-usdc`. Tool runs server-side, calls `registerAllAdapters()`, and synthesizes `WorkspaceGraphNode`s from each adapter's `catalogItem` metadata (so the visual catalog stays untouched and the executable adapter IDs are the source of truth).
+- Tool output: `{ summary, mutations: GraphMutation[], executable: { nodes, edges }, warnings }`. Mutations drive the canvas via `applyMutations`; the executable plan feeds directly into E1's `executeGraph`. The split is deliberate — `WorkspaceGraphNode` doesn't carry `catalogItemId` natively, so the tool emits both shapes side-by-side. Bridging them on the canvas (e.g., stamping `catalogItemId` into `node.data` when the user runs the graph) is a follow-up.
+- Wired into `/api/chat` via `tools: { composeStrategy: composeStrategyTool }`. System prompt updated to direct Claude to call the tool for actionable strategy requests.
+- Smoke UI in `/privy-smoke` renders `tool-composeStrategy` parts: shows the streaming state, the composed summary, the resulting graph state from `applyMutations({ nodes: [], edges: [] }, mutations)`, and the executable plan JSON.
+- `zod@4.3.6` added as a direct dependency.
+
+The ComfyUI-for-DeFi thesis is now functionally proven end-to-end **on the API surface**: chat → tool call → graph mutations → executable plan → E1 runner → mainnet. The remaining wire is the workspace chat panel — applying the mutations to the active `WorkspaceProvider` and offering a "run graph" button that invokes E1 against the executable plan. That's the next milestone.
 
 **ComfyUI-for-DeFi** remains the foundational design thesis. Agent is a *composer*, not an executor. See `docs/design-thesis.md`.
 
@@ -81,22 +93,14 @@ Still empty: `src/lib/ai/*`, `src/app/api/*`.
 
 ## Next Session Starts Here
 
-### Immediate next work — E1 Graph Execution Engine
+### Immediate next work — Wire A2 into the workspace chat panel
 
-With three adapter types proven (stake, lend, swap) the backend is ready for the piece that ACTUALLY demonstrates the thesis: multi-node topological execution. The canvas currently is cosmetic; after E1 it runs workflows.
+A2 proved the wire on the smoke page. The thesis demo needs the same flow inside the actual workspace:
 
-Scope:
-1. Topological sort over `WorkspaceGraphNode[]` + `WorkspaceGraphEdge[]`
-2. Per-node state machine: `pending → running → succeeded | failed | cancelled`
-3. For each node: resolve which adapter to invoke by `catalogItemId`, call `buildTransaction`, sign via Privy, submit
-4. Error propagation: a failed upstream node halts downstream execution, surfaces the failure to the user
-5. Cancellation: user can abort a running graph mid-execution
-6. Demo case: the "SOL → Jupiter swap → Kamino supply" pipeline (swap 0.01 SOL to USDC, then supply USDC to Kamino, all in one graph run)
-
-Leverage existing:
-- `src/lib/workspace/mutations.ts` (GraphMutation / applyMutations) - useful as the graph is built by the AI later, but E1 itself just needs to traverse
-- `src/lib/workspace/workflow-schema.ts` - serialize for history
-- `WorkspaceNodeStatus` enum from frontend types already models the states
+1. Replace the existing presentational chat composer in the workspace's chat side panel with a real `useChat` against `/api/chat`.
+2. When a `tool-composeStrategy` part arrives with `state === "output-available"`, call `applyMutationsToWorkspace` against the active workspace via `WorkspaceProvider.updateWorkspaceGraph`.
+3. Add a "Run graph" affordance somewhere visible (canvas toolbar or chat panel) that derives an `ExecutableNode[]` from the active workspace and feeds E1's `executeGraph` with `useAdapterNodeRunner`.
+4. The bridge problem: `WorkspaceGraphNode` doesn't carry `catalogItemId`. Two options — (a) extend `StrategyNodeData` with an optional `catalogItemId` and have the tool stamp it; (b) keep the tool's executable plan around in workspace state and run it directly. Option (a) is cleaner long-term because it lets users hand-build runnable graphs from the picker too.
 
 ### Critical path remaining for thesis demo
 
@@ -107,10 +111,11 @@ Leverage existing:
 | JitoSOL (P2) | ✅ Done + mainnet verified |
 | Kamino USDC (P3) | ✅ Done + mainnet verified |
 | Jupiter swap (P4) | ✅ Done + mainnet verified |
-| **E1 Graph execution engine** | ✅ Done + mainnet verified |
-| **A1 Chat endpoint (AI SDK v6 + Claude)** | **Next** |
-| **A2 composeStrategy tool** | **Next** (returns GraphMutation[], applied to canvas) |
-| **E2 Widget system** | After A1+A2 |
+| E1 Graph execution engine | ✅ Done + mainnet verified |
+| A1 Chat endpoint (AI SDK v6 + Claude) | ✅ Done |
+| A2 composeStrategy tool | ✅ Done (smoke-verified; canvas wire is next) |
+| **Workspace chat panel + run-graph wire** | **Next** |
+| **E2 Widget system** | After workspace chat panel lands |
 
 ### Followup polish that is not on the critical path
 
@@ -137,8 +142,8 @@ Leverage existing:
 
 1. ~~Privy Solana embedded wallet maturity~~ — **RESOLVED 2026-04-20** by smoke test
 2. ~~Privy `signTransaction` hook behavior~~ — **RESOLVED 2026-04-21** by successful mainnet stake
-3. Kamino SDK docs quality — to be tested in P3 (now the next priority)
-4. AI SDK v6 tool-call → graph mutation pattern — `GraphMutation` + `applyMutations` are committed; still need a hello-world tool call to prove the wire
+3. ~~Kamino SDK docs quality~~ — **RESOLVED 2026-04-22** by successful mainnet supply
+4. AI SDK v6 tool-call → graph mutation pattern — `GraphMutation` + `applyMutations` are committed and `/api/chat` streaming works; A2 will prove the tool-call → canvas wire
 5. Mainnet testing costs time — budgeted
 
 ## Useful Pointers

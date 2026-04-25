@@ -15,6 +15,8 @@ import {
   type GraphExecutionEvent,
 } from "@/lib/workspace/graph-exec";
 import { useAdapterNodeRunner } from "@/hooks/workspace/use-adapter-node-runner";
+import { applyMutations } from "@/lib/workspace/mutations";
+import type { ComposeStrategyOutput } from "@/lib/ai/tools/compose-strategy";
 
 const JITO_CATALOG_ITEM_ID = "jito-sol-stake";
 const STAKE_LAMPORTS = "10000000"; // 0.01 SOL
@@ -333,10 +335,15 @@ function ChatSection() {
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="opacity-60">Chat with Tidal (AI SDK v6 + Claude Sonnet 4.6)</h2>
+      <h2 className="opacity-60">
+        Chat with Tidal (AI SDK v6 + Claude Sonnet 4.6 + composeStrategy tool)
+      </h2>
       <p className="opacity-60">
-        Smoke test for /api/chat. Tools come later (A2); this just verifies
-        streaming plumbing.
+        Try: &quot;stake 0.01 SOL with Jito&quot;, &quot;lend 1 USDC on
+        Kamino&quot;, or &quot;swap 0.01 SOL to USDC and lend it on
+        Kamino&quot; to exercise the composeStrategy tool. The tool returns
+        graph mutations + an executable plan; the canvas integration follows
+        in the workspace chat panel.
       </p>
       <form onSubmit={submit} className="flex gap-2">
         <input
@@ -361,18 +368,122 @@ function ChatSection() {
               <span className="opacity-60">
                 {m.role === "user" ? "you" : "tidal"}:
               </span>
-              <div className="whitespace-pre-wrap">
-                {m.parts
-                  .filter((p) => p.type === "text")
-                  .map((p, i) => (
-                    <span key={i}>{p.text}</span>
-                  ))}
-              </div>
+              {m.parts.map((p, i) => {
+                if (p.type === "text") {
+                  return (
+                    <div key={i} className="whitespace-pre-wrap">
+                      {p.text}
+                    </div>
+                  );
+                }
+                if (p.type === "tool-composeStrategy") {
+                  return (
+                    <ComposeStrategyResult
+                      key={i}
+                      part={p as unknown as ComposeStrategyPart}
+                    />
+                  );
+                }
+                return null;
+              })}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+type ComposeStrategyPart = {
+  type: "tool-composeStrategy";
+  state?: string;
+  input?: unknown;
+  output?: unknown;
+  errorText?: string;
+};
+
+function ComposeStrategyResult({ part }: { part: ComposeStrategyPart }) {
+  const state = part.state ?? "input-streaming";
+
+  if (state === "input-streaming" || state === "input-available") {
+    return (
+      <div className="rounded border border-white/20 bg-white/5 p-2 text-xs opacity-70">
+        ⚙ composeStrategy: {state}
+        {part.input ? (
+          <pre className="mt-1 whitespace-pre-wrap break-all">
+            {JSON.stringify(part.input, null, 2)}
+          </pre>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (state === "output-error") {
+    return (
+      <div className="rounded border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-300">
+        composeStrategy error: {part.errorText ?? "unknown error"}
+      </div>
+    );
+  }
+
+  if (state !== "output-available") {
+    return null;
+  }
+
+  const output = part.output as ComposeStrategyOutput;
+  const applied = applyMutations(
+    { nodes: [], edges: [] },
+    output.mutations,
+  );
+
+  return (
+    <div className="flex flex-col gap-2 rounded border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs">
+      <div className="font-semibold text-cyan-300">
+        ✓ composed strategy: {output.intent}
+      </div>
+      <div className="opacity-80">{output.summary}</div>
+      {output.warnings.length > 0 && (
+        <ul className="list-inside list-disc text-amber-300">
+          {output.warnings.map((w, i) => (
+            <li key={i}>{w}</li>
+          ))}
+        </ul>
+      )}
+      <details className="opacity-80">
+        <summary className="cursor-pointer">
+          {applied.state.nodes.length} node(s),{" "}
+          {applied.state.edges.length} edge(s) — applied to empty graph
+        </summary>
+        <pre className="mt-2 whitespace-pre-wrap break-all opacity-80">
+          {JSON.stringify(
+            {
+              nodes: applied.state.nodes.map((n) => ({
+                id: n.id,
+                type: n.type,
+                title: n.data.title,
+              })),
+              edges: applied.state.edges.map((e) => ({
+                id: e.id,
+                source: e.source,
+                target: e.target,
+              })),
+              warnings: applied.warnings,
+            },
+            null,
+            2,
+          )}
+        </pre>
+      </details>
+      <details className="opacity-80">
+        <summary className="cursor-pointer">
+          executable plan ({output.executable.nodes.length} node(s),{" "}
+          {output.executable.edges.length} edge(s))
+        </summary>
+        <pre className="mt-2 whitespace-pre-wrap break-all opacity-80">
+          {JSON.stringify(output.executable, null, 2)}
+        </pre>
+      </details>
+    </div>
   );
 }
 
