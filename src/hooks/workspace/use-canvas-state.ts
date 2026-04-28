@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -134,6 +135,32 @@ export function useCanvasState({
   const [edges, setEdges] = useState<WorkspaceGraphEdge[]>(() =>
     workspace.edges.map((edge) => cloneGraphEdge(edge))
   );
+
+  // Sync externally-added nodes/edges (e.g., the chat panel calling
+  // applyGraphMutations after the AI composes a strategy) into local
+  // canvas state. The merge is intentionally append-only here — drag /
+  // edit changes still flow through persistGraph below, keeping both
+  // sides in lockstep without us clobbering in-flight user edits.
+  // Setting state in an effect is the right call: workspace.nodes is an
+  // upstream source of truth that occasionally produces additions the
+  // canvas didn't initiate, and the merge noops when there are no new
+  // ids (the early-return inside each updater enforces idempotence).
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setNodes((current) => {
+      const knownIds = new Set(current.map((n) => n.id));
+      const incoming = workspace.nodes.filter((n) => !knownIds.has(n.id));
+      if (incoming.length === 0) return current;
+      return [...current, ...incoming.map(cloneGraphNode)];
+    });
+    setEdges((current) => {
+      const knownIds = new Set(current.map((e) => e.id));
+      const incoming = workspace.edges.filter((e) => !knownIds.has(e.id));
+      if (incoming.length === 0) return current;
+      return [...current, ...incoming.map(cloneGraphEdge)];
+    });
+  }, [workspace.nodes, workspace.edges]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const persistGraph = useCallback(
     (nextNodes: WorkspaceGraphNode[], nextEdges: WorkspaceGraphEdge[]) => {

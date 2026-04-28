@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatCircle, Plus } from "@phosphor-icons/react";
 import { useChat } from "@ai-sdk/react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useWallets } from "@privy-io/react-auth/solana";
 
 import { ChatMessage } from "@/components/tidal/chat-message";
 import { PromptComposer } from "@/components/tidal/prompt-composer";
@@ -35,31 +37,35 @@ export function ChatPanel({
   onClose,
 }: ChatPanelProps) {
   const { createBlankThread, applyGraphMutations } = useWorkspace();
+  const { ready, authenticated, login, logout } = usePrivy();
+  const { wallets } = useWallets();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [composerValue, setComposerValue] = useState("");
   const { messages, sendMessage, status } = useChat();
   const appliedToolCallIds = useRef<Set<string>>(new Set());
 
+  const wallet = wallets[0];
+  const walletShort = wallet
+    ? `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}`
+    : null;
+
   // Apply composed-strategy mutations to the active workspace exactly once
-  // per tool call. Side-effecting in render is wrong; an effect tied to
-  // messages catches every output-available transition without re-applying
-  // on subsequent renders.
+  // per tool call. Dedupe key falls back to messageId:partIndex when the
+  // tool part doesn't expose a toolCallId — keeps the effect idempotent
+  // across re-renders even if the AI SDK's part shape evolves.
   useEffect(() => {
     for (const message of messages) {
-      for (const part of message.parts as ToolPart[]) {
-        if (
-          part.type !== "tool-composeStrategy" ||
-          part.state !== "output-available" ||
-          !part.toolCallId ||
-          appliedToolCallIds.current.has(part.toolCallId)
-        ) {
-          continue;
-        }
+      const parts = message.parts as ToolPart[];
+      parts.forEach((part, partIndex) => {
+        if (part.type !== "tool-composeStrategy") return;
+        if (part.state !== "output-available") return;
+        const dedupeKey = part.toolCallId ?? `${message.id}:${partIndex}`;
+        if (appliedToolCallIds.current.has(dedupeKey)) return;
         const output = part.output as ComposeStrategyOutput | undefined;
-        if (!output) continue;
+        if (!output) return;
         applyGraphMutations(output.mutations);
-        appliedToolCallIds.current.add(part.toolCallId);
-      }
+        appliedToolCallIds.current.add(dedupeKey);
+      });
     }
   }, [messages, applyGraphMutations]);
 
@@ -174,15 +180,54 @@ export function ChatPanel({
           ))}
         </div>
 
-        <div className="mt-4 shrink-0">
+        <div className="mt-4 flex shrink-0 flex-col gap-2">
+          {ready && (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-tidal-border bg-tidal-card px-3 py-1.5 text-[11px]">
+              {authenticated && wallet ? (
+                <>
+                  <span className="text-tidal-muted">
+                    Wallet:{" "}
+                    <span className="font-mono text-foreground">
+                      {walletShort}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    className="text-tidal-muted hover:text-tidal-accent"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-tidal-muted">
+                    Login to compose strategies and run on mainnet.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => login()}
+                    className="rounded bg-tidal-accent px-2 py-0.5 text-[11px] font-medium text-tidal-card hover:opacity-90"
+                  >
+                    Login
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           <PromptComposer
             className="w-full"
             value={composerValue}
             onValueChange={setComposerValue}
             placeholder={
-              isBusy ? "Tidal is thinking…" : "Ask Tidal to compose a strategy"
+              !authenticated
+                ? "Login to use the AI tidekeeper…"
+                : isBusy
+                  ? "Tidal is thinking…"
+                  : "Ask Tidal to compose a strategy"
             }
             onSubmit={({ value }) => {
+              if (!authenticated) return;
               sendMessage({ text: value });
               setComposerValue("");
             }}
