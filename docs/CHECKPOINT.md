@@ -1,8 +1,9 @@
 # Checkpoint
 
-**Last updated:** 2026-04-25
+**Last updated:** 2026-04-27
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** Bridge: catalogItemId on StrategyNodeData + adapters in picker
+**Latest commit:** `6164bad` — fix(workspace): sync AI-composed nodes onto the canvas
+**Hackathon meeting:** Thursday 2026-04-30 — present MVP demo
 
 ---
 
@@ -51,6 +52,28 @@ End-to-end demo path on `/<workspaceId>`: open chat panel → "swap 0.01 SOL to 
 - `createNodeFromCatalog` gained a generic `buildAdapterStrategyNode(entry, position)` path that synthesizes nodes from `AdapterCatalogEntry`. The compose-strategy tool reuses the same metadata (no more hardcoded action/APY strings in the tool).
 
 What this unlocks: a user can drop "Lend USDC on Kamino" from the picker, drop "Swap SOL → USDC (Jupiter)" too, wire them up, and the graph is structurally identifiable as runnable (`node.data.catalogItemId !== undefined` for every strategy node). What it does NOT unlock yet: actually pressing Run, because the source-amount widget input doesn't exist yet — that's E2.
+
+## Session 2026-04-27 — MAINNET-VERIFIED + canvas sync fix
+
+**🌊 The thesis demo runs on mainnet.** Four real transactions landed during this session's hands-on test pass against `/workspace-new-strategy`:
+- Multiple successful `swap-sol-then-supply-usdc` two-node runs (Jupiter SOL→USDC, then Kamino supply, all programmatically composed and chained)
+- Single-node `liquid-stake-sol` run
+
+User confirmed end-to-end: chat → tool call → graph mutations → canvas → Run graph button → Privy embedded-wallet auto-sign → mainnet confirmation.
+
+### Bugs found and fixed during the test pass
+
+1. **No login surface in the workspace UI.** The `/privy-smoke` page was the only place wired to login. Live workspace had Privy in the provider tree but no Login button. Fix: added a small login bar above the chat composer in `ChatPanel`. Shows "Login to compose strategies and run on mainnet." with a Login button when unauthenticated; switches to truncated wallet address + Logout link when authenticated. (Bundled into `6164bad`.)
+
+2. **AI-composed nodes never appeared on the canvas.** Root cause: `useCanvasState` keeps a local `useState` mirror of `workspace.nodes` / `workspace.edges`, initialized once on mount. After that, no resync — so `applyGraphMutations` correctly added nodes to the provider but the canvas's React Flow render didn't see them. Fix in `6164bad`: added a `useEffect` in `useCanvasState` that watches `workspace.nodes` / `workspace.edges` and merges in externally-added items (append-only — drag/edit still flows through `persistGraph`, keeping both sides in lockstep without clobbering in-flight edits). Verified: `[tidal] applying compose mutations { mutationCount: 1 }` → `[tidal] applyGraphMutations result {warnings: []}` → Jito node renders.
+
+3. **`ChatPanel` tool-result dedupe was fragile.** Required `toolCallId` to be set; if missing it would skip applying. Hardened to fall back to `messageId:partIndex` so the effect stays idempotent if the AI SDK's part shape evolves.
+
+### Notable architectural finding (recorded for Tuesday)
+
+The example workspace (`workspace-sol-yield-loop`) is `isEditable: false` and `executionState: "active"` — it presents as a locked, deployed strategy. AI-composed mutations would still apply but interactive UI is suppressed. **For demos, always start on a builder workspace** (created via the `+` tab in the header, or any URL like `/workspace-anything`).
+
+Browser form-fillers (Edge autofill, LastPass, etc.) inject `fdprocessedid` attributes that trigger Next.js hydration warnings. Cosmetic only. **Demo in incognito.**
 
 **ComfyUI-for-DeFi** remains the foundational design thesis. Agent is a *composer*, not an executor. See `docs/design-thesis.md`.
 
@@ -107,22 +130,45 @@ Unchanged from last checkpoint. Tree is: `TooltipProvider` (now nested under `Pr
 
 Still empty: `src/lib/ai/*`, `src/app/api/*`.
 
-## Next Session Starts Here
+## Next Session Starts Here — Tuesday 2026-04-28 (heavy coding day before Thursday meeting)
 
-### Immediate next work — mainnet-verify the workspace chat panel wire
+### Demo readiness checklist — what we have
 
-The wire is built and type-checks; needs hands-on mainnet verification:
-1. Run `bun run dev`, open a workspace, open the Chat panel.
-2. Login with Privy (Solana wallet provisioned).
-3. Send "swap 0.01 SOL to USDC and lend it on Kamino" — confirm:
-   - Two strategy nodes appear on the canvas
-   - The `StrategyComposeMessage` bubble renders with Run-graph button
-4. Click Run graph — confirm two transactions execute on mainnet and signatures stream into the bubble.
+The MVP works end-to-end on mainnet. Thursday's demo can confidently show:
 
-If anything misbehaves on the canvas, common gotchas to check first:
-- Node positions overlap with existing graph nodes (the tool uses fixed positions {200,240} / {700,240}; collide-resistant placement is a polish item)
-- React Flow doesn't reflow on programmatic add — may need to nudge the viewport
-- The strategy nodes the tool emits have `data.holdingsLabel`, etc. but no `catalogItemId` on the node itself — the run-graph button works because it uses `output.executable.nodes`, not the canvas state. That split is documented in CLAUDE.md as the bridge problem.
+1. Open `/workspace-new-strategy` (or any builder workspace URL) in **incognito** to dodge form-filler hydration noise.
+2. Login with Privy (embedded wallet auto-provisions).
+3. In chat: `stake 0.01 SOL with Jito` (single-node, ~$2 cost) **OR** `swap 0.01 SOL to USDC and lend it on Kamino` (two-node, dramatic — but ~$2 cost).
+4. Watch the strategy nodes appear on the canvas in real time.
+5. Click Run graph in the bubble. Two mainnet txs settle in ~30s. The user controls signing — agent is composer, not executor.
+
+### Highest-leverage Tuesday work (in priority order)
+
+1. **Verify the streaming events display in `StrategyComposeMessage` actually shows event lines during a Run.** The events stream into local `runState`, but I never confirmed they render visibly during the test pass — the user reported "nothing really changed on the screen" for one run, even though logs show submit-transaction returned 200. Could be a re-render timing thing, could be local state being reset when the parent re-renders. 30 min to verify and fix if broken. Demo loses dramatic punch without the event ticker.
+
+2. **AI node positioning.** Hardcoded `(320, 240)` / `(700, 240)` collides with existing nodes on workspaces that aren't pristine. Make the tool place new nodes relative to the rightmost existing node (or below it) so composing onto a partially-built graph doesn't pile on top. Also consider an auto-fitView nudge after applying mutations so the user doesn't miss the new content. ~30-45 min.
+
+3. **Run-graph from canvas state (so hand-built graphs are runnable).** Currently the Run button uses `output.executable.nodes` from the tool's plan, which is fine for AI-composed graphs. To run a graph the user built from the picker, we need to derive `ExecutableNode[]` by walking workspace nodes/edges and pulling `node.data.catalogItemId` (already stamped) + a `sourceAmount`. That last piece is the blocker — needs E2 widgets. **Skip this for the meeting MVP**; AI-composed runs are the demo.
+
+4. **E2: minimal source-amount widget on adapter strategy nodes.** Single number input that writes back to node data. Needed for hand-built graphs to run. Probably 1-2 hours including respecting `WidgetSchema` from each adapter (jito + kamino + jupiter all expose it). Worth doing if the meeting's response is "now let me try building one myself."
+
+5. **Wallet node showing real Privy balance.** Currently mocked (126.40 SOL, 42,000 USDC). For Thursday it's fine to keep mocked; but reading the actual balance via `getSolanaRpc().getBalance(walletAddress)` would make the demo feel more honest. ~20 min.
+
+### Demo polish (lower priority but cheap)
+
+- Auto-fitView (or pan-to) on AI-composed nodes after they land
+- Clean console — already cleaned diagnostic logs out, but watch for new ones during testing
+- Subtle "AI composed this" indicator on AI-added strategy nodes (the `draftState.changedFields: ["composed-by-ai"]` is already set; just expose it visually)
+- Demo script in `docs/demo-script.md` — three prompts, expected outputs, recovery if a prompt misbehaves
+
+### Don't pull on these threads before Thursday
+
+- Adding more adapter integrations (Drift, Sanctum, etc.)
+- Real `readRate` for Jito (5.9% stub is fine)
+- Real `readPosition` for Kamino obligations
+- Position fetching for `/api/solana/positions`
+- Bidirectional Jupiter swap
+- Any frontend refactor of 0xJulo's existing components
 
 ### Critical path remaining for thesis demo
 
@@ -135,11 +181,16 @@ If anything misbehaves on the canvas, common gotchas to check first:
 | Jupiter swap (P4) | ✅ Done + mainnet verified |
 | E1 Graph execution engine | ✅ Done + mainnet verified |
 | A1 Chat endpoint | ✅ Done |
-| A2 composeStrategy tool | ✅ Done (smoke-verified) |
-| Workspace chat panel + run-graph wire | ✅ Built (mainnet verification pending) |
+| A2 composeStrategy tool | ✅ Done |
+| Workspace chat panel + run-graph wire | ✅ Done + **mainnet verified 2026-04-27** |
 | Bridge: catalogItemId on StrategyNodeData + adapters in picker | ✅ Done |
-| **E2 Widget system** | **Next** — per-node amount/slippage inputs so hand-built graphs are runnable |
-| **Run-graph from canvas state** | After E2 — derive `ExecutableNode[]` from canvas instead of relying on tool output |
+| Canvas sync: external mutations reach React Flow | ✅ Done + verified |
+| Login surface in workspace UI | ✅ Done |
+| Streaming events ticker on Run graph | 🟡 Wire is there; visual confirmation pending |
+| **AI node positioning relative to existing graph** | Tuesday |
+| **Demo script + dry-run** | Tuesday/Wednesday |
+| E2 Widget system (per-adapter amount input) | Optional for Thursday — needed for hand-built runs |
+| Real wallet balance on the wallet node | Optional polish |
 
 ### Followup polish that is not on the critical path
 
