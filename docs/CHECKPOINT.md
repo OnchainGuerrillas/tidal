@@ -187,9 +187,9 @@ The MVP works end-to-end on mainnet. Thursday's demo can confidently show:
 | Canvas sync: external mutations reach React Flow | ✅ Done + verified |
 | Login surface in workspace UI | ✅ Done |
 | Streaming events ticker on Run graph | 🟡 Wire is there; visual confirmation pending |
-| **AI node positioning relative to existing graph** | Tuesday |
-| **Demo script + dry-run** | Tuesday/Wednesday |
-| E2 Widget system (per-adapter amount input) | Optional for Thursday — needed for hand-built runs |
+| AI node positioning relative to existing graph | Tuesday |
+| Demo script + dry-run | Tuesday/Wednesday |
+| **E2 Widget system + run-from-canvas-state** | **Core Phase 1 deliverable** — turns the canvas into a real composition surface (hand-built graphs run on mainnet, just like AI-composed ones). Realistic Tuesday or Wednesday scope (~3-4 hrs). Includes: render widget inputs on adapter-backed strategy nodes, persist `widgetValues` to `node.data`, canvas-toolbar Run button that derives `ExecutableNode[]` from `workspace.nodes`/`edges` + widget values, reuses `useAdapterNodeRunner` + `executeGraph`. Adapters already expose `WidgetSchema`; runner already accepts widget values. |
 | Real wallet balance on the wallet node | Optional polish |
 
 ### Followup polish that is not on the critical path
