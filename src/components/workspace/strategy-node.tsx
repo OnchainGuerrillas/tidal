@@ -13,6 +13,7 @@ import { Badge } from "@/components/tidal/badge";
 import { CompactSelect } from "@/components/tidal/compact-select";
 import { SurfaceCard } from "@/components/tidal/surface-card";
 import { useWorkspaceBuilderContext } from "@/components/workspace/workspace-builder-context";
+import { useAdapterRate, formatApy } from "@/hooks/workspace/use-adapter-rate";
 import { formatWorkspaceNodeStatusLabel } from "@/lib/workspace/status";
 import { getAdapterCatalogEntry } from "@/lib/solana/adapter-catalog";
 import {
@@ -32,6 +33,13 @@ export const StrategyNode = memo(
       : undefined;
     const widgetValues = data.widgetValues ?? {};
     const reactFlow = useReactFlow();
+    const rateState = useAdapterRate(data.catalogItemId);
+    const liveApy =
+      rateState.kind === "ready" && rateState.rate
+        ? formatApy(rateState.rate.apy)
+        : null;
+    const apyDisplay = liveApy ?? data.apy;
+    const apyIsLoading = rateState.kind === "loading";
 
     return (
       <SurfaceCard className="w-[280px] bg-[#15202E]" padding="none">
@@ -96,13 +104,18 @@ export const StrategyNode = memo(
             <span
               className={`text-xs font-semibold ${
                 data.apyType === "earn" ? "text-emerald-400" : "text-amber-400"
-              }`}
+              } ${apyIsLoading ? "opacity-60" : ""}`}
             >
-              {data.apy}
+              {apyDisplay}
             </span>
             <span className="tidal-text-caption">
               {data.apyType === "earn" ? "APY" : "Borrow Cost"}
             </span>
+            {liveApy ? (
+              <span className="tidal-text-caption text-tidal-accent">
+                · live
+              </span>
+            ) : null}
           </div>
 
           {data.holdingsLabel ? (
