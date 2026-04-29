@@ -151,3 +151,54 @@ export function applyMutationsToWorkspace(
     warnings: result.warnings,
   };
 }
+
+/**
+ * Translate `add-node` positions in `mutations` so the new graph lands to
+ * the right of the existing nodes instead of on top of them. Pure helper:
+ * mutations are returned with shifted x positions, preserving the relative
+ * x-spacing the AI emitted between the new nodes. Y is left alone so the
+ * AI's vertical layout (e.g., aligned at y=240) is preserved.
+ *
+ * If `existing` is empty, mutations are returned unchanged (the AI's
+ * absolute positions are reasonable for a fresh canvas).
+ *
+ * The `gap` is the horizontal padding between the rightmost existing node
+ * and the leftmost new node, in canvas pixels. Default 350 covers a
+ * typical strategy-node width (~280) plus breathing room.
+ */
+export function placeMutationsRelativeTo(
+  existing: WorkspaceGraphNode[],
+  mutations: GraphMutation[],
+  options: { gap?: number } = {},
+): GraphMutation[] {
+  if (existing.length === 0) return mutations;
+
+  const addNodeMutations = mutations.filter(
+    (m): m is Extract<GraphMutation, { kind: "add-node" }> =>
+      m.kind === "add-node",
+  );
+  if (addNodeMutations.length === 0) return mutations;
+
+  const gap = options.gap ?? 350;
+  const rightmostExistingX = Math.max(
+    ...existing.map((n) => n.position.x),
+  );
+  const leftmostNewX = Math.min(
+    ...addNodeMutations.map((m) => m.node.position.x),
+  );
+  const dx = rightmostExistingX + gap - leftmostNewX;
+
+  return mutations.map((mutation) => {
+    if (mutation.kind !== "add-node") return mutation;
+    return {
+      ...mutation,
+      node: {
+        ...mutation.node,
+        position: {
+          x: mutation.node.position.x + dx,
+          y: mutation.node.position.y,
+        },
+      },
+    };
+  });
+}

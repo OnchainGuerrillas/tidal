@@ -12,6 +12,7 @@ import { PanelShell } from "@/components/workspace/panels/panel-shell";
 import { StrategyComposeMessage } from "@/components/workspace/strategy-compose-message";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/providers/workspace-provider";
+import { placeMutationsRelativeTo } from "@/lib/workspace/mutations";
 import type { WorkspaceThread } from "@/mock-data/workspace/types";
 import type { ComposeStrategyOutput } from "@/lib/ai/tools/compose-strategy";
 
@@ -36,13 +37,22 @@ export function ChatPanel({
   onSelectThread,
   onClose,
 }: ChatPanelProps) {
-  const { createBlankThread, applyGraphMutations } = useWorkspace();
+  const { createBlankThread, applyGraphMutations, workspace } = useWorkspace();
   const { ready, authenticated, login, logout } = usePrivy();
   const { wallets } = useWallets();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [composerValue, setComposerValue] = useState("");
   const { messages, sendMessage, status } = useChat();
   const appliedToolCallIds = useRef<Set<string>>(new Set());
+  // Latest-ref pattern: keep a fresh handle on workspace.nodes inside the
+  // mutation-apply effect without adding it to that effect's deps array.
+  // We want positioning to use the latest graph state at the moment of
+  // applying, but we don't want to re-run mutation application on every
+  // drag/edit. A separate sync effect keeps the ref current.
+  const workspaceNodesRef = useRef(workspace.nodes);
+  useEffect(() => {
+    workspaceNodesRef.current = workspace.nodes;
+  }, [workspace.nodes]);
 
   const wallet = wallets[0];
   const walletShort = wallet
@@ -63,7 +73,11 @@ export function ChatPanel({
         if (appliedToolCallIds.current.has(dedupeKey)) return;
         const output = part.output as ComposeStrategyOutput | undefined;
         if (!output) return;
-        applyGraphMutations(output.mutations);
+        const placedMutations = placeMutationsRelativeTo(
+          workspaceNodesRef.current,
+          output.mutations,
+        );
+        applyGraphMutations(placedMutations);
         appliedToolCallIds.current.add(dedupeKey);
       });
     }
