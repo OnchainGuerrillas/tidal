@@ -1,9 +1,11 @@
 // Client-safe (no `server-only`). The adapter implementations in jito.ts /
-// kamino.ts / jupiter-swap.ts re-export their catalog item from here so
-// that the workspace UI (picker, node factory) and the registry stay in
-// sync without the UI having to import server-only adapter modules.
+// kamino.ts / jupiter-swap.ts re-export their catalog item and widget
+// schema from here so that the workspace UI (picker, node factory, node
+// renderer) and the registry stay in sync without the UI having to import
+// server-only adapter modules.
 
 import type { NodeCatalogItem } from "@/mock-data/workspace/types";
+import type { WidgetSchema } from "./types";
 
 export type AdapterCatalogEntry = {
   catalogItem: NodeCatalogItem;
@@ -16,6 +18,14 @@ export type AdapterCatalogEntry = {
   outputAsset: string;
   primaryHandleId: string;
   primaryHandleLabel: string;
+  // Widget metadata for the input form rendered on adapter-backed
+  // strategy nodes. Mirrors the runtime ProtocolAdapter.widgets so the
+  // canvas can author the same inputs the runner consumes.
+  widgets: WidgetSchema[];
+  // Decimal precision of the *input* asset (entry node's source amount).
+  // Used to translate user-entered decimal amounts into base units when
+  // building the ExecutableNode's sourceAmount. SOL = 9, USDC = 6, etc.
+  inputDecimals: number;
 };
 
 const JITO_ENTRY: AdapterCatalogEntry = {
@@ -37,6 +47,17 @@ const JITO_ENTRY: AdapterCatalogEntry = {
   outputAsset: "JitoSOL",
   primaryHandleId: "next",
   primaryHandleLabel: "Staked position",
+  widgets: [
+    {
+      key: "amount",
+      kind: "number",
+      label: "Amount to stake (SOL)",
+      min: 0,
+      default: 0.01,
+      required: true,
+    },
+  ],
+  inputDecimals: 9,
 };
 
 const KAMINO_ENTRY: AdapterCatalogEntry = {
@@ -58,6 +79,17 @@ const KAMINO_ENTRY: AdapterCatalogEntry = {
   outputAsset: "kUSDC",
   primaryHandleId: "next",
   primaryHandleLabel: "Supplied position",
+  widgets: [
+    {
+      key: "amount",
+      kind: "number",
+      label: "Amount to supply (USDC)",
+      min: 0,
+      default: 1,
+      required: true,
+    },
+  ],
+  inputDecimals: 6,
 };
 
 const JUPITER_SWAP_ENTRY: AdapterCatalogEntry = {
@@ -79,6 +111,26 @@ const JUPITER_SWAP_ENTRY: AdapterCatalogEntry = {
   outputAsset: "USDC",
   primaryHandleId: "next",
   primaryHandleLabel: "Swapped USDC",
+  widgets: [
+    {
+      key: "amount",
+      kind: "number",
+      label: "Amount to swap (SOL)",
+      min: 0,
+      default: 0.01,
+      required: true,
+    },
+    {
+      key: "slippageBps",
+      kind: "number",
+      label: "Max slippage (basis points)",
+      min: 0,
+      max: 10000,
+      default: 50,
+      required: false,
+    },
+  ],
+  inputDecimals: 9,
 };
 
 export const ADAPTER_CATALOG_ENTRIES: AdapterCatalogEntry[] = [
@@ -97,3 +149,20 @@ export function getAdapterCatalogEntry(
 
 export const ADAPTER_CATALOG_ITEMS: NodeCatalogItem[] =
   ADAPTER_CATALOG_ENTRIES.map((entry) => entry.catalogItem);
+
+/**
+ * Convert a decimal user-entered amount (e.g., 0.01 SOL) into a base-unit
+ * BigInt (e.g., 10_000_000n lamports) using the entry's inputDecimals.
+ * Returns null if the value isn't a positive finite number.
+ */
+export function decimalToBaseUnits(
+  decimalAmount: number,
+  decimals: number,
+): bigint | null {
+  if (!Number.isFinite(decimalAmount) || decimalAmount < 0) return null;
+  // Multiply with rounding to avoid float drift (0.1 + 0.2 -> 0.300...4).
+  // Math.round(decimal * 10^decimals) gives an integer in base units.
+  const scaled = Math.round(decimalAmount * Math.pow(10, decimals));
+  if (!Number.isFinite(scaled) || scaled < 0) return null;
+  return BigInt(scaled);
+}

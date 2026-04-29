@@ -9,10 +9,12 @@ import { CompactSelect } from "@/components/tidal/compact-select";
 import { SurfaceCard } from "@/components/tidal/surface-card";
 import { useWorkspaceBuilderContext } from "@/components/workspace/workspace-builder-context";
 import { formatWorkspaceNodeStatusLabel } from "@/lib/workspace/status";
+import { getAdapterCatalogEntry } from "@/lib/solana/adapter-catalog";
 import {
   collectIntervals,
   type StrategyNodeType,
 } from "@/mock-data/workspace/types";
+import type { WidgetSchema } from "@/lib/solana/types";
 
 export const StrategyNode = memo(
   ({ id, data, isConnectable }: NodeProps<StrategyNodeType>) => {
@@ -20,6 +22,10 @@ export const StrategyNode = memo(
     const isEditable = builderContext?.isEditable ?? false;
     const showCollector = data.apyType === "earn";
     const primaryOutput = data.outputs.find((output) => output.kind === "primary");
+    const adapterEntry = data.catalogItemId
+      ? getAdapterCatalogEntry(data.catalogItemId)
+      : undefined;
+    const widgetValues = data.widgetValues ?? {};
 
     return (
       <SurfaceCard className="w-[280px] bg-[#15202E]" padding="none">
@@ -80,6 +86,44 @@ export const StrategyNode = memo(
           {data.holdingsLabel ? (
             <div className="mb-2 tidal-text-caption text-foreground">
               {data.holdingsLabel}
+            </div>
+          ) : null}
+
+          {adapterEntry && isEditable ? (
+            <div className="mb-3 space-y-2 rounded-lg border border-tidal-border/70 bg-background/30 p-2">
+              <div className="tidal-text-caption text-tidal-muted">
+                Inputs
+              </div>
+              {adapterEntry.widgets.map((widget) => (
+                <WidgetInput
+                  key={widget.key}
+                  widget={widget}
+                  value={widgetValues[widget.key]}
+                  onChange={(nextValue) =>
+                    builderContext?.updateNodeData(id, (currentData) => {
+                      if (currentData.nodeKind !== "strategy") {
+                        return currentData;
+                      }
+                      return {
+                        ...currentData,
+                        widgetValues: {
+                          ...(currentData.widgetValues ?? {}),
+                          [widget.key]: nextValue,
+                        },
+                        draftState: {
+                          hasChanges: true,
+                          changedFields: Array.from(
+                            new Set([
+                              ...(currentData.draftState?.changedFields ?? []),
+                              `widget:${widget.key}`,
+                            ]),
+                          ),
+                        },
+                      };
+                    })
+                  }
+                />
+              ))}
             </div>
           ) : null}
 
@@ -213,3 +257,43 @@ export const StrategyNode = memo(
 );
 
 StrategyNode.displayName = "StrategyNode";
+
+type WidgetInputProps = {
+  widget: WidgetSchema;
+  value: unknown;
+  onChange: (next: number | undefined) => void;
+};
+
+function WidgetInput({ widget, value, onChange }: WidgetInputProps) {
+  // The `nodrag` className tells React Flow to ignore pointer events on
+  // this element so typing/clicking inside the input doesn't drag the
+  // node around the canvas.
+  const stringValue = typeof value === "number" ? String(value) : "";
+
+  return (
+    <label className="flex flex-col gap-1 nodrag">
+      <span className="tidal-text-caption text-tidal-muted">
+        {widget.label}
+        {widget.required ? <span className="text-tidal-accent"> *</span> : null}
+      </span>
+      <input
+        type="number"
+        inputMode="decimal"
+        min={widget.min}
+        max={widget.max}
+        step="any"
+        value={stringValue}
+        onChange={(event) => {
+          const raw = event.target.value;
+          if (raw === "") {
+            onChange(undefined);
+            return;
+          }
+          const parsed = Number(raw);
+          if (Number.isFinite(parsed)) onChange(parsed);
+        }}
+        className="rounded-md border border-tidal-border bg-tidal-card px-2 py-1 text-sm text-foreground outline-none focus:border-tidal-accent"
+      />
+    </label>
+  );
+}

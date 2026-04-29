@@ -27,17 +27,9 @@ export const JITOSOL_MINT_ADDRESS =
 export const JITO_STAKE_POOL_ADDRESS =
   "Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb";
 
-const CATALOG_ITEM = getAdapterCatalogEntry("jito-sol-stake")!.catalogItem;
-
-const WIDGETS: WidgetSchema[] = [
-  {
-    key: "amount",
-    kind: "number",
-    label: "Amount to stake (SOL)",
-    min: 0,
-    required: true,
-  },
-];
+const ENTRY = getAdapterCatalogEntry("jito-sol-stake")!;
+const CATALOG_ITEM = ENTRY.catalogItem;
+const WIDGETS: WidgetSchema[] = ENTRY.widgets;
 
 const PROTOCOL: ProtocolMetadata = {
   id: "jito",

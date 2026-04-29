@@ -138,6 +138,14 @@ export type StrategyNodeData = WorkspaceNodeBaseData & {
    * undefined and are not yet executable.
    */
   catalogItemId?: string;
+  /**
+   * User-entered values for this node's adapter widgets, keyed by
+   * `WidgetSchema.key`. Numbers are stored as user-friendly decimals
+   * (e.g., 0.01 SOL, not 10_000_000 lamports); the run-graph wire
+   * converts them to base units via `decimalToBaseUnits` at execution
+   * time. Only meaningful when `catalogItemId` is set.
+   */
+  widgetValues?: Record<string, unknown>;
 };
 
 export type SplitNodeData = WorkspaceNodeBaseData & {

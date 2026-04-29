@@ -533,6 +533,16 @@ function buildAdapterStrategyNode(
   const item = entry.catalogItem;
   const inputAsset = item.supportedInputAssets[0];
 
+  // Seed widget defaults so a freshly-dropped node is runnable without the
+  // user having to fill in every input. Required widgets without a default
+  // stay undefined and get caught by the executable-plan validator.
+  const widgetValues: Record<string, unknown> = {};
+  for (const widget of entry.widgets) {
+    if (widget.default !== undefined) {
+      widgetValues[widget.key] = widget.default;
+    }
+  }
+
   return {
     id: createNodeId("strategy"),
     type: "strategy",
@@ -560,6 +570,7 @@ function buildAdapterStrategyNode(
       apy: entry.apyDisplay,
       apyType: entry.apyType,
       catalogItemId: item.id,
+      widgetValues,
     },
   };
 }

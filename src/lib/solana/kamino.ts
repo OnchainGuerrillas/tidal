@@ -39,17 +39,9 @@ export const KAMINO_MAIN_MARKET_ADDRESS =
 // annualize accrued interest for APR/APY calculations.
 const RECENT_SLOT_DURATION_MS = 450;
 
-const CATALOG_ITEM = getAdapterCatalogEntry("kamino-usdc-supply")!.catalogItem;
-
-const WIDGETS: WidgetSchema[] = [
-  {
-    key: "amount",
-    kind: "number",
-    label: "Amount to supply (USDC)",
-    min: 0,
-    required: true,
-  },
-];
+const ENTRY = getAdapterCatalogEntry("kamino-usdc-supply")!;
+const CATALOG_ITEM = ENTRY.catalogItem;
+const WIDGETS: WidgetSchema[] = ENTRY.widgets;
 
 const PROTOCOL: ProtocolMetadata = {
   id: "kamino",

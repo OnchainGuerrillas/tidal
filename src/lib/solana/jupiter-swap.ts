@@ -16,26 +16,9 @@ import type {
 const SOL_MINT_ADDRESS = "So11111111111111111111111111111111111111112";
 const JUPITER_ULTRA_ORDER_URL = "https://api.jup.ag/ultra/v1/order";
 
-const CATALOG_ITEM = getAdapterCatalogEntry("jupiter-swap-sol-usdc")!.catalogItem;
-
-const WIDGETS: WidgetSchema[] = [
-  {
-    key: "amount",
-    kind: "number",
-    label: "Amount to swap (SOL)",
-    min: 0,
-    required: true,
-  },
-  {
-    key: "slippageBps",
-    kind: "number",
-    label: "Max slippage (basis points)",
-    min: 0,
-    max: 10000,
-    default: 50,
-    required: false,
-  },
-];
+const ENTRY = getAdapterCatalogEntry("jupiter-swap-sol-usdc")!;
+const CATALOG_ITEM = ENTRY.catalogItem;
+const WIDGETS: WidgetSchema[] = ENTRY.widgets;
 
 const PROTOCOL: ProtocolMetadata = {
   id: "jupiter",

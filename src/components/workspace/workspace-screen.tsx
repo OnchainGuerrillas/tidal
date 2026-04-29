@@ -19,6 +19,7 @@ import "@xyflow/react/dist/style.css";
 import { Badge } from "@/components/tidal/badge";
 import { SurfaceCard } from "@/components/tidal/surface-card";
 import { AmountNode } from "@/components/workspace/amount-node";
+import { CanvasRunPanel } from "@/components/workspace/canvas-run-panel";
 import { WorkspaceBuilderContextProvider } from "@/components/workspace/workspace-builder-context";
 import { ChatPanel } from "@/components/workspace/panels/chat-panel";
 import { NodesPanel } from "@/components/workspace/panels/nodes-panel";
@@ -512,6 +513,8 @@ function WorkspaceCanvasHost({
               onSelectItem={handleCatalogSelect}
             />
           ) : null}
+
+          <CanvasRunPanel />
         </div>
       </div>
     </div>
