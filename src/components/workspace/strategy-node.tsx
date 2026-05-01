@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import {
   Handle,
   Position,
@@ -378,8 +378,42 @@ function WidgetInput({ widget, value, onChange }: WidgetInputProps) {
     );
   }
 
-  // Default: number input.
-  const stringValue = typeof value === "number" ? String(value) : "";
+  // Default: number input. We keep a local string while the user is
+  // typing so intermediate states like "0.", "0.0", or ".5" render
+  // verbatim instead of getting parsed to a number, re-stringified by
+  // the parent, and snapping the cursor mid-edit. The `lastSentRef`
+  // lets us distinguish "parent value changed because of our keystroke"
+  // (do nothing) from "parent value changed externally" (sync down).
+  return <NumberWidgetInput widget={widget} value={value} onChange={onChange} requiredMarker={requiredMarker} />;
+}
+
+function NumberWidgetInput({
+  widget,
+  value,
+  onChange,
+  requiredMarker,
+}: WidgetInputProps & { requiredMarker: React.ReactNode }) {
+  const [localString, setLocalString] = useState<string>(() =>
+    typeof value === "number" ? String(value) : "",
+  );
+  const lastSentRef = useRef<number | undefined>(
+    typeof value === "number" ? value : undefined,
+  );
+
+  // Sync down only when the parent value changed for reasons other
+  // than our own onChange (e.g., another part of the app reset the
+  // node). The lastSentRef lets us distinguish self-induced changes
+  // from external ones, so typing "0.0" doesn't get clobbered by the
+  // parent's re-stringification of 0.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (value !== lastSentRef.current) {
+      setLocalString(typeof value === "number" ? String(value) : "");
+      lastSentRef.current = typeof value === "number" ? value : undefined;
+    }
+  }, [value]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   return (
     <label className="flex flex-col gap-1 nodrag">
       <span className="tidal-text-caption text-tidal-muted">
@@ -392,15 +426,20 @@ function WidgetInput({ widget, value, onChange }: WidgetInputProps) {
         min={widget.min}
         max={widget.max}
         step="any"
-        value={stringValue}
+        value={localString}
         onChange={(event) => {
           const raw = event.target.value;
+          setLocalString(raw);
           if (raw === "") {
+            lastSentRef.current = undefined;
             onChange(undefined);
             return;
           }
           const parsed = Number(raw);
-          if (Number.isFinite(parsed)) onChange(parsed);
+          if (Number.isFinite(parsed)) {
+            lastSentRef.current = parsed;
+            onChange(parsed);
+          }
         }}
         className="rounded-md border border-tidal-border bg-tidal-card px-2 py-1 text-sm text-foreground outline-none focus:border-tidal-accent"
       />
