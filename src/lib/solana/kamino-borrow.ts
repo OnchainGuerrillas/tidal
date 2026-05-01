@@ -10,6 +10,7 @@ import { address } from "@solana/kit";
 import { createNoopSigner } from "@solana/signers";
 import {
   PublicKey,
+  TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
@@ -42,6 +43,36 @@ const CATALOG_ITEM = ENTRY.catalogItem;
 const WIDGETS: WidgetSchema[] = ENTRY.widgets;
 
 const USDC_DECIMALS = 6;
+
+// Setup-ix label prefixes that create new on-chain accounts. These are
+// idempotent (skip-if-exists in the SDK) and can safely run as a
+// standalone init tx — they take no part in the actual lending logic
+// and pulling them out keeps the deposit/borrow txs slim enough to fit
+// inside Solana's 1232-byte single-tx ceiling.
+const INIT_IX_LABEL_PREFIXES = [
+  "createUserLutIx",
+  "initUserMetadata",
+  "InitObligation", // also matches InitObligationForFarm
+];
+
+function isInitIx(label: string): boolean {
+  return INIT_IX_LABEL_PREFIXES.some((prefix) => label.startsWith(prefix));
+}
+
+type KaminoActionStatic = {
+  actionToIxs: (a: KaminoAction) => unknown[];
+  actionToIxLabels: (a: KaminoAction) => string[];
+};
+
+function actionToOrderedIxs(
+  action: KaminoAction,
+): { ixs: KitInstruction[]; labels: string[] } {
+  const Static = KaminoAction as unknown as KaminoActionStatic;
+  return {
+    ixs: Static.actionToIxs(action) as KitInstruction[],
+    labels: Static.actionToIxLabels(action),
+  };
+}
 
 async function readPosition(
   params: ReadPositionParams,
@@ -87,13 +118,12 @@ async function buildTransaction(
   }
 
   const market = await loadKaminoMainMarket();
-
-  // Borrowing requires fresh oracle prices for every reserve in the
-  // obligation. Without a scopeRefreshConfig, the simulation fails with
-  // ObligationStale (price status bitmask 00111111 = all 6 reserves
-  // stale). The SDK injects RefreshScope ixs at the front of the tx
-  // when we provide this config.
   const rpc = getSolanaRpc();
+
+  // Scope refresh is required for borrowing — without it the lending
+  // tx fails ObligationStale on simulation. The Scope client is
+  // constructed once here and reused for both the deposit and borrow
+  // SDK calls; each call decides for itself which scope ixs to inject.
   const scope = new Scope(
     "mainnet-beta",
     rpc as unknown as ConstructorParameters<typeof Scope>[1],
@@ -104,56 +134,109 @@ async function buildTransaction(
   const owner = createNoopSigner(address(params.walletPublicKey));
   const obligation = new VanillaObligation(PROGRAM_ID);
 
-  type DepositAndBorrowArgs = Parameters<
-    typeof KaminoAction.buildDepositAndBorrowTxns
-  >;
-  // useV2Ixs=true: V1 instructions for deposit-and-borrow expect a
-  // RefreshFarmsForObligationForReserve ix at a specific preceding
-  // position which the SDK doesn't insert; V2 instructions batch the
-  // farm refresh internally.
-  const kaminoAction = await KaminoAction.buildDepositAndBorrowTxns(
-    market as unknown as DepositAndBorrowArgs[0],
+  // Two separate SDK calls instead of buildDepositAndBorrowTxns. The
+  // single combined call produces a tx that exceeds the 1232-byte
+  // ceiling even after splitting init ixs out (~1500-1700 bytes).
+  // Splitting deposit and borrow gives up cross-tx atomicity, which is
+  // acceptable: if borrow fails the collateral is already deposited
+  // and the user (or a future composite leverage-loop node) can retry
+  // borrow alone without any further deposits.
+  type DepositArgs = Parameters<typeof KaminoAction.buildDepositTxns>;
+  const depositAction = await KaminoAction.buildDepositTxns(
+    market as unknown as DepositArgs[0],
     collateralLamports.toString(),
-    address(SOL_MINT_ADDRESS) as unknown as DepositAndBorrowArgs[2],
-    borrowRaw.toString(),
-    address(USDC_MINT_ADDRESS) as unknown as DepositAndBorrowArgs[4],
-    owner as unknown as DepositAndBorrowArgs[5],
-    obligation as unknown as DepositAndBorrowArgs[6],
+    address(SOL_MINT_ADDRESS) as unknown as DepositArgs[2],
+    owner as unknown as DepositArgs[3],
+    obligation as unknown as DepositArgs[4],
     true, // useV2Ixs
-    scopeRefreshConfig as unknown as DepositAndBorrowArgs[8],
+    scopeRefreshConfig as unknown as DepositArgs[6],
   );
 
-  const allKitIxs = [
-    ...kaminoAction.setupIxs,
-    ...kaminoAction.lendingIxs,
-    ...kaminoAction.cleanupIxs,
-  ] as unknown as KitInstruction[];
+  type BorrowArgs = Parameters<typeof KaminoAction.buildBorrowTxns>;
+  const borrowAction = await KaminoAction.buildBorrowTxns(
+    market as unknown as BorrowArgs[0],
+    borrowRaw.toString(),
+    address(USDC_MINT_ADDRESS) as unknown as BorrowArgs[2],
+    owner as unknown as BorrowArgs[3],
+    obligation as unknown as BorrowArgs[4],
+    true, // useV2Ixs
+    scopeRefreshConfig as unknown as BorrowArgs[6],
+  );
 
-  const web3Ixs = allKitIxs.map(kitIxToWeb3Ix);
+  const deposit = actionToOrderedIxs(depositAction);
+  const borrow = actionToOrderedIxs(borrowAction);
+
+  // Deposit's init ixs (createUserLut, initUserMetadata, initObligation,
+  // initObligationForFarm) go into a standalone init tx so the deposit
+  // tx itself stays small. Borrow's setup ixs assume the obligation
+  // already exists, so it doesn't have init ixs to extract.
+  const initKitIxs: KitInstruction[] = [];
+  const depositMainKitIxs: KitInstruction[] = [];
+  for (let i = 0; i < deposit.ixs.length; i++) {
+    if (isInitIx(deposit.labels[i] ?? "")) {
+      initKitIxs.push(deposit.ixs[i]);
+    } else {
+      depositMainKitIxs.push(deposit.ixs[i]);
+    }
+  }
+  const borrowMainKitIxs: KitInstruction[] = borrow.ixs;
 
   const connection = getSolanaWeb3Connection();
   const fromPubkey = new PublicKey(params.walletPublicKey);
+  // Single blockhash for all txs is fine — they're submitted in
+  // sequence with `confirmed` between them (~0.5-1s each), well inside
+  // the ~60s blockhash validity window.
   const { blockhash } = await connection.getLatestBlockhash("confirmed");
-  const message = new TransactionMessage({
-    payerKey: fromPubkey,
-    recentBlockhash: blockhash,
-    instructions: web3Ixs,
-  }).compileToV0Message();
-  const tx = new VersionedTransaction(message);
-  const transactionBase64 = Buffer.from(tx.serialize()).toString("base64");
+
+  const buildVersionedTx = (
+    web3Ixs: TransactionInstruction[],
+    label: string,
+  ): string => {
+    const message = new TransactionMessage({
+      payerKey: fromPubkey,
+      recentBlockhash: blockhash,
+      instructions: web3Ixs,
+    }).compileToV0Message();
+    const tx = new VersionedTransaction(message);
+    try {
+      const serialized = tx.serialize();
+      return Buffer.from(serialized).toString("base64");
+    } catch (err) {
+      // Surface which sub-tx blew the 1232-byte ceiling rather than the
+      // bare web3.js "encoding overruns Uint8Array". Helpful when a
+      // future SDK update or a more complex obligation pushes us over.
+      throw new Error(
+        `kamino-borrow ${label}: serialize failed (${web3Ixs.length} ixs) — ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  };
+
+  const transactionsBase64: string[] = [];
+  if (initKitIxs.length > 0) {
+    transactionsBase64.push(
+      buildVersionedTx(initKitIxs.map(kitIxToWeb3Ix), "init"),
+    );
+  }
+  transactionsBase64.push(
+    buildVersionedTx(depositMainKitIxs.map(kitIxToWeb3Ix), "deposit"),
+  );
+  transactionsBase64.push(
+    buildVersionedTx(borrowMainKitIxs.map(kitIxToWeb3Ix), "borrow"),
+  );
 
   // Output amount is the borrowed USDC in raw base units (6 decimals).
   // That is what flows downstream as the entry-node "input" for any
   // wired-up consumer (e.g., a Jupiter swap that converts borrowed USDC
   // back into SOL for re-collateralization in a leverage loop).
   return {
-    transactionBase64,
+    transactionsBase64,
     expectedOutputAmount: borrowRaw,
     fees: {
       networkLamports: 5000n,
     },
     warnings: [
       "Borrowing requires healthy collateral. Kamino may reject or partially fill the tx if the requested borrow exceeds the LTV ceiling.",
+      "Deposit and borrow run as separate transactions; if the borrow tx fails, your collateral is already supplied and you can retry borrow without re-depositing.",
     ],
   };
 }

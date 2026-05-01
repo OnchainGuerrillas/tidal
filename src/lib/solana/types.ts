@@ -69,7 +69,15 @@ export type BuildTransactionParams = {
 };
 
 export type BuildTransactionResult = {
-  transactionBase64: string;
+  /**
+   * One or more base64-encoded VersionedTransactions to sign and submit
+   * in order. Single-tx adapters wrap their tx in a length-1 array;
+   * multi-tx adapters (e.g., Kamino deposit-and-borrow which exceeds
+   * the 1232-byte single-tx limit) split init from refresh+lending.
+   * The runner waits for `confirmed` between txs so subsequent txs can
+   * read accounts created earlier in the sequence.
+   */
+  transactionsBase64: string[];
   expectedOutputAmount: bigint;
   fees: {
     networkLamports: bigint;

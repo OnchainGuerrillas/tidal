@@ -127,7 +127,7 @@ async function buildTransaction(
     // pool exchange rate >= 1.0 that rises with accrued interest. For
     // a first supply, amount in raw USDC units is a close lower bound.
     // Computing the exact kToken amount is deferred.
-    transactionBase64,
+    transactionsBase64: [transactionBase64],
     expectedOutputAmount: amount,
     fees: {
       networkLamports: 5000n,

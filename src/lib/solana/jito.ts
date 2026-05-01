@@ -150,7 +150,7 @@ async function buildTransaction(
   }
 
   return {
-    transactionBase64,
+    transactionsBase64: [transactionBase64],
     // Stake pool exchange rate is >= 1.0 (JitoSOL appreciates vs SOL over
     // time). We return the input lamports as a lower bound; the actual
     // JitoSOL minted is slightly less because of the stake pool's deposit

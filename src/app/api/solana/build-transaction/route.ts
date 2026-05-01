@@ -67,7 +67,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           : {},
     });
     return NextResponse.json({
-      transactionBase64: result.transactionBase64,
+      transactionsBase64: result.transactionsBase64,
       expectedOutputAmount: result.expectedOutputAmount.toString(),
       fees: {
         networkLamports: result.fees.networkLamports.toString(),

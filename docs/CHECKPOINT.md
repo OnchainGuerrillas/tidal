@@ -218,6 +218,8 @@ Submission target ~2026-05-10. Tier 1 is comfortably absorbable across 2-3 focus
 | P5 | × button on visual-only nodes (amount/split/destination/reward + legacy strategy nodes) | ~20 min | We have it on adapter-backed strategy nodes only today. |
 | P6 | Auto fit-view on AI-composed nodes | ~15 min | `useReactFlow().fitBounds()` on the new node bbox after applying mutations. |
 | P7 | "AI composed this" badge on AI-added nodes | ~15 min | `draftState.changedFields: ["composed-by-ai"]` already set; just expose visually. |
+| P8 | Copy wallet address affordance on the wallet node | ~5-15 min | Either a copy button on the wallet node header, or activate the bottom-left profile button as a wallet-info popover. Popover variant is more demo-polished. |
+| P9 | Favorite nodes / starred catalog items | ~45 min | Let users star catalog items so the picker surfaces frequently-used adapters first. Persist to `localStorage` keyed per workspace (or global). Pairs nicely with the Templates work — favorites are user-curated, templates are project-curated. |
 
 ### Stretch goals — only if everything else is done
 

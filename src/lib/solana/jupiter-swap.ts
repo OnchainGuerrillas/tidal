@@ -129,7 +129,7 @@ async function buildTransaction(
   }
 
   return {
-    transactionBase64: order.transaction,
+    transactionsBase64: [order.transaction],
     expectedOutputAmount: outAmount,
     fees: {
       networkLamports: 5000n,

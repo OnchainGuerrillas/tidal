@@ -13,7 +13,7 @@ import type {
 } from "@/lib/workspace/graph-exec";
 
 type BuildTransactionResponse = {
-  transactionBase64?: string;
+  transactionsBase64?: string[];
   expectedOutputAmount?: string;
   fees?: { networkLamports?: string; priorityLamports?: string };
   warnings?: string[];
@@ -86,28 +86,46 @@ export function useAdapterNodeRunner(): NodeRunner {
             `build HTTP ${buildResp.status.toString()}`,
         );
       }
-      if (!buildData.transactionBase64) {
-        throw new Error("build response missing transactionBase64");
+      if (
+        !buildData.transactionsBase64 ||
+        buildData.transactionsBase64.length === 0
+      ) {
+        throw new Error("build response missing transactionsBase64");
       }
 
-      const signed = await signTransaction({
-        transaction: base64ToUint8Array(buildData.transactionBase64),
-        wallet,
-      });
-      const signedBase64 = uint8ArrayToBase64(signed.signedTransaction);
+      // Sign and submit each tx in order, waiting for confirmation
+      // between them. The submit route polls for `confirmed` so the
+      // next tx in the sequence sees the on-chain state created by
+      // the previous one (e.g., Kamino's init tx creates the user
+      // metadata + obligation accounts that the lending tx reads).
+      let lastSignature = "";
+      for (let i = 0; i < buildData.transactionsBase64.length; i++) {
+        const txBase64 = buildData.transactionsBase64[i];
+        const signed = await signTransaction({
+          transaction: base64ToUint8Array(txBase64),
+          wallet,
+        });
+        const signedBase64 = uint8ArrayToBase64(signed.signedTransaction);
 
-      const submitResp = await fetch("/api/solana/submit-transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transactionBase64: signedBase64 }),
-      });
-      const submitData = (await submitResp.json()) as SubmitResponse;
-      if (!submitResp.ok || !submitData.signature) {
-        throw new Error(
-          submitData.detail ||
-            submitData.error ||
-            `submit HTTP ${submitResp.status.toString()}`,
-        );
+        const submitResp = await fetch("/api/solana/submit-transaction", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionBase64: signedBase64 }),
+        });
+        const submitData = (await submitResp.json()) as SubmitResponse;
+        if (!submitResp.ok || !submitData.signature) {
+          // Surface the failing tx's index so users debugging a multi-
+          // tx adapter (e.g., Kamino setup vs lending) know which leg
+          // tripped.
+          throw new Error(
+            `tx ${i.toString()}/${buildData.transactionsBase64.length.toString()}: ${
+              submitData.detail ||
+              submitData.error ||
+              `submit HTTP ${submitResp.status.toString()}`
+            }`,
+          );
+        }
+        lastSignature = submitData.signature;
       }
 
       const outputAmount = buildData.expectedOutputAmount
@@ -115,7 +133,7 @@ export function useAdapterNodeRunner(): NodeRunner {
         : 0n;
 
       return {
-        txSignature: submitData.signature,
+        txSignature: lastSignature,
         outputAmount,
       };
     },
