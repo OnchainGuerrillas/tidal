@@ -1,9 +1,9 @@
 # Checkpoint
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-02
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `38f7502` — fix(workspace): swap node's typed output asset reflects widget selection
-**Hackathon submission:** ~2026-05-10 (10 days out, comfortable runway)
+**Latest commit:** `545aebc` — feat(workspace): live investment tracker w/ real Kamino position reads
+**Hackathon submission:** ~2026-05-10 (8 days out, comfortable runway)
 
 ---
 
@@ -179,6 +179,36 @@ The MVP is dramatically more functional than yesterday. Confidently demonstrable
 
 - `#4 Another adapter` (Sanctum / Jupiter Lend / Drift / Kamino Earn Vaults). Recommendation in CHECKPOINT.md prioritized Sanctum (smallest, biggest demo unlock — LST routing).
 
+## Sessions 2026-05-01 + 2026-05-02 — Tier 1 #2 and #4 shipped
+
+Two substantial Tier 1 deliverables landed on mainnet over two days. Six commits.
+
+### 2026-05-01: Kamino supply-and-borrow + multi-tx contract
+
+`16f0037` — Tier 1 #2 closed. Hand-built Supply & Borrow node executes against Kamino main market on mainnet. 0.02 SOL collateral + 1 USDC borrow settled in a deposit tx (1109 bytes) + borrow tx (972 bytes). Three architectural pieces went in together:
+
+1. **Multi-tx adapter contract.** `BuildTransactionResult.transactionBase64: string` → `transactionsBase64: string[]`. `useAdapterNodeRunner` loops over the array, signs each via Privy, submits each, waits for `confirmed` between txs so subsequent txs see on-chain state created earlier. Failure surfaces the failing index (`tx 1/3: ...`). Returns the LAST signature as the canonical `txSignature` so existing event renderers work unchanged. All four existing adapters (Jito, Kamino supply, Jupiter swap, Kamino borrow) and the API route updated.
+
+2. **Kamino supply-and-borrow adapter.** Uses TWO separate SDK calls (`buildDepositTxns` + `buildBorrowTxns`) instead of the combined `buildDepositAndBorrowTxns`. The combined call produces a single action whose `actionToIxs` interleaves `inBetweenIxs` (refresh ixs) between the deposit and borrow lending ixs, exceeding Solana's 1232-byte ceiling regardless of how the bundle is split afterward. Two separate actions give each its own self-contained refresh setup, fitting comfortably. Trade-off: cross-tx atomicity. If borrow fails after deposit succeeds, collateral is supplied with no loan opened; user can retry borrow alone.
+
+3. **Discoveries baked into the code** (saved future-debug pain):
+   - `useV2Ixs: true` is required. V1 deposit-and-borrow expects an external `RefreshFarmsForObligationForReserve` ix at a specific position the SDK doesn't insert. Anchor 6051 (IncorrectInstructionInPosition) without this.
+   - `scopeRefreshConfig` is required for borrows. Construct via `new Scope("mainnet-beta", rpc) + scope.getAllConfigurations()`. Anchor 6017 (ObligationStale) without this — "price status: 00111111" bitmask = 6 reserves stale.
+   - Kamino's `KaminoAction` has FOUR ix groups: `setupIxs`, `lendingIxs`, `inBetweenIxs`, `cleanupIxs`. Use `KaminoAction.actionToIxs()` for canonical assembly order.
+   - Init ixs (createUserLut, initUserMetadata, initObligation, InitObligationForFarm) can be split into a standalone init tx by label prefix. Idempotent on subsequent runs.
+
+### 2026-05-02: live investment tracker
+
+`545aebc` — Tier 1 #4 closed. Investments panel shows real on-chain positions across every registered adapter for the connected Privy wallet. Five pieces shipped together:
+
+- **Real `readPosition` on Kamino.** Both `kamino.ts` (USDC supply leg) and `kamino-borrow.ts` (SOL collateral + USDC debt leg) use `market.getObligationByWallet` → `obligation.getDeposits/getBorrows`. Replaced the null stubs with full position reads including USD values from `marketValueRefreshed` and a derived health factor.
+- **`PositionSnapshot.debt` and `healthFactor`** added to the type for borrow positions.
+- **`GET /api/solana/positions/all?wallet=X`** — aggregation route that walks `listAdapters()` and returns combined position+rate per adapter in one round-trip. Errored adapters surface as cards (rather than silently dropping).
+- **Investments panel rewrite** with `useAllPositions` hook. Discriminated state, per-position cards with protocol/risk-tier/amount/USD value/live APY/projected annual yield. Borrow cards include debt sub-card + health factor + "near liquidation" warning when health < 1.2.
+- **Auto-refresh after runs.** New `ChainStateSignalProvider` mounted at app root. Hooks (`useAllPositions`, `useWalletBalances`) subscribe to a monotonic counter; run buttons (`CanvasRunPanel`, `StrategyComposeMessage`) bump it in their `finally` block. Demo win: user runs strategy, Investments panel updates without manual refresh. Tier 1.5 item B (position aggregation) was promoted into this commit since the tracker needed it.
+
+Verified mainnet: panel renders user's actual JitoSOL stake (from 2026-04-29), Kamino USDC supply, and Kamino SOL/USDC obligation. Cost: $0 — pure reads.
+
 ## Session 2026-04-30 — meeting with 0xJulo + scope shift
 
 Met with 0xJulo. Feedback was "on the right track" with significant scope expansion: lending is the priority, investment tracker is bread-and-butter, yield compounding is a huge selling point. The pre-meeting active list (one more adapter) is replaced by the post-meeting Tier 1 below.
@@ -187,19 +217,29 @@ Met with 0xJulo. Feedback was "on the right track" with significant scope expans
 
 Verified `38f7502` in browser: regression where bidirectional swap broke edge connectivity (Jupiter output advertised "selected" placeholder asset, didn't match Kamino's `acceptedAssets: ["USDC"]`). Fixed by promoting widget defaults onto typed metadata at node creation + mirroring widget changes back into typed handles.
 
-## Next Session Starts Here — Tier 1 (~10-11 hours, 10-day runway)
+## Next Session Starts Here — Tier 1.6 inverse paths (~2.5-3 hrs)
 
-Submission target ~2026-05-10. Tier 1 is comfortably absorbable across 2-3 focused sessions.
+Submission target ~2026-05-10. **8 days runway.** Tier 1 #1, #2, and #4 closed. Remaining Tier 1 work + new Tier 1.6 sprint queued below.
 
 ### Tier 1 — must ship
 
-| # | Item | Effort | Notes |
+| # | Item | Effort | Status |
 |---|---|---|---|
-| 1 | **Remove Discover panel** | ~25 min | Clear cleanup. Move panel + mock data to `_archive/` (don't fully delete). Add a "Parked Features" section to CLAUDE.md populated with all parked items (Discover, Drift, Sanctum, Jupiter Lend, Kamino Earn, scheduler, cycle-on-canvas, NFT, gamification) using the what/why/when-to-revisit format. |
-| 2 | **Kamino borrow adapter** | ~3-4 hrs | The "lending is key" answer. Supply collateral → mint borrow position. Foundation for #3. |
-| 3 | **Leverage loop composite node** | ~2-3 hrs | Composite "Leverage Loop on Kamino" node with widgets `collateralAsset`, `loopCount`, `targetLTV`. Internally expands to N rounds of supply→borrow→swap→supply via existing `executeGraph`. Demos yield compounding directly. |
-| 4 | **Investment tracker + Kamino position reads** | ~3-3.5 hrs | Wire `/api/solana/positions` into the panel. Implement Kamino obligation reads (currently stubbed null). Auto-refresh after a successful Run. Display: position amount, live APY, projected annual yield, risk tier. |
-| 5 | **Active position locking** | ~45 min | Pairs with #4. Gate the × button on adapter strategy nodes when an active on-chain position exists. Visual indicator (lock icon, color-coded border, or status badge swap). |
+| 1 | Remove Discover panel | ~25 min | ✅ Done `2196d13` |
+| 2 | Kamino borrow adapter | ~3-4 hrs | ✅ Done `16f0037` (mainnet verified 2026-05-01) |
+| 4 | Investment tracker + Kamino position reads | ~3-3.5 hrs | ✅ Done `545aebc` (mainnet verified 2026-05-02) |
+| **5** | **Active position locking** | **~45 min** | **next** — gate the × on adapter strategy nodes whose adapter has an active on-chain position. Visual indicator (lock icon, border tint). Now has real position data via `useAllPositions` to gate on. |
+| **3** | **Leverage loop composite node** | **~2-3 hrs** | After Tier 1.6. Composite "Leverage Loop on Kamino" node with widgets `collateralAsset`, `loopCount`, `targetLTV`. Internally expands to N rounds of supply→borrow→swap via `executeGraph`. With Tier 1.6 inverses landed, also unlocks an "unwind leverage" composite. |
+
+### Tier 1.6 — inverse paths sprint (~2.5-3 hrs, NEW — slot before Tier 1 #3)
+
+Recommended next sprint. Each adapter mirrors an existing supply/stake adapter and reuses patterns we've already debugged (multi-tx contract, scope refresh config, V2 ixs, init-tx splitting). Combined value: complete strategy lifecycle on the canvas (enter → track → exit). Cost-negative testing — the Kamino repay+withdraw recovers locked SOL collateral from prior tests.
+
+| # | Adapter | Effort | Why low complexity |
+|---|---|---|---|
+| 1.6a | **Kamino USDC withdraw** | ~30-45 min | Single tx. `KaminoAction.buildWithdrawTxns` mirrors `buildDepositTxns`. Same `useV2Ixs` + `scopeRefreshConfig` patterns. Lets users exit Kamino lending. |
+| 1.6b | **Jito unstake** | ~45 min | Single tx via SPL stake-pool `withdrawSol`/`withdrawStake` helpers. Inverse of P2. Epoch delay disclosed in widget. |
+| 1.6c | **Kamino repay+withdraw** | ~1-1.5 hr | Multi-tx (repay then withdraw, like the borrow's deposit+borrow). `buildRepayAndWithdrawV2Txns` is the SDK call. Closes the borrow loop. **Recovers test capital.** |
 
 ### Tier 1 optional (cut if pressure hits)
 
@@ -259,15 +299,19 @@ Submission target ~2026-05-10. Tier 1 is comfortably absorbable across 2-3 focus
 | Real wallet balance on the wallet node | ✅ Done |
 | Live APY readouts on strategy nodes | ✅ Done |
 | Bidirectional Jupiter swap | ✅ Done + mainnet verified |
-| Demo script + dry-run | Wed/Thu |
-| Adapter #4 (Sanctum / Jupiter Lend / Drift / Kamino Earn) | Post-meeting |
+| Multi-tx adapter contract | ✅ Done (used by Kamino borrow) |
+| Kamino supply-and-borrow adapter | ✅ Done + mainnet verified 2026-05-01 |
+| Live investment tracker + real Kamino position reads | ✅ Done + mainnet verified 2026-05-02 |
+| Chain-state signal provider (auto-refresh after runs) | ✅ Done |
+| **Active position locking** | **next (Tier 1 #5)** |
+| **Inverse paths: Kamino withdraw, Jito unstake, Kamino repay+withdraw** | **next sprint (Tier 1.6)** |
+| Leverage loop composite node | After Tier 1.6 |
 
 ### Followup polish that is not on the critical path
 
 - Real `readRate` for Jito (replace 5.9% stub)
-- Real `readPosition` for Kamino (obligation lookup for existing depositors)
-- Unstake/withdraw paths for P2 and P3
-- Bidirectional Jupiter swap (currently only SOL→USDC)
+- `accruedYield` populated in Kamino position reads (the SDK has it; PositionSnapshot.accruedYield is in the type but unpopulated)
+- USD price feed for assets without on-chain valuations (Jito's JitoSOL doesn't show $ value today)
 - E4 type-colored edges (purely visual)
 - C1, C2 comfort baseline (polish once thesis demo is working)
 
