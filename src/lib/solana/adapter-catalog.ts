@@ -138,6 +138,39 @@ const KAMINO_ENTRY: AdapterCatalogEntry = {
   inputDecimals: 6,
 };
 
+const JITO_UNSTAKE_ENTRY: AdapterCatalogEntry = {
+  catalogItem: {
+    id: "jito-sol-unstake",
+    title: "Unstake JitoSOL",
+    description:
+      "Burn JitoSOL and receive SOL via the Jito stake pool reserve (instant withdrawal, ~0.04% fee — no epoch delay).",
+    group: "strategy",
+    nodeKind: "strategy",
+    supportedInputAssets: ["JitoSOL"],
+    primaryOutputAsset: "SOL",
+    protocolLabel: "Jito",
+    keywords: ["unstake", "redeem", "exit", "jito", "lst", "withdraw"],
+  },
+  actionLabel: "Unstake JitoSOL",
+  apyDisplay: "n/a",
+  apyType: "earn",
+  outputAsset: "SOL",
+  primaryHandleId: "next",
+  primaryHandleLabel: "Withdrawn SOL",
+  widgets: [
+    {
+      key: "amount",
+      kind: "number",
+      label: "Amount to unstake (JitoSOL)",
+      min: 0,
+      default: 0.005,
+      required: true,
+    },
+  ],
+  // JitoSOL has 9 decimals like SOL.
+  inputDecimals: 9,
+};
+
 const KAMINO_WITHDRAW_ENTRY: AdapterCatalogEntry = {
   catalogItem: {
     id: "kamino-usdc-withdraw",
@@ -284,6 +317,7 @@ const JUPITER_SWAP_ENTRY: AdapterCatalogEntry = {
 
 export const ADAPTER_CATALOG_ENTRIES: AdapterCatalogEntry[] = [
   JITO_ENTRY,
+  JITO_UNSTAKE_ENTRY,
   KAMINO_ENTRY,
   KAMINO_WITHDRAW_ENTRY,
   KAMINO_BORROW_ENTRY,
