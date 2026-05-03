@@ -1,9 +1,9 @@
 # Checkpoint
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-03
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `545aebc` — feat(workspace): live investment tracker w/ real Kamino position reads
-**Hackathon submission:** ~2026-05-10 (8 days out, comfortable runway)
+**Latest commit:** `826cfa0` — feat(solana): Kamino repay+withdraw adapter (Tier 1.6c)
+**Hackathon submission:** ~2026-05-10 (7 days out, comfortable runway)
 
 ---
 
@@ -179,6 +179,20 @@ The MVP is dramatically more functional than yesterday. Confidently demonstrable
 
 - `#4 Another adapter` (Sanctum / Jupiter Lend / Drift / Kamino Earn Vaults). Recommendation in CHECKPOINT.md prioritized Sanctum (smallest, biggest demo unlock — LST routing).
 
+## Session 2026-05-03 — Tier 1.6 inverse paths closed in one sprint
+
+Three adapters shipped on mainnet in a single ~3-hour run, each first-try (or near it). The Kamino recipe (separate SDK calls + `useV2Ixs: true` + `scopeRefreshConfig` + init-tx splitting) is now battle-tested across borrow, withdraw, and repay+withdraw — anything else we build against Kamino can copy this pattern directly.
+
+| Commit | Adapter | Notes |
+|---|---|---|
+| `a9694e0` | Kamino USDC withdraw | Single tx via `KaminoAction.buildWithdrawTxns`. First-try success. |
+| `07afbbf` | Jito unstake | Single tx via spl-stake-pool's `withdrawSol`. Caught SDK quirk: `withdrawSol` takes DECIMAL SOL, not lamports (unlike `depositSol`). Documented in commit body. |
+| `826cfa0` | Kamino repay+withdraw | Multi-tx (init-noop + repay + withdraw). Two separate SDK calls — same pattern that unblocked the borrow. Recovers locked SOL collateral. |
+
+The strategy lifecycle is now complete on the canvas: enter → track → exit. **Eight adapters total**, all mainnet-verified, all chainable via the typed-edge contract. Tier 1 #5 (active position locking) was dropped earlier today (parked — see CLAUDE.md).
+
+Also moved `src/mock-data/screenshots/` → `docs/screenshots/` since reference images aren't runtime mock data. 0xJulo's multi-branch flow sketch lives at `docs/screenshots/0xjulo-multi-branch-flow-example.png` and motivates the next sprint (Tier 1.7).
+
 ## Sessions 2026-05-01 + 2026-05-02 — Tier 1 #2 and #4 shipped
 
 Two substantial Tier 1 deliverables landed on mainnet over two days. Six commits.
@@ -217,9 +231,23 @@ Met with 0xJulo. Feedback was "on the right track" with significant scope expans
 
 Verified `38f7502` in browser: regression where bidirectional swap broke edge connectivity (Jupiter output advertised "selected" placeholder asset, didn't match Kamino's `acceptedAssets: ["USDC"]`). Fixed by promoting widget defaults onto typed metadata at node creation + mirroring widget changes back into typed handles.
 
-## Next Session Starts Here — Tier 1.6 inverse paths (~2.5-3 hrs)
+## Next Session Starts Here — Tier 1.7 multi-output runner (~4-6 hrs)
 
-Submission target ~2026-05-10. **7 days runway.** Tier 1 #1, #2, #4 closed. #5 dropped 2026-05-03 (see Parked Features in CLAUDE.md). Remaining Tier 1 work + Tier 1.6 sprint queued below.
+Submission target ~2026-05-10. **7 days runway.** Tier 1 #1, #2, #4 closed. #5 dropped. Tier 1.6 (all 3 inverse paths) closed 2026-05-03. Remaining: Tier 1.7 (highest leverage) + Tier 1 #3 leverage loop. Comfortable.
+
+### Tier 1.7 — runnable Split + multi-output runner (next sprint)
+
+Highest-value remaining work. Higher leverage than any new adapter — unlocks branching/parallel strategies with **every existing adapter**. Maps directly to 0xJulo's multi-branch flow screenshot (`docs/screenshots/0xjulo-multi-branch-flow-example.png`).
+
+| Phase | Item | Effort |
+|---|---|---|
+| 1.7a | Multi-output dispatch in `executeGraph` (per-handle output tracking, per-edge `sourceHandle` → child mapping). Today the runner sums all parents into one input and assumes single-output nodes. | ~1.5-2 hr |
+| 1.7b | Runnable Split node — splits input by ratio, emits per-branch outputs | ~1 hr |
+| 1.7c | Runnable Amount node — scales/fixes amount on a branch | ~45 min |
+| 1.7d | "Has run" visual on nodes — border tint from `GraphExecutionEvent` stream | ~30 min |
+| 1.7e | Run button counter ("X txs queued") — already have `executablePlan.nodes.length` | ~5 min |
+
+After 1.7: **Tier 1 #3 leverage loop composite** (~2-3 hr) is the last big piece. Inverse paths in 1.6 also enable an "unwind leverage" composite as a future stretch.
 
 ### Tier 1 — must ship
 
@@ -228,8 +256,10 @@ Submission target ~2026-05-10. **7 days runway.** Tier 1 #1, #2, #4 closed. #5 d
 | 1 | Remove Discover panel | ~25 min | ✅ Done `2196d13` |
 | 2 | Kamino borrow adapter | ~3-4 hrs | ✅ Done `16f0037` (mainnet verified 2026-05-01) |
 | 4 | Investment tracker + Kamino position reads | ~3-3.5 hrs | ✅ Done `545aebc` (mainnet verified 2026-05-02) |
-| ~~5~~ | ~~Active position locking~~ | ~~~45 min~~ | **Dropped 2026-05-03.** Conflated "active position" with "any matching adapter," which would lock fresh strategy nodes across multi-session / multi-strategy use. Coverage moved to Investments panel (source of truth) + inverse-path adapters (close from canvas). See CLAUDE.md "Parked Features" for the full reasoning + revival path. |
-| **3** | **Leverage loop composite node** | **~2-3 hrs** | After Tier 1.6. Composite "Leverage Loop on Kamino" node with widgets `collateralAsset`, `loopCount`, `targetLTV`. Internally expands to N rounds of supply→borrow→swap via `executeGraph`. With Tier 1.6 inverses landed, also unlocks an "unwind leverage" composite. |
+| ~~5~~ | ~~Active position locking~~ | — | Dropped 2026-05-03 (parked — see CLAUDE.md). Investments panel + inverse paths cover the use case. |
+| 1.6 | Inverse paths sprint (Kamino withdraw, Jito unstake, Kamino repay+withdraw) | ~3 hrs | ✅ Done 2026-05-03 (`a9694e0`, `07afbbf`, `826cfa0`) — all three mainnet verified |
+| **1.7** | **Runnable Split + Amount + multi-output runner + visuals** | **~4-6 hrs** | **next** — see breakdown above |
+| **3** | **Leverage loop composite node** | **~2-3 hrs** | After 1.7. Composite "Leverage Loop on Kamino" node with widgets `collateralAsset`, `loopCount`, `targetLTV`. Internally expands to N rounds of supply→borrow→swap via `executeGraph`. With Tier 1.6 inverses landed, also unlocks an "unwind leverage" composite. |
 
 ### Tier 1.6 — inverse paths sprint (~2.5-3 hrs, NEW — slot before Tier 1 #3)
 
@@ -304,8 +334,9 @@ Recommended next sprint. Each adapter mirrors an existing supply/stake adapter a
 | Live investment tracker + real Kamino position reads | ✅ Done + mainnet verified 2026-05-02 |
 | Chain-state signal provider (auto-refresh after runs) | ✅ Done |
 | Active position locking | Dropped 2026-05-03 (parked — see CLAUDE.md) |
-| **Inverse paths: Kamino withdraw, Jito unstake, Kamino repay+withdraw** | **next sprint (Tier 1.6)** |
-| Leverage loop composite node | After Tier 1.6 |
+| Inverse paths: Kamino withdraw, Jito unstake, Kamino repay+withdraw | ✅ Done 2026-05-03 + mainnet verified |
+| **Runnable Split + multi-output runner (Tier 1.7)** | **next sprint** |
+| Leverage loop composite node (Tier 1 #3) | After Tier 1.7 |
 
 ### Followup polish that is not on the critical path
 
