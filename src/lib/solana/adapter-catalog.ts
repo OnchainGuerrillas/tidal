@@ -249,6 +249,67 @@ const KAMINO_REPAY_WITHDRAW_ENTRY: AdapterCatalogEntry = {
   inputDecimals: 6,
 };
 
+const KAMINO_LEVERAGE_LOOP_ENTRY: AdapterCatalogEntry = {
+  catalogItem: {
+    id: "kamino-leverage-loop",
+    title: "Leverage Loop on Kamino",
+    description:
+      "Recursive supply-and-borrow loop: deposit SOL collateral, borrow USDC, swap USDC → SOL via Jupiter, re-supply, repeat. Compounds your effective SOL exposure (up to ~3.3× at 70% LTV). Each loop adds less than the last (geometric series).",
+    group: "strategy",
+    nodeKind: "strategy",
+    supportedInputAssets: ["SOL"],
+    primaryOutputAsset: "SOL",
+    protocolLabel: "Kamino",
+    keywords: [
+      "leverage",
+      "loop",
+      "compound",
+      "kamino",
+      "borrow",
+      "yield",
+      "recursive",
+    ],
+  },
+  // Cost-side: net interest paid on the leveraged USDC debt. Borrow APY
+  // is "variable" for now; the position tracker shows it precisely.
+  actionLabel: "Leverage SOL via Kamino + Jupiter",
+  apyDisplay: "variable",
+  apyType: "cost",
+  outputAsset: "SOL",
+  primaryHandleId: "next",
+  primaryHandleLabel: "Leveraged SOL position",
+  widgets: [
+    {
+      key: "amount",
+      kind: "number",
+      label: "Initial SOL collateral",
+      min: 0.02,
+      default: 0.1,
+      required: true,
+    },
+    {
+      key: "loopCount",
+      kind: "number",
+      label: "Loop count (1-3)",
+      min: 1,
+      max: 3,
+      default: 2,
+      required: true,
+    },
+    {
+      key: "targetLTV",
+      kind: "number",
+      label: "Target LTV (0.3-0.7)",
+      min: 0.3,
+      max: 0.7,
+      default: 0.5,
+      required: true,
+    },
+  ],
+  // SOL — initial collateral input is in lamports (9 decimals).
+  inputDecimals: 9,
+};
+
 const KAMINO_BORROW_ENTRY: AdapterCatalogEntry = {
   catalogItem: {
     id: "kamino-supply-and-borrow",
@@ -363,6 +424,7 @@ export const ADAPTER_CATALOG_ENTRIES: AdapterCatalogEntry[] = [
   KAMINO_WITHDRAW_ENTRY,
   KAMINO_BORROW_ENTRY,
   KAMINO_REPAY_WITHDRAW_ENTRY,
+  KAMINO_LEVERAGE_LOOP_ENTRY,
   JUPITER_SWAP_ENTRY,
 ];
 
