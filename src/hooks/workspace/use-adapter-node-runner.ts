@@ -132,9 +132,13 @@ export function useAdapterNodeRunner(): NodeRunner {
         ? BigInt(buildData.expectedOutputAmount)
         : 0n;
 
+      // Adapters always emit a single output on the conventional "next"
+      // handle. Multi-output runners (Split, future Amount-with-fanout)
+      // are handled internally by executeGraph rather than via this
+      // adapter pipeline.
       return {
         txSignature: lastSignature,
-        outputAmount,
+        outputs: new Map([["next", outputAmount]]),
       };
     },
     [wallets, signTransaction],

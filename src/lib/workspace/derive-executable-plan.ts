@@ -8,6 +8,7 @@ import type {
   ExecutableNode,
 } from "@/lib/workspace/graph-exec";
 import type {
+  SplitNodeData,
   StrategyNodeData,
   Workspace,
   WorkspaceGraphNode,
@@ -27,17 +28,26 @@ function isAdapterStrategyNode(
   return Boolean(data.catalogItemId);
 }
 
+function isSplitNode(
+  node: WorkspaceGraphNode,
+): node is WorkspaceGraphNode & { data: SplitNodeData } {
+  return node.type === "split";
+}
+
 /**
  * Walk a Workspace and produce the inputs `executeGraph` needs to run a
  * user-built (or AI-composed) graph on mainnet:
  *   - One ExecutableNode per adapter-backed strategy node, with
  *     `widgets` populated from `data.widgetValues` and a `sourceAmount`
  *     derived from the entry node's `amount` widget (in base units).
- *   - One ExecutableEdge per workspace edge that connects two adapter-
- *     backed nodes. Edges through visual-only nodes (split / amount /
- *     destination / reward) are intentionally dropped — those node kinds
- *     have no on-chain effect and including them in the executable graph
- *     would block topo-sort.
+ *   - One ExecutableNode per Split node — these are compute-only,
+ *     fanning input out to handles "a" and "b" by ratio.
+ *   - One ExecutableEdge per workspace edge that connects two
+ *     executable nodes (adapter or split). sourceHandle is propagated
+ *     from the React Flow edge so split outputs route to the right
+ *     downstream branch. Edges through other visual-only nodes
+ *     (amount / destination / reward) are dropped — those have no
+ *     execution semantics yet.
  *
  * Validation errors are returned in `errors`, not thrown. The caller
  * (Run button) shows them to the user instead of trying to execute.
@@ -47,7 +57,7 @@ function isAdapterStrategyNode(
 export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
   const errors: string[] = [];
   const adapterNodes = workspace.nodes.filter(isAdapterStrategyNode);
-  const adapterIds = new Set(adapterNodes.map((n) => n.id));
+  const splitNodes = workspace.nodes.filter(isSplitNode);
 
   if (adapterNodes.length === 0) {
     errors.push(
@@ -56,18 +66,35 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
     return { nodes: [], edges: [], errors };
   }
 
-  // Edges between two adapter nodes are kept; everything else is dropped.
-  const executableEdges: ExecutableEdge[] = workspace.edges
-    .filter((e) => adapterIds.has(e.source) && adapterIds.has(e.target))
-    .map((e) => ({ source: e.source, target: e.target }));
+  // The set of all node ids that participate in execution. Edges with
+  // both endpoints in this set are kept; everything else is dropped.
+  const executableIds = new Set<string>([
+    ...adapterNodes.map((n) => n.id),
+    ...splitNodes.map((n) => n.id),
+  ]);
 
-  // Entry nodes are adapter nodes with no incoming edge from another
-  // adapter node. They need a sourceAmount derived from their `amount`
-  // widget; downstream nodes inherit their amount from the previous
-  // node's output via the runner.
+  const executableEdges: ExecutableEdge[] = workspace.edges
+    .filter((e) => executableIds.has(e.source) && executableIds.has(e.target))
+    .map((e) => ({
+      source: e.source,
+      sourceHandle: e.sourceHandle ?? undefined,
+      target: e.target,
+    }));
+
+  // Entry-node detection: any adapter with no incoming edge from
+  // another executable node. Such a node needs a sourceAmount derived
+  // from its `amount` widget; otherwise the runner has no input value
+  // to feed it.
   const targetIds = new Set(executableEdges.map((e) => e.target));
 
-  const executableNodes: ExecutableNode[] = adapterNodes.map((node) => {
+  const splitExecutables: ExecutableNode[] = splitNodes.map((node) => ({
+    id: node.id,
+    kind: "split" as const,
+    splitA: node.data.splitA,
+    splitB: node.data.splitB,
+  }));
+
+  const adapterExecutables: ExecutableNode[] = adapterNodes.map((node) => {
     const data = node.data;
     const catalogItemId = data.catalogItemId!;
     const entry = getAdapterCatalogEntry(catalogItemId);
@@ -79,6 +106,7 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
       );
       return {
         id: node.id,
+        kind: "adapter" as const,
         catalogItemId,
         widgets: widgetValues,
       };
@@ -151,11 +179,17 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
 
     return {
       id: node.id,
+      kind: "adapter" as const,
       catalogItemId,
       widgets: widgetValues,
       sourceAmount,
     };
   });
+
+  const executableNodes: ExecutableNode[] = [
+    ...adapterExecutables,
+    ...splitExecutables,
+  ];
 
   return { nodes: executableNodes, edges: executableEdges, errors };
 }

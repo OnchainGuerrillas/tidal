@@ -167,6 +167,7 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
         executableNodes: [
           {
             id: node.id,
+            kind: "adapter",
             catalogItemId: JITO_ID,
             widgets: {},
             sourceAmount,
@@ -200,6 +201,7 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
         executableNodes: [
           {
             id: node.id,
+            kind: "adapter",
             catalogItemId: KAMINO_ID,
             widgets: {},
             sourceAmount,
@@ -242,12 +244,14 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
         executableNodes: [
           {
             id: swap.id,
+            kind: "adapter",
             catalogItemId: JUPITER_ID,
             widgets: {},
             sourceAmount,
           },
           {
             id: supply.id,
+            kind: "adapter",
             catalogItemId: KAMINO_ID,
             widgets: {},
           },
@@ -262,6 +266,14 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
 function serializeExecutableNode(
   node: ExecutableNode,
 ): SerializableExecutableNode {
+  // AI compose templates only emit adapter nodes today (no Splits in
+  // canonical strategy intents). Narrow defensively in case a future
+  // template adds compute-only nodes.
+  if (node.kind !== "adapter") {
+    throw new Error(
+      `compose-strategy: unexpected non-adapter executable node "${node.id}" of kind "${node.kind}"`,
+    );
+  }
   return {
     id: node.id,
     catalogItemId: node.catalogItemId,

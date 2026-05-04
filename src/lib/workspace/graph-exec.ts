@@ -1,5 +1,22 @@
-export type ExecutableNode = {
+/**
+ * Graph execution engine.
+ *
+ * The runner is now multi-output aware: a node can emit different
+ * amounts on different output handles, and edges carry a sourceHandle
+ * so a downstream node knows which handle's output to consume. This is
+ * what makes Split nodes work — one input, two outputs (handles "a"
+ * and "b") routed to different children.
+ *
+ * Compute-only nodes (Split, future Amount) execute locally without
+ * invoking runNode. Adapter nodes still call runNode to build/sign/
+ * submit a transaction. Both cases produce a NodeRunResult with an
+ * `outputs` map keyed by handle id; adapters always emit on a single
+ * conventional handle ("next").
+ */
+
+export type AdapterExecutableNode = {
   id: string;
+  kind: "adapter";
   catalogItemId: string;
   widgets: Record<string, unknown>;
   /**
@@ -10,21 +27,54 @@ export type ExecutableNode = {
   sourceAmount?: bigint;
 };
 
+export type SplitExecutableNode = {
+  id: string;
+  kind: "split";
+  /**
+   * Percentage (0-100) of the input that flows out of handle "a".
+   * Handle "b" gets the remainder so the two ratios always sum to 100
+   * regardless of small rounding losses.
+   */
+  splitA: number;
+  splitB: number;
+};
+
+export type ExecutableNode = AdapterExecutableNode | SplitExecutableNode;
+
 export type ExecutableEdge = {
   source: string;
+  /**
+   * Output-handle id on the source node. For adapter nodes this is
+   * conventionally "next". For split nodes it's "a" or "b". Edges that
+   * leave a node's source handle unset default to "next".
+   */
+  sourceHandle?: string;
   target: string;
 };
 
 export type NodeRunInput = {
-  node: ExecutableNode;
+  node: AdapterExecutableNode;
   inputAmount: bigint;
 };
 
 export type NodeRunResult = {
-  txSignature: string;
-  outputAmount: bigint;
+  /**
+   * Outputs keyed by source-handle id. Adapter runs always produce a
+   * single entry under "next". Split runs produce one entry per handle.
+   */
+  outputs: Map<string, bigint>;
+  /**
+   * Set when the run involved an on-chain submission. Compute-only
+   * nodes (split, etc.) leave this undefined.
+   */
+  txSignature?: string;
 };
 
+/**
+ * Adapter runner: invoked by `executeGraph` for nodes with kind
+ * "adapter". Compute-only nodes are handled internally and never call
+ * this function.
+ */
 export type NodeRunner = (input: NodeRunInput) => Promise<NodeRunResult>;
 
 export type GraphExecutionEvent =
@@ -52,10 +102,13 @@ export type GraphExecutionEvent =
   | { kind: "graph-failed"; reason: string; timestamp: number }
   | { kind: "graph-cancelled"; timestamp: number };
 
+const DEFAULT_HANDLE = "next";
+
 /**
  * Kahn-style topological sort. Returns a linear order that respects
  * every edge's source-before-target constraint, or null if the graph
- * contains a cycle.
+ * contains a cycle. Sorting is purely structural — sourceHandle plays
+ * no role here.
  */
 export function topoSort(
   nodes: ExecutableNode[],
@@ -88,19 +141,63 @@ export function topoSort(
   return sorted.length === nodes.length ? sorted : null;
 }
 
-function getParentIds(nodeId: string, edges: ExecutableEdge[]): string[] {
-  return edges.filter((e) => e.target === nodeId).map((e) => e.source);
+type ParentEdge = { source: string; sourceHandle: string };
+
+function getParentEdges(
+  nodeId: string,
+  edges: ExecutableEdge[],
+): ParentEdge[] {
+  return edges
+    .filter((e) => e.target === nodeId)
+    .map((e) => ({
+      source: e.source,
+      sourceHandle: e.sourceHandle ?? DEFAULT_HANDLE,
+    }));
 }
 
 /**
- * Execute a graph in topological order, invoking `runNode` for each node
- * and streaming state events as it progresses. Upstream failures halt
- * downstream nodes with a skipped event. Cancellation via AbortSignal
- * halts the loop at the next node boundary.
+ * Execute a Split node locally. Pure math: divide input by ratio.
+ * Returns outputs on handles "a" and "b". Tiny rounding losses go to
+ * handle "b" so the splits don't drift past 100% of input.
+ */
+function executeSplit(
+  node: SplitExecutableNode,
+  inputAmount: bigint,
+): NodeRunResult {
+  const totalRatio = node.splitA + node.splitB;
+  // Defensive: avoid division by zero on a misconfigured split.
+  if (totalRatio <= 0) {
+    return {
+      outputs: new Map([
+        ["a", 0n],
+        ["b", inputAmount],
+      ]),
+    };
+  }
+  // BigInt arithmetic avoids float precision loss on token amounts.
+  // Multiply first, then divide, so we don't lose digits prematurely.
+  const aRatio = BigInt(Math.round(node.splitA));
+  const total = BigInt(Math.round(totalRatio));
+  const aAmount = (inputAmount * aRatio) / total;
+  const bAmount = inputAmount - aAmount;
+  return {
+    outputs: new Map([
+      ["a", aAmount],
+      ["b", bAmount],
+    ]),
+  };
+}
+
+/**
+ * Execute a graph in topological order, invoking `runNode` for adapter
+ * nodes and computing locally for split nodes. Streams state events as
+ * it progresses. Upstream failures halt downstream nodes with a skipped
+ * event. Cancellation via AbortSignal halts the loop at the next node
+ * boundary.
  *
- * Pure at the module level - `runNode` is the only side-effectful input.
- * In tests it's a mock; in production it wraps the build/sign/submit
- * pipeline.
+ * Pure at the module level — `runNode` is the only side-effectful
+ * input. In tests it's a mock; in production it wraps the build/sign/
+ * submit pipeline.
  */
 export async function* executeGraph(params: {
   nodes: ExecutableNode[];
@@ -123,7 +220,9 @@ export async function* executeGraph(params: {
   const nodeById = new Map<string, ExecutableNode>();
   for (const node of params.nodes) nodeById.set(node.id, node);
 
-  const outputs = new Map<string, bigint>();
+  // outputs.get(nodeId) returns the per-handle output map produced by
+  // that node's run. Children index into it via the edge's sourceHandle.
+  const outputs = new Map<string, Map<string, bigint>>();
   const failed = new Set<string>();
 
   for (const nodeId of sorted) {
@@ -144,27 +243,35 @@ export async function* executeGraph(params: {
       continue;
     }
 
-    const parents = getParentIds(nodeId, params.edges);
-    const failedParent = parents.find((p) => failed.has(p));
+    const parentEdges = getParentEdges(nodeId, params.edges);
+    const failedParent = parentEdges.find((p) => failed.has(p.source));
     if (failedParent) {
       failed.add(nodeId);
       yield {
         kind: "node-skipped",
         nodeId,
-        reason: `upstream "${failedParent}" failed`,
+        reason: `upstream "${failedParent.source}" failed`,
         timestamp: Date.now(),
       };
       continue;
     }
 
     let inputAmount = 0n;
-    if (parents.length === 0 && node.sourceAmount !== undefined) {
-      inputAmount = node.sourceAmount;
+    if (parentEdges.length === 0) {
+      // Root node — adapters can carry sourceAmount as a starting
+      // value (e.g., wallet-funded stake). Splits have no useful
+      // standalone semantics; default to 0 and let the split emit two
+      // zero-output handles, which downstream adapters will reject.
+      if (node.kind === "adapter" && node.sourceAmount !== undefined) {
+        inputAmount = node.sourceAmount;
+      }
     } else {
-      for (const parentId of parents) {
-        const parentOutput = outputs.get(parentId);
-        if (parentOutput !== undefined) {
-          inputAmount += parentOutput;
+      for (const edge of parentEdges) {
+        const parentOutputs = outputs.get(edge.source);
+        if (!parentOutputs) continue;
+        const handleAmount = parentOutputs.get(edge.sourceHandle);
+        if (handleAmount !== undefined) {
+          inputAmount += handleAmount;
         }
       }
     }
@@ -172,8 +279,14 @@ export async function* executeGraph(params: {
     yield { kind: "node-started", nodeId, timestamp: Date.now() };
 
     try {
-      const result = await params.runNode({ node, inputAmount });
-      outputs.set(nodeId, result.outputAmount);
+      let result: NodeRunResult;
+      if (node.kind === "adapter") {
+        result = await params.runNode({ node, inputAmount });
+      } else {
+        // node.kind === "split"
+        result = executeSplit(node, inputAmount);
+      }
+      outputs.set(nodeId, result.outputs);
       yield {
         kind: "node-succeeded",
         nodeId,

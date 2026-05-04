@@ -86,12 +86,14 @@ export default function PrivySmokePage() {
     const nodes: ExecutableNode[] = [
       {
         id: "swap",
+        kind: "adapter",
         catalogItemId: JUPITER_SWAP_CATALOG_ITEM_ID,
         widgets: {},
         sourceAmount: BigInt(SWAP_LAMPORTS),
       },
       {
         id: "supply",
+        kind: "adapter",
         catalogItemId: KAMINO_CATALOG_ITEM_ID,
         widgets: {},
       },
@@ -120,12 +122,13 @@ export default function PrivySmokePage() {
       const result = await runNode({
         node: {
           id: `smoke-${catalogItemId}`,
+          kind: "adapter",
           catalogItemId,
           widgets: {},
         },
         inputAmount: BigInt(inputAmount),
       });
-      setState({ txSig: result.txSignature, error: null, busy: false });
+      setState({ txSig: result.txSignature ?? null, error: null, busy: false });
     } catch (err) {
       setState({
         txSig: null,
@@ -305,8 +308,13 @@ function renderEvent(event: GraphExecutionEvent): string {
       return "→ graph started";
     case "node-started":
       return `→ ${event.nodeId}: starting`;
-    case "node-succeeded":
-      return `✓ ${event.nodeId}: ${event.result.txSignature} (output ${event.result.outputAmount.toString()})`;
+    case "node-succeeded": {
+      const sig = event.result.txSignature ?? "computed";
+      const outputs = Array.from(event.result.outputs.entries())
+        .map(([handle, amount]) => `${handle}=${amount.toString()}`)
+        .join(", ");
+      return `✓ ${event.nodeId}: ${sig} (${outputs})`;
+    }
     case "node-failed":
       return `✗ ${event.nodeId}: ${event.error}`;
     case "node-skipped":

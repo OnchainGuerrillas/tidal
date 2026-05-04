@@ -35,6 +35,16 @@ export function CanvasRunPanel() {
   const [state, setState] = useState<RunState>({ kind: "idle" });
   const hasWallet = wallets.length > 0;
 
+  // Surface a "queued tx count" on the Run button so users know how
+  // many real transactions to expect before they click. Splits and
+  // other compute-only nodes don't count — only adapter nodes produce
+  // chain submissions. The plan derivation is cheap and idempotent so
+  // we can recompute on every render without memoization.
+  const planPreview = deriveExecutablePlan(workspace);
+  const adapterTxCount = planPreview.nodes.filter(
+    (n) => n.kind === "adapter",
+  ).length;
+
   const onRun = useCallback(async () => {
     const plan = deriveExecutablePlan(workspace);
     if (plan.errors.length > 0) {
@@ -86,7 +96,11 @@ export function CanvasRunPanel() {
         )}
       >
         <Play weight="fill" className="h-3 w-3 text-tidal-accent" />
-        {isRunning ? "Running…" : "Run graph"}
+        {isRunning
+          ? "Running…"
+          : adapterTxCount > 0
+            ? `Run graph (${adapterTxCount.toString()} tx${adapterTxCount === 1 ? "" : "s"})`
+            : "Run graph"}
       </button>
 
       {state.kind !== "idle" && (
@@ -169,7 +183,7 @@ function renderEvent(event: GraphExecutionEvent): string {
     case "node-started":
       return `→ ${shortNodeId(event.nodeId)}: starting`;
     case "node-succeeded":
-      return `✓ ${shortNodeId(event.nodeId)}: ${shortSig(event.result.txSignature)}`;
+      return `✓ ${shortNodeId(event.nodeId)}: ${event.result.txSignature ? shortSig(event.result.txSignature) : "computed"}`;
     case "node-failed":
       return `✗ ${shortNodeId(event.nodeId)}: ${event.error}`;
     case "node-skipped":

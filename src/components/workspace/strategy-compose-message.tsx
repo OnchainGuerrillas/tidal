@@ -34,9 +34,13 @@ export function StrategyComposeMessage({
   const hasWallet = wallets.length > 0;
 
   const onRun = useCallback(async () => {
+    // AI-composed strategies are adapter-only today (no Splits in the
+    // canonical templates). Wrap each into the discriminated-union
+    // ExecutableNode shape so the runner can dispatch by `kind`.
     const executableNodes: ExecutableNode[] = output.executable.nodes.map(
       (n) => ({
         id: n.id,
+        kind: "adapter" as const,
         catalogItemId: n.catalogItemId,
         widgets: n.widgets,
         sourceAmount:
@@ -146,7 +150,7 @@ function renderEvent(event: GraphExecutionEvent): string {
     case "node-started":
       return `→ ${event.nodeId}: starting`;
     case "node-succeeded":
-      return `✓ ${event.nodeId}: ${shortSig(event.result.txSignature)}`;
+      return `✓ ${event.nodeId}: ${event.result.txSignature ? shortSig(event.result.txSignature) : "computed"}`;
     case "node-failed":
       return `✗ ${event.nodeId}: ${event.error}`;
     case "node-skipped":
