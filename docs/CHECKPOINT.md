@@ -1,9 +1,20 @@
 # Checkpoint
 
-**Last updated:** 2026-05-03 (late evening)
+**Last updated:** 2026-05-04 (Monday morning)
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `4606039` — feat(workspace): multi-output runner + runnable Split + tx counter (Tier 1.7a/b/e)
-**Hackathon submission:** ~2026-05-10 (7 days out, comfortable runway)
+**Latest commit:** `8eccfc9` — feat(solana): Kamino + Jupiter leverage loop composite (Tier 1 #3) — Phase 1 done
+**Hackathon submission:** ~2026-05-10 (6 days out, ample buffer)
+**Phase 1 thesis demo:** ✅ shippable today
+
+## Strategic direction (locked 2026-05-04)
+
+**Going deep on Solana before cross-chain.** Tidal's wedge is the Solana composition surface; depth here beats breadth right now. Cross-chain (Base, Arbitrum, Li.Fi, EVM adapters) stays parked from v1 — see CLAUDE.md "Parked Features" for the full reasoning + revival path.
+
+Phase 2 work prioritizes (in this order):
+1. **Strengthen the existing demo** — polish items that lift the pitch without new SDK risk
+2. **Solana adapter expansion** — Marinade, Sanctum, Jupiter Lend, etc.
+3. **Templates / starter graphs**
+4. **Bigger directional bets** (post-launch): scheduler, social, NFT positions
 
 ---
 
@@ -249,9 +260,22 @@ Met with 0xJulo. Feedback was "on the right track" with significant scope expans
 
 Verified `38f7502` in browser: regression where bidirectional swap broke edge connectivity (Jupiter output advertised "selected" placeholder asset, didn't match Kamino's `acceptedAssets: ["USDC"]`). Fixed by promoting widget defaults onto typed metadata at node creation + mirroring widget changes back into typed handles.
 
-## Next Session Starts Here — Tier 1.7c/d + Tier 1 #3 (~3-4 hrs total)
+## Next Session Starts Here — Phase 2 polish flight (~3.5 hrs)
 
-Submission target ~2026-05-10. **7 days runway.** Tier 1 #1, #2, #4 closed. #5 dropped. Tier 1.6 (all 3 inverse paths) closed. Tier 1.7a/b/e closed. **Remaining: Tier 1.7c+d (small) + Tier 1 #3 leverage loop (the last big piece).** Very comfortable.
+Submission target ~2026-05-10. **6 days runway.** Phase 1 thesis demo shipped. Remaining work is Phase 2 polish + adapter expansion.
+
+### This afternoon — Phase 2.1 polish flight (~3.5 hrs)
+
+Locked in the polish-first ordering since these strengthen what we already have without introducing new SDK risk:
+
+| # | Item | Effort | Risk |
+|---|---|---|---|
+| 1 | **Compounded APY display** | ~45 min | None (math + UI on existing data). Directly answers 0xJulo's "yield compounding huge selling point" with a concrete number on the leverage-loop node and Kamino supply nodes. |
+| 2 | **Live SOL price feed** | ~30 min | Low (server-side fetch, falls back to estimate on failure). Replaces leverage loop's hardcoded $150. |
+| 3 | **Amount node runnable** | ~45 min | Low (reuses Split's compute-node pattern). Closes Tier 1.7c — completes the multi-branch flow vision from 0xJulo's screenshot. |
+| 4 | **Marinade stake adapter** | ~1.5 hr | Low (same SPL stake-pool SDK as Jito; we know its quirks). Cheapest new adapter; adds mSOL to the LST vocabulary. |
+
+After this flight, the next-priority work is the LST routing pitch (Sanctum INF) or the rate-shopping pitch (Jupiter Lend USDC) — both ~1.5-2 hr.
 
 ### Quick wins — finish Tier 1.7 (~75 min)
 

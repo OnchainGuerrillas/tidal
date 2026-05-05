@@ -169,39 +169,46 @@ Note: the current build may require network access because `next/font/google` fe
 
 The frontend prototype is complete. The repo is now evolving into a working product per `docs/tidal-prd.md` (v2.2). Backend integration is in scope.
 
-### Phase 1 Progress Snapshot
+### Phase 1 — shipped 2026-05-04
 
-Always read `docs/CHECKPOINT.md` for the current status — it's the source of truth. Quick orientation as of 2026-04-25:
+Always read `docs/CHECKPOINT.md` for current status — it's the source of truth. Phase 1 thesis demo is fully shippable on mainnet. Snapshot:
 
-**Landed and mainnet-verified:**
-- `E5` ProtocolAdapter contract (`src/lib/solana/types.ts`, `registry.ts`)
-- `P1` Privy Solana wallet (embedded + external, dark theme)
-- `P2` JitoSOL stake adapter
-- `P3` Kamino USDC supply adapter
-- `P4` Jupiter Ultra SOL→USDC swap adapter
-- `E1` Graph execution engine (`src/lib/workspace/graph-exec.ts`, `useAdapterNodeRunner`) — runs multi-node pipelines on mainnet
+**Adapters mainnet-verified (9 total):**
+- Jito stake / unstake (SPL stake-pool)
+- Kamino USDC supply / withdraw / supply-and-borrow / repay-and-withdraw
+- Kamino + Jupiter leverage loop composite (recursive supply-and-borrow + swap)
+- Jupiter Ultra swap (any pair across SOL / USDC / USDT / JitoSOL / mSOL)
 
-**Landed (smoke-verified, not yet wired into the workspace UI):**
-- `A1` `/api/chat` streaming with AI SDK v6 + Claude Sonnet 4.6
-- `A2` `composeStrategy` tool — three canonical intents: `liquid-stake-sol`, `lend-usdc-kamino`, `swap-sol-then-supply-usdc`. Returns `{ summary, mutations, executable }`.
+**Engine & UI:**
+- Graph execution engine with multi-tx contract (one node → N transactions submitted in sequence)
+- Multi-output runner with per-handle edge dispatch (Split nodes execute as compute-only)
+- Per-node run-status visuals (cyan-pulse / emerald / red / amber rings)
+- Live investment tracker reading real Kamino obligations + Jito balances, auto-refreshing after runs via the chain-state signal provider
+- Wallet node showing live SOL/USDC balances
+- AI compose-strategy tool emitting canonical strategy graphs (single-node + two-node intents)
+- Workspace chat panel wired to `/api/chat` with tool-call rendering and Run graph button on the chat bubble
+- Canvas Run graph button with tx-count preview ("Run graph (N txs)")
+- AI-composed nodes positioned relative to existing graph; bridge problem solved (`StrategyNodeData.catalogItemId` makes hand-built nodes runnable too)
 
-**Active surface — workspace chat panel wire (next):**
-- Replace the presentational composer with real `useChat`
-- Apply tool-returned `GraphMutation[]` to the active workspace via `WorkspaceProvider`
-- Add a run-graph affordance that derives `ExecutableNode[]` from workspace state and feeds `executeGraph` via `useAdapterNodeRunner`
-- Bridge: `WorkspaceGraphNode` doesn't carry `catalogItemId` today. The intended fix is to add an optional `catalogItemId` to `StrategyNodeData` so any strategy node (composed or hand-built) is runnable.
+### Phase 2 — Strategic Direction
 
-**Remaining for the Phase 1 thesis demo:**
-- The workspace chat panel wire (above) — turns the smoke-page demo into the actual product surface
-- `E2` widget editing on nodes (per-adapter input forms)
-- Polish: real `readRate` for Jito, real `readPosition` for Kamino obligations, bidirectional Jupiter swap
+**Going deep on Solana before going broad.** Cross-chain (Base, Arbitrum, Li.Fi, EVM adapters, wagmi) stays parked from v1 — see Parked Features. Tidal's wedge is the Solana composition surface; depth here matters more than breadth right now.
 
-**Out of scope (parked from v1):** EVM chains, Li.Fi, AAVE, ERC-4626, wagmi.
+Phase 2 priority order (post-MVP, in increasing effort):
+
+1. **Strengthen the existing demo** — compounded APY display, live SOL price feed (replaces leverage loop's hardcoded estimate), Amount node runnable, "Unwind Leverage" composite. ~3-4 hr total. Low risk, high pitch lift.
+2. **Solana adapter expansion** — Marinade stake (cheapest, reuses SPL stake-pool patterns), Sanctum INF (LST routing — "agent rate-shops between liquid staking tokens"), Jupiter Lend USDC (rate-shop vs Kamino), Kamino Earn Vaults (Mid-Depth tier). ~1.5-2 hr each.
+3. **Templates / starter graphs** — 3 canonical strategies (Leverage Loop, Stake-and-Hold, Stablecoin Lending) for onboarding. ~1.5 hr.
+4. **Jupiter Perps** — Deep Water tier leverage trading. Replaces the parked Drift slot.
+
+Bigger directional bets (post-launch material): auto-compounding scheduler, cycle-on-canvas leverage loops (flavor B), social features (Discover + gamification + sharing), NFT positions, real-time alerts, Orca/Raydium concentrated LP. All in `Parked Features` with what / why / when-to-revisit notes.
 
 ### Important Architectural Notes
 
-- **Visual catalog vs. executable adapters are disjoint.** `src/mock-data/workspace/catalog.ts` (UI picker) does not list the registered adapter IDs (`jito-sol-stake`, `kamino-usdc-supply`, `jupiter-swap-sol-usdc`). The compose-strategy tool synthesizes nodes by reading `getAdapter(id).catalogItem` server-side rather than requiring the visual catalog to be in sync. Keep this in mind before "fixing" the catalog mismatch — it's intentional until the workspace chat wire decides whether to extend `StrategyNodeData` with `catalogItemId`.
+- **Visual catalog and executable adapters are unified.** `src/mock-data/workspace/catalog.ts` (UI picker) merges adapter-backed entries from `src/lib/solana/adapter-catalog.ts` (`ADAPTER_CATALOG_ITEMS`). Strategy nodes carry a `catalogItemId` on `StrategyNodeData` when bound to a registered adapter, so hand-built and AI-composed graphs both run through the same executor. The legacy visual-only entries (Marinade, Marginfi, Orca, Raydium, the legacy Kamino-borrow) were dropped from the picker on 2026-04-30; the example workspace still references them by id but the picker only surfaces runnable adapters.
 - **Adapters must be registered before use.** Server entry points call `registerAllAdapters()` (idempotent). Don't import individual adapters into UI code; go through the registry.
+- **Multi-tx contract.** `BuildTransactionResult.transactionsBase64: string[]`. Single-tx adapters (Jito, simple Kamino supply, Jupiter swap) wrap their tx in a length-1 array. Multi-tx adapters (Kamino borrow, repay+withdraw, leverage loop) build the array by orchestration — usually multiple separate SDK calls rather than the combined ones, since the combined calls trip the 1232-byte single-tx ceiling.
+- **Multi-output runner.** `ExecutableNode` is a discriminated union (`adapter` | `split`). Edges carry a `sourceHandle` so children consume the right output. Compute-only nodes (Split today, Amount tomorrow) execute locally without invoking the adapter pipeline.
 - **Workspace chat panel is wired live** to `/api/chat`. `ChatPanel` uses `useChat`; `composeStrategy` tool results stream in as `tool-composeStrategy` parts, mutations are applied to the active workspace via `WorkspaceProvider.applyGraphMutations` (deduped per `toolCallId` in an effect), and the resulting `StrategyComposeMessage` carries the "Run graph" affordance.
 
 ### Scope Of Existing Constraints
