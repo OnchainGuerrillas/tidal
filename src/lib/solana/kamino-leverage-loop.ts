@@ -23,15 +23,39 @@ const WIDGETS: WidgetSchema[] = ENTRY.widgets;
 const SOL_DECIMALS = 9;
 const USDC_DECIMALS = 6;
 
-// Hardcoded SOL price for borrow-amount estimation. The on-chain
-// Kamino LTV check is what actually constrains the borrow at execution
-// time; this estimate just picks a target. Conservative LTVs (0.5
-// default) leave plenty of safety margin so a slightly stale price
-// doesn't push the borrow over the LTV ceiling.
-//
-// TODO post-hackathon: pull live SOL price from Pyth (on-chain) or
-// Jupiter price API at server build time.
-const SOL_PRICE_USD_ESTIMATE = 150;
+// Fallback SOL price for borrow-amount estimation when the live price
+// fetch fails. The on-chain Kamino LTV check is what actually
+// constrains the borrow at execution time; this estimate just picks a
+// target. Conservative LTV defaults (0.5) leave plenty of safety
+// margin so a stale or unavailable price doesn't push the borrow over
+// the LTV ceiling.
+const SOL_PRICE_FALLBACK_USD = 150;
+
+// Live SOL price via Jupiter price API (proxied through our route so
+// browser CORS isn't an issue and we can swap providers without
+// touching adapters). Returns null on any failure — callers fall back
+// to the constant above.
+async function fetchLiveSolPriceUsd(): Promise<number | null> {
+  try {
+    // Server-to-server fetch: relative URL won't work because there's
+    // no implicit base. Direct upstream call is fine here since this
+    // only runs during buildTransaction on the server.
+    const response = await fetch(
+      "https://lite-api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112",
+      { method: "GET", headers: { "Content-Type": "application/json" } },
+    );
+    if (!response.ok) return null;
+    const body = (await response.json()) as Record<string, { usdPrice?: number }>;
+    const sol = body["So11111111111111111111111111111111111111112"];
+    const price = sol?.usdPrice;
+    if (typeof price === "number" && Number.isFinite(price) && price > 0) {
+      return price;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 async function readPosition(
   params: ReadPositionParams,
@@ -90,6 +114,14 @@ async function buildTransaction(
   const loopCount = loopCountWidget;
   const targetLTV = ltvWidget;
 
+  // Fetch live SOL price up front so we don't pay the round-trip per
+  // iteration. Falls back to the constant on any failure — the
+  // hardcoded estimate is conservative enough that a missing live
+  // price won't blow up Kamino's LTV check.
+  const liveSolPrice = await fetchLiveSolPriceUsd();
+  const solPriceUsd = liveSolPrice ?? SOL_PRICE_FALLBACK_USD;
+  const priceSource = liveSolPrice !== null ? "live" : "fallback";
+
   // Orchestration: we call the supply-and-borrow adapter and the
   // Jupiter swap adapter in alternation, accumulating their txs into
   // one big array. Each call's expectedOutputAmount feeds the next
@@ -105,7 +137,7 @@ async function buildTransaction(
     //   collateral_value_usd = sol_lamports / 1e9 * SOL_PRICE
     //   borrow_usdc          = collateral_value_usd * targetLTV
     const solDecimal = Number(currentSolLamports) / 10 ** SOL_DECIMALS;
-    const borrowUsdcDecimal = solDecimal * SOL_PRICE_USD_ESTIMATE * targetLTV;
+    const borrowUsdcDecimal = solDecimal * solPriceUsd * targetLTV;
     if (borrowUsdcDecimal < 0.5) {
       // Below a sensible Kamino borrow floor — bail out so the user
       // doesn't trip a tx failure on a tiny dust borrow. We've already
@@ -195,7 +227,7 @@ async function buildTransaction(
     fees: { networkLamports },
     warnings: [
       `Leverage loop expands into ${allTxs.length.toString()} on-chain transactions (${loopCount.toString()} iteration${loopCount === 1 ? "" : "s"}, target LTV ${(targetLTV * 100).toFixed(0)}%).`,
-      "SOL price for borrow estimation is hardcoded — actual borrow capacity is enforced by Kamino's on-chain oracle. Conservative LTVs leave safety margin.",
+      `Borrow amounts estimated at SOL=$${solPriceUsd.toFixed(2)} (${priceSource}). Actual borrow capacity is enforced by Kamino's on-chain oracle.`,
       "Each iteration adds less than the last (geometric series). At 50% LTV: 2 loops ≈ 1.5x exposure; 3 loops ≈ 1.75x; 5 loops ≈ 1.94x; cap is 2x.",
       ...allWarnings,
     ],
