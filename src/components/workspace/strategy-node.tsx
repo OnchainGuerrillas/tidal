@@ -19,6 +19,12 @@ import { getAdapterCatalogEntry } from "@/lib/solana/adapter-catalog";
 import { useNodeRunStatus } from "@/providers/run-status-provider";
 import { runStatusRingClass } from "@/lib/workspace/run-status-styles";
 import {
+  formatPercent,
+  formatUsd,
+  leverageFactor,
+  projectCompoundedValue,
+} from "@/lib/workspace/yield-math";
+import {
   collectIntervals,
   type StrategyNodeType,
 } from "@/mock-data/workspace/types";
@@ -58,6 +64,37 @@ export const StrategyNode = memo(
       inputAssetSelected && outputAssetSelected
         ? `${data.action} ${inputAssetSelected} → ${outputAssetSelected}`
         : data.action;
+
+    // Forward-looking yield projection — answers the "what would I
+    // actually earn?" question on the node face without requiring the
+    // user to run anything. Two flavors:
+    //   1. Standard earn-side adapters (Jito stake, Kamino supply) with
+    //      a live APY and an amount widget → 1-year compounded projection
+    //      in the input asset's units (e.g., "≈ 0.0006 SOL/yr").
+    //   2. Leverage-loop node specifically → effective collateral
+    //      exposure derived from loopCount × targetLTV widgets ("1.5×
+    //      exposure"). True net-of-borrow yield needs the Kamino USDC
+    //      borrow rate which we don't surface yet — defer until that
+    //      lands.
+    const projection = computeProjection({
+      catalogItemId: data.catalogItemId,
+      apy:
+        rateState.kind === "ready" && rateState.rate
+          ? rateState.rate.apy
+          : null,
+      amount:
+        typeof widgetValues.amount === "number" ? widgetValues.amount : null,
+      loopCount:
+        typeof widgetValues.loopCount === "number"
+          ? widgetValues.loopCount
+          : null,
+      targetLTV:
+        typeof widgetValues.targetLTV === "number"
+          ? widgetValues.targetLTV
+          : null,
+      inputAsset: data.inputAsset,
+      apyType: data.apyType,
+    });
 
     return (
       <SurfaceCard
@@ -121,7 +158,7 @@ export const StrategyNode = memo(
             </Badge>
           </div>
 
-          <div className="mb-3 flex items-center gap-1.5">
+          <div className="mb-1 flex items-center gap-1.5">
             <span
               className={`text-xs font-semibold ${
                 data.apyType === "earn" ? "text-emerald-400" : "text-amber-400"
@@ -138,6 +175,11 @@ export const StrategyNode = memo(
               </span>
             ) : null}
           </div>
+          {projection ? (
+            <div className="mb-3 tidal-text-caption text-tidal-muted">
+              {projection}
+            </div>
+          ) : null}
 
           {data.holdingsLabel ? (
             <div className="mb-2 tidal-text-caption text-foreground">
@@ -345,6 +387,53 @@ export const StrategyNode = memo(
 );
 
 StrategyNode.displayName = "StrategyNode";
+
+type ProjectionInput = {
+  catalogItemId: string | undefined;
+  apy: number | null;
+  amount: number | null;
+  loopCount: number | null;
+  targetLTV: number | null;
+  inputAsset: string;
+  apyType: "earn" | "cost";
+};
+
+/**
+ * Build the human-readable yield projection string shown below the
+ * APY display on adapter-backed strategy nodes. Returns null when
+ * there's nothing useful to project (no live APY, no amount entered,
+ * etc.). Display lives inline so changes to the amount widget
+ * propagate the moment the user types.
+ */
+function computeProjection(input: ProjectionInput): string | null {
+  // Leverage-loop node gets a dedicated treatment: show effective
+  // collateral exposure derived from loop count + target LTV. We
+  // can't compute a true net-of-borrow yield without the Kamino
+  // USDC borrow rate, which we don't surface yet — keeping this honest.
+  if (input.catalogItemId === "kamino-leverage-loop") {
+    if (input.loopCount === null || input.targetLTV === null) return null;
+    const factor = leverageFactor(input.loopCount, input.targetLTV);
+    const ltvPct = (input.targetLTV * 100).toFixed(0);
+    return `${factor.toFixed(2)}× collateral exposure (${input.loopCount} loop${input.loopCount === 1 ? "" : "s"} × ${ltvPct}% LTV)`;
+  }
+
+  // For earn-side adapters with a live APY and an amount widget,
+  // project the position 1 year forward and show the projected
+  // accrued yield. Borrow-side adapters skip this (the cost story
+  // belongs in the position tracker).
+  if (input.apyType !== "earn") return null;
+  if (input.apy === null || input.amount === null) return null;
+
+  const projected = projectCompoundedValue(input.amount, input.apy, 1);
+  const accrued = projected - input.amount;
+
+  // For USDC-denominated positions, present in $. For SOL/JitoSOL/
+  // mSOL, present in the asset's units (no live USD price feed yet).
+  if (input.inputAsset === "USDC" || input.inputAsset === "USDT") {
+    return `≈ ${formatUsd(accrued)}/yr (${formatPercent(input.apy)} compounded)`;
+  }
+  return `≈ ${accrued.toFixed(4)} ${input.inputAsset}/yr (${formatPercent(input.apy)} compounded)`;
+}
 
 type WidgetInputProps = {
   widget: WidgetSchema;
