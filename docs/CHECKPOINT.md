@@ -1,10 +1,11 @@
 # Checkpoint
 
-**Last updated:** 2026-05-04 (Monday morning)
+**Last updated:** 2026-05-04 (Monday afternoon)
 **Branch:** main (clean, pushed to origin)
-**Latest commit:** `8eccfc9` — feat(solana): Kamino + Jupiter leverage loop composite (Tier 1 #3) — Phase 1 done
+**Latest commit:** `947104d` — feat(solana): live SOL price feed via Jupiter; wired into leverage loop (P2.1 #2)
 **Hackathon submission:** ~2026-05-10 (6 days out, ample buffer)
 **Phase 1 thesis demo:** ✅ shippable today
+**Phase 2.1 polish flight:** 2/4 done
 
 ## Strategic direction (locked 2026-05-04)
 
@@ -264,18 +265,54 @@ Verified `38f7502` in browser: regression where bidirectional swap broke edge co
 
 Submission target ~2026-05-10. **6 days runway.** Phase 1 thesis demo shipped. Remaining work is Phase 2 polish + adapter expansion.
 
-### This afternoon — Phase 2.1 polish flight (~3.5 hrs)
+### Phase 2.1 polish flight — 2/4 done
 
-Locked in the polish-first ordering since these strengthen what we already have without introducing new SDK risk:
+| # | Item | Status |
+|---|---|---|
+| 1 | Compounded APY display | ✅ `860b78d` |
+| 2 | Live SOL price feed | ✅ `947104d` |
+| **3** | **Amount node runnable** | **next session** |
+| 4 | Marinade stake adapter | after #3 |
 
-| # | Item | Effort | Risk |
-|---|---|---|---|
-| 1 | **Compounded APY display** | ~45 min | None (math + UI on existing data). Directly answers 0xJulo's "yield compounding huge selling point" with a concrete number on the leverage-loop node and Kamino supply nodes. |
-| 2 | **Live SOL price feed** | ~30 min | Low (server-side fetch, falls back to estimate on failure). Replaces leverage loop's hardcoded $150. |
-| 3 | **Amount node runnable** | ~45 min | Low (reuses Split's compute-node pattern). Closes Tier 1.7c — completes the multi-branch flow vision from 0xJulo's screenshot. |
-| 4 | **Marinade stake adapter** | ~1.5 hr | Low (same SPL stake-pool SDK as Jito; we know its quirks). Cheapest new adapter; adds mSOL to the LST vocabulary. |
+### Pickup notes for tomorrow — Tier 1.7c Amount node
 
-After this flight, the next-priority work is the LST routing pitch (Sanctum INF) or the rate-shopping pitch (Jupiter Lend USDC) — both ~1.5-2 hr.
+**Goal:** make Amount nodes execute via the existing multi-output runner pattern (same shape as Split). Take an upstream input, scale or fix it, emit on a single output handle.
+
+**Existing `AmountNodeData`** (`src/mock-data/workspace/types.ts`):
+```ts
+type AmountNodeData = {
+  nodeKind: "amount";
+  sourceAsset: string;
+  amountLabel: string;      // free-text "50% SOL", "Custom 0.05 SOL" — display only
+  amountMode: "fixed" | "percent";
+  maxAmountLabel: string;
+};
+```
+
+**Gap:** there's no numeric `value` field. The current renderer has a free-text input editing `amountLabel` plus a CompactSelect for `amountMode`. To execute, we need a parsed number.
+
+**Two options:**
+
+**A.** Add `value: number` to `AmountNodeData`. Replace the free-text input with a number input (similar to NumberWidgetInput on strategy nodes). Cleaner data, requires touching the existing amount-node.tsx renderer.
+
+**B.** Parse `amountLabel` at execution time (e.g., "50%" → 0.5, "0.05" → 0.05, "0.05 SOL" → 0.05). Brittle but no schema change.
+
+**Recommendation: A.** The data shape change is small and matches how strategy nodes already store widget values (numbers, not strings). The current free-text label can stay as a derived display string.
+
+**Implementation outline:**
+1. Add `value: number` to `AmountNodeData`. Default 50 for `percent`, default 0 for `fixed` (user must set).
+2. `ExecutableNode` discriminated union gets `kind: "amount"` variant: `{ id, kind: "amount", mode: "fixed" | "percent", value: bigint }` (value in base units for fixed mode, raw 0-100 for percent mode).
+3. `executeGraph` adds `executeAmount` branch alongside `executeSplit`:
+   - `mode === "percent"`: outputs.set("next", inputAmount * value / 100n)
+   - `mode === "fixed"`: outputs.set("next", value) — ignores input
+4. `derive-executable-plan` walks Amount nodes too, propagates mode + parsed value (with appropriate decimals based on the upstream asset).
+5. The amount-node.tsx renderer swaps the free-text input for a NumberWidgetInput (or copies that pattern) so the value persists as a number.
+
+**Smoke test plan:** drop `Wallet → Amount (fixed 0.005 SOL) → Jito stake`. Hit Run. Jito stake receives exactly 0.005 SOL regardless of upstream wallet amount. Or: `Jupiter swap (SOL→USDC) → Amount (50% percent) → Kamino supply`. Kamino receives half of the swap output.
+
+**Risk:** Low. Same compute-node pattern as Split, just with a different math op. Decimals handling needs care — `fixed` mode's `value` needs the same base-unit conversion the strategy node widgets do.
+
+After Amount lands, **P2.1 #4 Marinade stake adapter** (~1.5 hr) closes the polish flight. Then if appetite remains, P2.2 expansion (Sanctum / Jupiter Lend / Kamino Earn) opens up.
 
 ### Quick wins — finish Tier 1.7 (~75 min)
 
