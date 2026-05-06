@@ -18,6 +18,7 @@ import { formatWorkspaceNodeStatusLabel } from "@/lib/workspace/status";
 import { getAdapterCatalogEntry } from "@/lib/solana/adapter-catalog";
 import { useNodeRunStatus } from "@/providers/run-status-provider";
 import { runStatusRingClass } from "@/lib/workspace/run-status-styles";
+import { useWorkspace } from "@/providers/workspace-provider";
 import {
   formatPercent,
   formatUsd,
@@ -43,6 +44,15 @@ export const StrategyNode = memo(
     const reactFlow = useReactFlow();
     const runStatus = useNodeRunStatus(id);
     const rateState = useAdapterRate(data.catalogItemId);
+    const { workspace } = useWorkspace();
+    // When this node has any incoming edge from another node on the
+    // canvas, the runner overrides this node's `amount` widget with
+    // the upstream output. Showing the widget would be misleading —
+    // it'd display whatever the user originally typed even though
+    // the actual amount that flows is dictated upstream. Hide the
+    // amount widget specifically (other widgets like slippage,
+    // borrow amount, and asset selectors stay visible).
+    const hasUpstream = workspace.edges.some((e) => e.target === id);
     const liveApy =
       rateState.kind === "ready" && rateState.rate
         ? formatApy(rateState.rate.apy)
@@ -192,7 +202,14 @@ export const StrategyNode = memo(
               <div className="tidal-text-caption text-tidal-muted">
                 Inputs
               </div>
-              {adapterEntry.widgets.map((widget) => (
+              {hasUpstream ? (
+                <div className="rounded-md border border-tidal-accent/30 bg-tidal-accent/5 px-2 py-1.5 text-[11px] text-tidal-accent">
+                  Amount: from upstream node
+                </div>
+              ) : null}
+              {adapterEntry.widgets
+                .filter((widget) => !(widget.key === "amount" && hasUpstream))
+                .map((widget) => (
                 <WidgetInput
                   key={widget.key}
                   widget={widget}
