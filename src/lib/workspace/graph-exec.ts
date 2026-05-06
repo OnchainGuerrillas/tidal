@@ -39,7 +39,28 @@ export type SplitExecutableNode = {
   splitB: number;
 };
 
-export type ExecutableNode = AdapterExecutableNode | SplitExecutableNode;
+export type AmountExecutableNode = {
+  id: string;
+  kind: "amount";
+  /**
+   * Percentage (0-100) of the upstream input to forward through the
+   * single output handle "next". 100 = pass-through; 50 = halve;
+   * 0 = nothing flows downstream (downstream node will see 0 input
+   * and likely fail validation, which is the right user signal).
+   *
+   * Fixed-amount mode (replace input with an absolute value) is
+   * deferred — it requires upstream-asset decimals, which the runner
+   * doesn't track today. For now, hand-built graphs needing fixed
+   * amounts can instead set the strategy node's amount widget
+   * directly.
+   */
+  percentage: number;
+};
+
+export type ExecutableNode =
+  | AdapterExecutableNode
+  | SplitExecutableNode
+  | AmountExecutableNode;
 
 export type ExecutableEdge = {
   source: string;
@@ -156,6 +177,27 @@ function getParentEdges(
 }
 
 /**
+ * Execute an Amount node locally. Scales the upstream input by the
+ * configured percentage (0-100). Pure math, no chain interaction.
+ * Single output on handle "next".
+ */
+function executeAmount(
+  node: AmountExecutableNode,
+  inputAmount: bigint,
+): NodeRunResult {
+  // Clamp pct to [0, 100] defensively. Negative or >100 values would
+  // produce nonsensical amounts and downstream nodes would fail; the
+  // clamp turns user error into "0 input downstream" instead of a
+  // negative tx amount.
+  const pct = Math.max(0, Math.min(100, Math.round(node.percentage)));
+  const num = BigInt(pct);
+  const out = (inputAmount * num) / 100n;
+  return {
+    outputs: new Map([["next", out]]),
+  };
+}
+
+/**
  * Execute a Split node locally. Pure math: divide input by ratio.
  * Returns outputs on handles "a" and "b". Tiny rounding losses go to
  * handle "b" so the splits don't drift past 100% of input.
@@ -259,9 +301,10 @@ export async function* executeGraph(params: {
     let inputAmount = 0n;
     if (parentEdges.length === 0) {
       // Root node — adapters can carry sourceAmount as a starting
-      // value (e.g., wallet-funded stake). Splits have no useful
-      // standalone semantics; default to 0 and let the split emit two
-      // zero-output handles, which downstream adapters will reject.
+      // value (e.g., wallet-funded stake). Compute-only nodes (split,
+      // amount) have no useful standalone semantics; default to 0
+      // and let them emit zero-output handles, which downstream
+      // adapters will reject during their own validation.
       if (node.kind === "adapter" && node.sourceAmount !== undefined) {
         inputAmount = node.sourceAmount;
       }
@@ -282,9 +325,11 @@ export async function* executeGraph(params: {
       let result: NodeRunResult;
       if (node.kind === "adapter") {
         result = await params.runNode({ node, inputAmount });
-      } else {
-        // node.kind === "split"
+      } else if (node.kind === "split") {
         result = executeSplit(node, inputAmount);
+      } else {
+        // node.kind === "amount"
+        result = executeAmount(node, inputAmount);
       }
       outputs.set(nodeId, result.outputs);
       yield {

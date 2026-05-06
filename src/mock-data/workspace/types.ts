@@ -120,6 +120,14 @@ export type AmountNodeData = WorkspaceNodeBaseData & {
   amountLabel: string;
   amountMode: "fixed" | "percent";
   maxAmountLabel: string;
+  /**
+   * Numeric value driving execution. In `percent` mode this is a
+   * 0-100 percentage of the upstream input. In `fixed` mode this
+   * would be a decimal amount in `sourceAsset` units — fixed mode is
+   * deferred until upstream-asset decimals are tracked through the
+   * executable graph (currently only percent mode runs).
+   */
+  value?: number;
 };
 
 export type StrategyNodeData = WorkspaceNodeBaseData & {

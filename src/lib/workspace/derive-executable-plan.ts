@@ -8,6 +8,7 @@ import type {
   ExecutableNode,
 } from "@/lib/workspace/graph-exec";
 import type {
+  AmountNodeData,
   SplitNodeData,
   StrategyNodeData,
   Workspace,
@@ -34,6 +35,12 @@ function isSplitNode(
   return node.type === "split";
 }
 
+function isAmountNode(
+  node: WorkspaceGraphNode,
+): node is WorkspaceGraphNode & { data: AmountNodeData } {
+  return node.type === "amount";
+}
+
 /**
  * Walk a Workspace and produce the inputs `executeGraph` needs to run a
  * user-built (or AI-composed) graph on mainnet:
@@ -58,6 +65,7 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
   const errors: string[] = [];
   const adapterNodes = workspace.nodes.filter(isAdapterStrategyNode);
   const splitNodes = workspace.nodes.filter(isSplitNode);
+  const amountNodes = workspace.nodes.filter(isAmountNode);
 
   if (adapterNodes.length === 0) {
     errors.push(
@@ -71,6 +79,7 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
   const executableIds = new Set<string>([
     ...adapterNodes.map((n) => n.id),
     ...splitNodes.map((n) => n.id),
+    ...amountNodes.map((n) => n.id),
   ]);
 
   const executableEdges: ExecutableEdge[] = workspace.edges
@@ -93,6 +102,26 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
     splitA: node.data.splitA,
     splitB: node.data.splitB,
   }));
+
+  // Amount nodes execute in percent mode only for v1 — fixed mode is
+  // deferred until the runner tracks per-edge asset metadata for
+  // proper decimal conversion. Each Amount node emits an executable
+  // with the percent value; if mode is "fixed", we surface a
+  // user-facing error rather than silently passing through.
+  const amountExecutables: ExecutableNode[] = amountNodes.map((node) => {
+    if (node.data.amountMode === "fixed") {
+      errors.push(
+        `Amount node "${node.data.title || node.id}": fixed-amount mode isn't runnable yet (decimal handling for the upstream asset is in flight). Switch to percent mode, or set a strategy node's amount widget directly.`,
+      );
+    }
+    const rawValue =
+      typeof node.data.value === "number" ? node.data.value : 50;
+    return {
+      id: node.id,
+      kind: "amount" as const,
+      percentage: rawValue,
+    };
+  });
 
   const adapterExecutables: ExecutableNode[] = adapterNodes.map((node) => {
     const data = node.data;
@@ -189,6 +218,7 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
   const executableNodes: ExecutableNode[] = [
     ...adapterExecutables,
     ...splitExecutables,
+    ...amountExecutables,
   ];
 
   return { nodes: executableNodes, edges: executableEdges, errors };
