@@ -141,9 +141,17 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
       };
     }
 
-    // Verify required widgets are present.
+    const isEntry = !targetIds.has(node.id);
+
+    // Verify required widgets are present. The `amount` widget is a
+    // special case: when an upstream edge feeds this node, the runner
+    // overrides whatever's in the widget with the parent's output —
+    // requiring the user to type one would be misleading (and the UI
+    // already hides the input via the same hasUpstream check). Skip
+    // amount validation specifically on non-entry nodes.
     for (const widget of entry.widgets) {
       if (!widget.required) continue;
+      if (widget.key === "amount" && !isEntry) continue;
       const value = widgetValues[widget.key];
       if (value === undefined || value === null || value === "") {
         errors.push(
@@ -152,7 +160,6 @@ export function deriveExecutablePlan(workspace: Workspace): ExecutablePlan {
       }
     }
 
-    const isEntry = !targetIds.has(node.id);
     let sourceAmount: bigint | undefined;
     if (isEntry) {
       const amountValue = widgetValues.amount;

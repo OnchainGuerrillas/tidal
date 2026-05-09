@@ -284,11 +284,30 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
     summary: ({ sourceAmount }) =>
       `Swap ${lamportsToSolLabel(sourceAmount)} into USDC via Jupiter Ultra, then supply the resulting USDC into the Kamino main market.`,
     build: ({ sourceAmount }) => {
+      const sourceSolDecimal = Number(sourceAmount) / 1_000_000_000;
+      // Pre-populate the swap node's widgets so the canvas card shows
+      // the AI's choices (asset direction, amount, slippage) and the
+      // runner has everything it needs at execution time. Without
+      // these, the swap node renders blank inputs and the executor
+      // refuses to run with "missing required input" on the asset
+      // selectors and amount.
+      const swapWidgets = {
+        inputAsset: "SOL",
+        outputAsset: "USDC",
+        amount: sourceSolDecimal,
+        slippageBps: 50,
+      };
       const swap = strategyNodeFromAdapter({
         catalogItemId: JUPITER_ID,
         position: { x: 200, y: 240 },
         sourceAmountLabel: lamportsToSolLabel(sourceAmount),
+        widgetValues: swapWidgets,
       });
+      // Kamino supply downstream has no concrete amount yet — the
+      // runner overrides it with the swap's expectedOutputAmount when
+      // the graph runs. We leave widgetValues undefined so the
+      // canvas-side "from upstream" hint kicks in via the strategy-
+      // node's hasUpstream check.
       const supply = strategyNodeFromAdapter({
         catalogItemId: KAMINO_ID,
         position: { x: 700, y: 240 },
@@ -311,7 +330,7 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
             id: swap.id,
             kind: "adapter",
             catalogItemId: JUPITER_ID,
-            widgets: {},
+            widgets: swapWidgets,
             sourceAmount,
           },
           {
