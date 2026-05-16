@@ -7,7 +7,7 @@ import {
   getAdapterCatalogEntry,
 } from "./adapter-catalog";
 import { getSolanaRpc } from "./connection";
-import { jupiterSolUsdcSwapAdapter } from "./jupiter-swap";
+import { buildJupiterSwapLazy } from "./jupiter-swap";
 import { kaminoSupplyAndBorrowAdapter } from "./kamino-borrow";
 import {
   SOL_MINT_ADDRESS,
@@ -226,7 +226,11 @@ async function buildTransaction(
       );
     }
 
-    const swap = await jupiterSolUsdcSwapAdapter.buildTransaction({
+    // Lazy build (Jupiter /quote + /swap, not Ultra /order). Ultra's
+    // pre-validation would reject this call because we're assembling
+    // the swap before the upstream borrow tx has landed and credited
+    // the wallet with USDC. /quote + /swap does not pre-validate.
+    const swap = await buildJupiterSwapLazy({
       walletPublicKey: params.walletPublicKey,
       inputAmount: borrowedUsdcRaw,
       widgets: {
