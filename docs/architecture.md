@@ -189,24 +189,40 @@ The repo is transitioning from frontend prototype to working product per `tidal-
 
 ```
 src/lib/solana/
-  connection.ts      # Solana RPC connection + fallback
-  kamino.ts          # Kamino Lend adapter (supply, withdraw, positions)
-  jupiter-lend.ts    # Jupiter Lend adapter
-  jito.ts            # JitoSOL staking (mint/redeem)
-  sanctum.ts         # Sanctum INF staking
-  jupiter-swap.ts    # Jupiter Ultra swap aggregation
-  registry.ts        # Protocol registry
+  connection.ts                # Solana RPC connection
+  adapter-catalog.ts           # client-safe catalog entries (single source of truth)
+  adapters.ts                  # registerAllAdapters()
+  registry.ts                  # ProtocolAdapter registry
+  types.ts                     # ProtocolAdapter contract
+  jito.ts / jito-unstake.ts    # Jito stake-pool stake + unstake
+  blaze.ts / blaze-unstake.ts  # BlazeStake (bSOL) stake + unstake
+  kamino.ts                    # Kamino USDC supply + withdraw
+  kamino-borrow.ts             # Kamino supply-and-borrow
+  kamino-repay-withdraw.ts     # Kamino repay + withdraw
+  kamino-withdraw.ts           # Kamino USDC withdraw
+  kamino-leverage-loop.ts      # Composite leverage loop
+  kamino-shared.ts             # Shared Kamino helpers
+  jupiter-swap.ts              # Jupiter Ultra + lazy /quote+/swap fallback
+
+src/lib/db/
+  schema.ts                    # Drizzle table defs (users, wallets, workspaces, workspace_graphs, run_history)
+  client.ts                    # server-only Neon client + db export
+  migrate.ts                   # one-shot migration runner (bun run db:migrate)
+  migrations/                  # generated SQL migration files
+
+src/lib/auth/
+  privy-server.ts              # Privy JWT verification + users-row upsert (requireUser)
 
 src/lib/ai/
-  tools-solana.ts    # Solana-specific AI tools
-  tools.ts           # Shared tools (yield scanning)
-  prompts.ts         # Agent prompts
+  tools/                       # AI SDK v6 tool definitions (compose-strategy, etc.)
 
 src/app/api/
-  chat/route.ts          # AI agent endpoint
-  yields/route.ts        # DeFi Llama scanner
-  solana/rates/route.ts  # Live APY from on-chain reads
-  solana/positions/route.ts  # Portfolio positions
+  me/route.ts                  # authed user profile + workspaces + last run (GET)
+  workspaces/route.ts          # list (GET), create (POST)
+  workspaces/[id]/route.ts     # load with latest graph (GET), save graph version (PUT)
+  runs/route.ts                # record a run_history row (POST)
+  chat/route.ts                # AI compose-strategy endpoint
+  solana/*                     # adapter routes (rates, positions, build/submit tx, RPC proxy, prices)
 ```
 
 Route handlers stay thin. Business logic lives in `src/lib/*`.
@@ -235,6 +251,21 @@ Workspace UI components should not import from `src/lib/solana` or SDK clients d
 - External connectors for Phantom and Backpack
 - Embedded wallets for email/social login (zero-friction onboarding)
 - Wallet state is injected at the layout/provider level, not at the component level
+- Server-side, `src/lib/auth/privy-server.ts` exposes `requireUser(req)` — verifies the Privy access token (from `Authorization: Bearer` or the `privy-token` cookie), upserts the `users` row keyed on `privy_user_id`, and returns the DB user. Routes wrap their handlers in a `try { await requireUser(req) } catch (UnauthorizedError)` block and return 401 on failure.
+
+### Database (Neon + Drizzle)
+
+Persistence for user profiles, workspaces, versioned graph snapshots, and run history. Schema lives in `src/lib/db/schema.ts`; the server-only Drizzle client is `src/lib/db/client.ts`.
+
+Tables:
+
+- `users` — keyed on Privy `privy_user_id`; carries optional `primary_wallet_address` lazily populated from Privy on first `/api/me` call.
+- `wallets` — linked addresses per user, unique on `(address, chain)`.
+- `workspaces` — owned by a user, unique on `(user_id, slug)`.
+- `workspace_graphs` — versioned snapshots; `nodesJson` and `edgesJson` store the workspace graph; unique on `(workspace_id, version)`. The route layer appends a new row on every PUT rather than mutating.
+- `run_history` — graph execution records; `events_json` is the streamed `GraphExecutionEvent[]`. Recorded by clients hitting `POST /api/runs` in the `finally` block of `executeGraph`.
+
+Migrations: `bun run db:generate` (writes SQL to `src/lib/db/migrations/`) → `bun run db:migrate` (applies via `DATABASE_URL_UNPOOLED`). `drizzle-kit push` is avoided because its interactive TTY prompt blocks scripted environments.
 
 ### AI Agent
 

@@ -6,10 +6,9 @@ This repo is prototype-only. It exists to explore the unified workspace experien
 
 ## Core Rules
 
-- All data is mocked.
-- No external API calls for product data.
-- No blockchain, RPC, Solana program, or wallet-adapter connections.
-- No real wallet integrations.
+- Workspace UI consumes data through `src/providers/*`; mock seeds live in `src/mock-data/*`.
+- Workspace UI components do not import from `src/lib/solana/*`, `src/lib/db/*`, or SDK clients directly — route through providers or API routes.
+- Backend integration is in active development: adapters (`src/lib/solana/*`), DB (`src/lib/db/*`), auth (`src/lib/auth/*`), and API routes (`src/app/api/*`) are in scope. See `CLAUDE.md` and `docs/post-hackathon-roadmap.md`.
 - Use Bun for package and script commands.
 
 ## Current Product Shape
@@ -44,9 +43,47 @@ Useful commands:
 ```bash
 bun run lint
 bun run build
+bun run db:generate   # generate a new SQL migration from src/lib/db/schema.ts
+bun run db:migrate    # apply pending migrations to the Neon DB
+bun run db:studio     # open Drizzle Studio against the configured DB
 ```
 
 This project currently uses `next/font/google` for Inter, so production builds may need network access for the font fetch unless that is changed to a local font.
+
+## Environment Variables
+
+All env vars live in `.env.local` (gitignored). Server-only secrets must not have the `NEXT_PUBLIC_` prefix.
+
+| Var | Scope | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_PRIVY_APP_ID` | public | Privy app identifier for the wallet/auth provider. |
+| `PRIVY_SECRET_KEY` | server | Privy app secret used by `@privy-io/server-auth` to verify access tokens. |
+| `HELIUS_RPC_URL` | server | Solana RPC endpoint (Helius), used by `src/lib/solana/connection.ts`. |
+| `ANTHROPIC_API_KEY` | server | Used by `/api/chat` (Vercel AI SDK + Claude). |
+| `DATABASE_URL` | server | Neon **pooled** connection string (hostname contains `-pooler`). Used by runtime app code. |
+| `DATABASE_URL_UNPOOLED` | server | Neon **unpooled/direct** connection string (no `-pooler` in hostname). Used by `drizzle-kit` and `bun run db:migrate`. |
+
+## Database (Neon)
+
+Persistence layer for user profiles, workspaces, graph versions, and run history. Schema lives in `src/lib/db/schema.ts`; the Drizzle client is `src/lib/db/client.ts`.
+
+Initial setup against a fresh Neon project:
+
+```bash
+bun run db:generate   # creates SQL files under src/lib/db/migrations/
+bun run db:migrate    # applies them to DATABASE_URL_UNPOOLED
+```
+
+Tables: `users`, `wallets`, `workspaces`, `workspace_graphs` (versioned graph snapshots), `run_history` (graph execution records).
+
+## Live Backend Routes
+
+- `/api/me` — authenticated user profile + workspaces + last run.
+- `/api/workspaces` — list (`GET`) and create (`POST`) the caller's workspaces.
+- `/api/workspaces/[id]` — load workspace + latest graph version (`GET`), save a new graph version (`PUT`).
+- `/api/runs` — record a `run_history` row from `executeGraph` completions (`POST`).
+- `/api/chat` — AI compose-strategy endpoint (Vercel AI SDK + Claude).
+- `/api/solana/*` — protocol adapter routes (rates, positions, build/submit transaction, RPC proxy, prices).
 
 ## Live Routes
 
