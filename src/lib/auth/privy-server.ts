@@ -73,34 +73,105 @@ export async function requireUser(req: Request | NextRequest): Promise<User> {
   return row;
 }
 
+export type LinkedAccount =
+  | {
+      kind: "wallet";
+      address: string;
+      chainType: string | null;
+      walletClientType: string | null;
+    }
+  | { kind: "email"; email: string }
+  | { kind: "oauth"; provider: string; email: string | null };
+
+export type PrivyProfileSnapshot = {
+  primaryWalletAddress: string | null;
+  email: string | null;
+  linkedAccounts: LinkedAccount[];
+};
+
+function sanitizeLinkedAccounts(
+  raw: Array<{ type: string } & Record<string, unknown>>,
+): LinkedAccount[] {
+  const out: LinkedAccount[] = [];
+  for (const account of raw) {
+    if (account.type === "wallet" && typeof account.address === "string") {
+      out.push({
+        kind: "wallet",
+        address: account.address,
+        chainType: typeof account.chainType === "string" ? account.chainType : null,
+        walletClientType:
+          typeof account.walletClientType === "string"
+            ? account.walletClientType
+            : null,
+      });
+    } else if (account.type === "email" && typeof account.address === "string") {
+      out.push({ kind: "email", email: account.address });
+    } else if (account.type.endsWith("_oauth")) {
+      out.push({
+        kind: "oauth",
+        provider: account.type.replace(/_oauth$/, ""),
+        email: typeof account.email === "string" ? account.email : null,
+      });
+    }
+  }
+  return out;
+}
+
 /**
- * Returns the linked Solana wallet address for a Privy user, or null if none.
- * Used to populate users.primary_wallet_address lazily on first /api/me hit.
+ * Fetches the Privy user, returning a sanitized snapshot of identity-relevant
+ * fields. Used by /api/me to populate the profile sheet.
  */
-export async function getPrimarySolanaWallet(
+export async function getPrivyProfileSnapshot(
   privyUserId: string,
-): Promise<string | null> {
+): Promise<PrivyProfileSnapshot | null> {
   const user = await privy.getUserById(privyUserId);
   if (!user) return null;
-  const wallets = user.linkedAccounts.filter(
-    (a): a is typeof a & { type: "wallet"; address: string; chainType?: string } =>
-      a.type === "wallet" && typeof (a as { address?: unknown }).address === "string",
+
+  const linkedAccounts = sanitizeLinkedAccounts(
+    user.linkedAccounts as unknown as Array<
+      { type: string } & Record<string, unknown>
+    >,
   );
-  const solana = wallets.find((w) => w.chainType === "solana") ?? wallets[0];
-  return solana?.address ?? null;
+
+  const wallets = linkedAccounts.filter(
+    (a): a is Extract<LinkedAccount, { kind: "wallet" }> => a.kind === "wallet",
+  );
+  const solana = wallets.find((w) => w.chainType === "solana") ?? wallets[0] ?? null;
+  const emailAccount = linkedAccounts.find(
+    (a): a is Extract<LinkedAccount, { kind: "email" }> => a.kind === "email",
+  );
+
+  return {
+    primaryWalletAddress: solana?.address ?? null,
+    email: emailAccount?.email ?? null,
+    linkedAccounts,
+  };
 }
 
 /**
  * Persists primaryWalletAddress on the users row if it's currently null.
- * Returns the (possibly updated) wallet address.
+ * Returns the (possibly updated) snapshot for downstream rendering.
  */
-export async function ensurePrimaryWallet(user: User): Promise<string | null> {
-  if (user.primaryWalletAddress) return user.primaryWalletAddress;
-  const address = await getPrimarySolanaWallet(user.privyUserId);
-  if (!address) return null;
-  await db
-    .update(users)
-    .set({ primaryWalletAddress: address, updatedAt: sql`now()` })
-    .where(eq(users.id, user.id));
-  return address;
+export async function ensurePrimaryWallet(
+  user: User,
+): Promise<PrivyProfileSnapshot> {
+  const snapshot = (await getPrivyProfileSnapshot(user.privyUserId)) ?? {
+    primaryWalletAddress: null,
+    email: null,
+    linkedAccounts: [],
+  };
+
+  if (!user.primaryWalletAddress && snapshot.primaryWalletAddress) {
+    await db
+      .update(users)
+      .set({
+        primaryWalletAddress: snapshot.primaryWalletAddress,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(users.id, user.id));
+  } else if (user.primaryWalletAddress && !snapshot.primaryWalletAddress) {
+    snapshot.primaryWalletAddress = user.primaryWalletAddress;
+  }
+
+  return snapshot;
 }
