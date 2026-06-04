@@ -245,7 +245,11 @@ Once Phase 4.1 lands and authentication is solid, open template submission:
 
 **Blocking gap:** I don't have the feedback list captured in this repo. Next action on this workstream: capture 0xJulo's feedback as a checklist in this section before scoping.
 
-### Suggested template for capturing feedback
+### Captured items (rolling)
+
+- [ ] **ChatPanel** — contents clip at the right edge at moderate viewport widths (strategy compose bubble, wallet badge, composer placeholder all truncating mid-word). Looks like the panel column itself is narrower than the inner content needs — likely a min-width or inner-padding issue rather than a content-truncation issue. Noticed 2026-06-03 while smoke-testing the profile sheet; deferring to designer review. (`src/components/workspace/panels/chat-panel.tsx` + `src/components/workspace/strategy-compose-message.tsx`.)
+
+### Suggested template for capturing future feedback
 
 When you have the list, add it here as:
 
