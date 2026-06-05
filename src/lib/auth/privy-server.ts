@@ -7,16 +7,20 @@ import type { NextRequest } from "next/server";
 import { db } from "@/lib/db/client";
 import { users, type User } from "@/lib/db/schema";
 
-const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-const appSecret = process.env.PRIVY_SECRET_KEY;
+let cachedPrivy: PrivyClient | null = null;
 
-if (!appId || !appSecret) {
-  throw new Error(
-    "Privy is not configured. Set NEXT_PUBLIC_PRIVY_APP_ID and PRIVY_SECRET_KEY in .env.local.",
-  );
+function getPrivyClient(): PrivyClient {
+  if (cachedPrivy) return cachedPrivy;
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  const appSecret = process.env.PRIVY_SECRET_KEY;
+  if (!appId || !appSecret) {
+    throw new Error(
+      "Privy is not configured. Set NEXT_PUBLIC_PRIVY_APP_ID and PRIVY_SECRET_KEY in the environment.",
+    );
+  }
+  cachedPrivy = new PrivyClient(appId, appSecret);
+  return cachedPrivy;
 }
-
-const privy = new PrivyClient(appId, appSecret);
 
 export class UnauthorizedError extends Error {
   constructor(message = "Unauthorized") {
@@ -53,7 +57,7 @@ export async function requireUser(req: Request | NextRequest): Promise<User> {
 
   let claims;
   try {
-    claims = await privy.verifyAuthToken(token);
+    claims = await getPrivyClient().verifyAuthToken(token);
   } catch {
     throw new UnauthorizedError("invalid auth token");
   }
@@ -124,7 +128,7 @@ function sanitizeLinkedAccounts(
 export async function getPrivyProfileSnapshot(
   privyUserId: string,
 ): Promise<PrivyProfileSnapshot | null> {
-  const user = await privy.getUserById(privyUserId);
+  const user = await getPrivyClient().getUserById(privyUserId);
   if (!user) return null;
 
   const linkedAccounts = sanitizeLinkedAccounts(
