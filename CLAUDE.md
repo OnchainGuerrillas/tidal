@@ -38,6 +38,29 @@ bunx <tool>
 
 Do not use `npm install`, `npm run`, `yarn`, `pnpm`, or `npx`.
 
+## Secrets Safety (Non-Negotiable)
+
+**Never read, print, grep, or echo the contents of any `.env*` file, or any other file containing credentials (keys, tokens, signing material, PEM, JWKs).** A leaked secret in the conversation transcript must be treated as compromised and rotated. This has happened once and cost real recovery time.
+
+The harness enforces this via deny rules in `.claude/settings.json` for `Read`, `Edit`, `Write`, and the obvious dump commands (`cat`, `head`, `tail`, `less`, `more`, `grep`, `awk`, `sed`, `Get-Content`, etc.) against `.env*` paths. Do not work around these denies.
+
+**If you need to know what env keys exist** (e.g., to check whether `DATABASE_URL` is configured), use commands that emit keys only, never values:
+
+```bash
+cut -d= -f1 .env.local              # print all keys, one per line
+grep -oE '^[A-Z_]+=' .env.local     # print KEYS= prefixes only
+ls .env*                            # just confirm file exists
+test -f .env.local && echo exists   # exists check
+```
+
+**Never use** these patterns on env files: `cat`, `head`, `tail`, `less`, `grep -n PATTERN file`, `awk '{print}' file`. Any of these print full lines, and env-file lines are `KEY=value` so the value leaks.
+
+**If you need to know what a specific value is**, ask the user — do not read the file yourself.
+
+**When introducing new env vars** in code, document the keys in `README.md` under Environment Variables. Do not document values, examples that look like real values, or anything that could be mistaken for a real secret.
+
+**Commit messages must not name specific env var keys that have been or could be exposed.** Use generic phrasing like "secret-bearing dotfiles" or "credentialed env" instead of naming `PRIVY_SECRET_KEY`, `DATABASE_URL`, etc. (Naming a key in a commit message that is then leaked is itself a partial leak.)
+
 ## Current Product
 
 The product has consolidated around one live surface: the **workspace**.
