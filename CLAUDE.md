@@ -272,13 +272,16 @@ When a feature is removed or deferred, capture three things at the moment of dec
 
 Do not re-introduce anything below without explicit approval.
 
-#### EVM and cross-chain (parked from v1)
+#### EVM and cross-chain (partially un-parked 2026-06-06)
 
-- **EVM chain configs** (Base, Arbitrum, Optimism). **Reintroduce when:** the Solana surface is mature and there's a clear cross-chain story.
-- **Li.Fi SDK** — cross-chain bridging.
-- **AAVE V3 adapters** — EVM lending.
-- **ERC-4626 vault adapter** — EVM yield-bearing tokens.
-- **wagmi hooks** — replaced by Solana wallet adapter / Privy Solana hooks. Stays parked permanently for v1.
+**Decision update:** Base is now planned for v1.x as **Workstream #9** in `docs/post-hackathon-roadmap.md` (scaffolding-only first slice — chain selector + Privy EVM wallets, no Base adapters yet). The first 9.1 phase is gated on Workstreams #7 (composer) and #8 (autonomous batch) landing first. Other chains and cross-chain bridging stay parked.
+
+- **Base** — un-parked. Scaffolding (chain selector + Privy EVM wallet integration, no adapters) ships in Workstream #9.1 after #7+#8. First Base adapter (likely AAVE V3 USDC supply) ships in #9.2.
+- **Arbitrum, Optimism, other EVM chains** — still parked. **Reintroduce when:** Base ships and there's concrete user demand for additional chain coverage.
+- **Li.Fi SDK** — cross-chain bridging. **Reintroduce when:** there's evidence users want to bridge inside a strategy graph rather than pick a chain per strategy. Don't pull on this speculatively. Tracked as Workstream #9.3 in the roadmap.
+- **AAVE V3 adapters** — partially un-parked for Base specifically as part of Workstream #9.2. Other-chain AAVE deployments stay parked.
+- **ERC-4626 vault adapter** — still parked. Revisit after first non-AAVE Base adapter lands.
+- **wagmi hooks** — **permanently parked**. Privy EVM hooks cover Workstream #9's needs without adding a second wallet library.
 
 #### Solana protocol adapters (parked, not blocking)
 

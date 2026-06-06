@@ -1,7 +1,7 @@
 # Checkpoint
 
 **Last updated:** 2026-05-17 (pre-shell-restart)
-**Branch:** main @ `5f08e11` — clean, pushed to `Solana-Guerrillas/tidal`
+**Branch:** main @ `5f08e11` — clean, pushed to `OnchainGuerrillas/tidal` (org renamed from `Solana-Guerrillas` on 2026-06-06)
 **Phase 1 thesis demo:** ✅ shipped to Colosseum (~2026-05-10)
 **Current focus:** post-hackathon roadmap — see `docs/post-hackathon-roadmap.md` for the six workstreams.
 
@@ -76,7 +76,7 @@ Both are documented as bugs #1 and #2 in `docs/hardening-plan.md`.
 
 ## Repo move
 
-Repo transferred to `https://github.com/Solana-Guerrillas/tidal.git` on 2026-05-06 (org name has double-r — Guerrillas, not Guerillas — caught a redirect on first push). Vercel install command switched to `bun install` to fix npm hoisting issues with Kamino's nested `@solana-program/compute-budget` dep.
+Repo originally transferred to `https://github.com/Solana-Guerrillas/tidal.git` on 2026-05-06; org renamed to `OnchainGuerrillas` on 2026-06-06, so the canonical URL is now `https://github.com/OnchainGuerrillas/tidal.git` (GitHub redirects the old URL but use the new one in fresh clones / CI configs). Vercel install command switched to `bun install` to fix npm hoisting issues with Kamino's nested `@solana-program/compute-budget` dep.
 
 ---
 

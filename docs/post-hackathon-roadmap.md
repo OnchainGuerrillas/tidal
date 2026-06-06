@@ -6,7 +6,7 @@ For checkpoint-level progress, see `docs/CHECKPOINT.md`. For the on-chain harden
 
 ---
 
-## Six workstreams at a glance
+## Nine workstreams at a glance
 
 | # | Workstream | Type | Track | Blocking? |
 |---|------------|------|-------|-----------|
@@ -14,11 +14,14 @@ For checkpoint-level progress, see `docs/CHECKPOINT.md`. For the on-chain harden
 | 2 | Revenue strategy | strategy | C (parallel, non-code) | not blocking eng |
 | 3 | Database (Neon) — user profiles + strategies | code | A (sequential) | unblocks #4, partially #1 |
 | 4 | Templates (DB-persisted) | code | A (sequential, after #3) | requires #3 |
-| 5 | UI updates per 0xJulo feedback | code | B (parallel) | requires the feedback list from 0xJulo |
+| 5 | UI updates per 0xJulo feedback + 5b alpha-tester quick wins | code | B (parallel) | requires the feedback lists |
 | 6 | Adapter expansion + stress testing + combo verification | code | B (parallel) | independent; touches hardening surface |
+| 7 | Real strategy composition (close the composer gap) | code | B (parallel) | gates the core "ComfyUI for DeFi" thesis demo; pairs with #6 |
+| 8 | Autonomous execution — batch tier (preview + batch sign) | code | B (parallel, **after #7**) | gated by #7; relaxes the user-signs-each-tx rule in a bounded way |
+| 9 | Multichain foundation (Base / EVM) — chain switching scaffold | code | B (parallel, **after #7+#8**) | partially un-parks v1 EVM scope; scaffolding-only first slice |
 
 **Track A:** sequential coding chain — finish hardening, then DB, then templates.
-**Track B:** parallelizable coding work — UI + adapters can run alongside Track A once each has a brief.
+**Track B:** parallelizable coding work — UI + adapters + composer can run alongside Track A once each has a brief.
 **Track C:** non-coding strategy work — revenue thinking happens in parallel without blocking eng.
 
 ---
@@ -272,6 +275,120 @@ When you have the list, add it here as:
 
 ---
 
+## 5b. Alpha tester feedback
+
+**Goal:** apply concrete UX changes that resolve the "is this clickable or is it broken?" problem that surfaced in alpha testing, and close the gap between what the product *can* do and what testers *perceive* it can do.
+
+### First captured round (2026-06-04)
+
+Tester explored the app and gave a structured breakdown, followed shortly by a brief addendum. Raw feedback archived below; parsed action items follow. The composer ask was repeated across both messages — treating it as the tester's headline request.
+
+#### What's working (preserve these)
+
+- Visual workflow / canvas concept reads as the strongest differentiator.
+- Node-based authoring is intuitive without explanation.
+- Templates surface possible use cases quickly (even in placeholder form).
+- AI chat-driven workflow generation registered as one of the most interesting parts of the product.
+
+#### Pain points
+
+- Several tabs, buttons, and actions appear clickable but produce no visible response.
+- No signal whether unresponsive UI is intentionally disabled, requires setup, or is broken.
+- Sections feel like an interactive prototype rather than a fully testable product, making execution flows hard to evaluate.
+
+#### Explicit UX asks
+
+1. "Coming Soon" labels or disabled states for unfinished features.
+2. Tooltips or onboarding guidance for first-time users.
+3. Demo walkthrough showing the intended end-to-end journey.
+4. Clearer separation between what can be tested now vs. what's planned.
+
+#### Future feature asks (substantive — re-read carefully)
+
+The tester asked for two substantive future features, the first repeated across both feedback rounds:
+
+1. Describe a goal in plain language → agent **intelligently composes a multi-node graph** that achieves the goal. (Repeated.)
+2. An **autonomous version** with clear risk controls and execution previews.
+
+##### Future ask 1: Real composition
+
+**What `composeStrategy` actually does today:** `src/lib/ai/tools/compose-strategy.ts` exposes a `z.enum(["liquid-stake-sol", "lend-usdc-kamino", "swap-sol-then-supply-usdc", "leverage-loop-sol-kamino"])` input. The agent picks one of four hardcoded intents and parameterizes it with `sourceAmount`, `loopCount`, `targetLTV`. Each intent maps to a fixed graph (1-2 nodes plus a composite leverage node). There is **no synthesis** — the agent is a classifier with parameters, not a composer.
+
+**What the tester is asking for:** given a goal like *"maximize yield on 1 SOL with moderate risk"* or *"diversify across LSTs and use them as collateral on Kamino"*, the agent should:
+1. Reason over the live adapter manifest (Jito stake, BlazeStake stake, Kamino supply / borrow / leverage loop / withdraw / repay, Jupiter swap, and their inverses — 9 mainnet-verified adapters today, more coming via #6.1).
+2. Plan a multi-step strategy that composes them: e.g., split SOL → Jito + BlazeStake → use both LSTs as Kamino collateral → borrow USDC → swap to SOL → loop.
+3. Emit a 5-10 node graph with correctly wired edges, asset-compatible handles, sensible widget defaults, and clean positioning.
+4. Surface a "why this works" rationale in chat (which protocols, what risk tier, what's the projected APY) so the user can audit.
+
+**Why this matters:** this is the ComfyUI-for-DeFi thesis. `docs/design-thesis.md` calls the agent a "composer" but today it's a template picker. Closing this gap turns "4 canned demo flows" into "the agent can express the cartesian product of our adapter vocabulary." It's the difference between a demo and a product.
+
+**Rough scope estimate:** non-trivial. Probably 1-2 weeks of focused work covering: adapter-manifest export for the agent, a planner step (probably a second tool call that emits a graph spec), edge/handle synthesis with asset compatibility validation, layout pass for clean positioning, rationale prompt tuning. Pairs naturally with **#6.1 adapter expansion** (more adapters = richer compositions) and arguably should land before more adapters since the composer is what makes the adapter vocabulary leverageable.
+
+**Suggested promotion:** move this from "future feature ask" to a first-class workstream. Proposed name: **Workstream #7 — Real strategy composition (close the composer gap).** It's pitched as a future ask in tester language but it's actually the core product thesis.
+
+##### Future ask 2: Autonomous execution mode
+
+**Tester language:** *"An autonomous version would definitely be interesting, especially with clear risk controls and execution previews."*
+
+**Why this is a strategic question, not just a feature ticket:** Tidal's current safety posture is *user signs everything* (per `CLAUDE.md` and the `ai-sdk-ui` skill notes — "DeFi actions must require user signature; never auto-execute from a tool call"). The design thesis casts the agent as a *composer*, not an *executor*. Moving to autonomy reframes the product. Worth doing — almost every long-term user wants to set strategies and walk away — but worth thinking through deliberately rather than bolting on.
+
+**Three possible flavors, ranked by lift and by how much they relax the safety rule:**
+
+| Flavor | Description | Lift | Relaxes safety rule? | Infra needed |
+|---|---|---|---|---|
+| **A. Pre-authorized batches** | Agent composes a multi-tx plan → shows preview ("5 txs, expected outcome Y, max slippage Z") → user approves the **batch** → agent executes through every leg without re-asking. | Small (1-2 weeks) | No — signature still required, just at the batch boundary instead of each leg. | None new; uses existing Privy embedded-wallet flow. |
+| **B. Scheduled / recurring** | Agent runs a strategy on a schedule (DCA, weekly rebalance, auto-compound). Currently parked as "auto-compounding scheduler" in `CLAUDE.md`. | Medium-large (3-4 weeks + ops) | Yes — agent acts when user is not present. Mitigated by pre-set bounds. | Off-chain keeper / cron infra, persistent DB state, session keys via Privy. |
+| **C. Reactive / conditional** | Agent monitors on-chain conditions (rates, prices, health factor) and executes when triggers fire ("if Kamino APY > Marginfi by 100bps, migrate"). | Large (5-6 weeks + ops) | Yes, and the trigger surface is unbounded. | Real-time event streams (Helius webhooks or similar), risk-cap state machine, kill switches, audit log. |
+
+**The "execution previews" qualifier is doing real work.** It maps cleanest to **Flavor A**: the tester is fine with bounded autonomy *if they can see the plan first*. That preserves the user-signs-everything rule by moving the signature one level up (from per-tx to per-batch). It's also the smallest lift and the safest first step toward autonomy.
+
+**Recommended sequencing:**
+1. Ship Workstream #7 (real composition) first — autonomy is meaningless if the agent can't compose anything beyond 4 canned intents.
+2. Layer Flavor A on top — "batch preview + batch approval" is a natural UX evolution of the existing per-graph Run button. This becomes **Workstream #8** (autonomous execution — batch tier).
+3. Defer B and C until #8 is in users' hands and we understand what conditional / scheduled triggers users actually want. Don't build keeper infra speculatively.
+
+**Risk-control primitives the tester is implicitly asking for** (worth scoping for Flavor A regardless of when B/C land):
+- Max position size per protocol
+- Max slippage per swap
+- Max total $ value at risk per batch
+- Required minimum health factor on borrow-based strategies
+- "Dry-run / simulation" mode that shows expected outcome without executing
+- Per-strategy kill switch in the Investments panel
+
+### Parsed action items
+
+Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[parked]` deferred with reason.
+
+#### Quick wins (~3-5 hrs total, ship before next testing round)
+
+- [ ] **Audit every clickable surface for "does nothing" interactions.** Walk the workspace shell + panels + header tabs and either wire each action up, disable it explicitly with `aria-disabled`, or remove it. Surfaces to check: workspace header tabs, side-panel toggle row, node picker categories, investment card actions, template card buttons, prompt composer secondary actions.
+- [ ] **Add `"Coming soon"` tooltips + visual disabled state** to all in-flight but not-yet-wired affordances. Standard pattern: `aria-disabled="true"` + muted text + a `Tooltip` with "Coming soon: {one-line description}".
+- [ ] **Re-position the chat panel as the headline interaction.** Current chip-based empty state (commit `564d742`) is a start; consider opening the workspace with chat panel pre-focused on first visit, plus an above-the-composer line: "Tell me what you want to do — I'll build the graph." Goal: alpha testers find composeStrategy without being told.
+- [ ] **First-load onboarding overlay.** Lightweight one-time popover with 3 callouts pointing at chat panel ("ask in plain English"), canvas ("see the strategy as a graph"), Run button ("execute on mainnet"). Dismissible, doesn't return after dismissal. localStorage flag.
+- [ ] **Add a "what's testable right now?" badge or banner.** Could live in the header. Two states: "Live: stake / lend / swap / leverage / unwind" (current) vs. parked: portfolio management, templates, etc. Sets expectations upfront.
+
+#### Medium lifts (folds into existing workstreams)
+
+- [ ] **Demo walkthrough.** Belongs in workstream #4 (Templates). The three official seed templates (Stake-and-Hold, Stablecoin Lending, Leverage Loop) already double as walkthroughs — making them ship-quality and discoverable from the workspace solves this. Cross-reference: #4.1.
+- [ ] **Tooltips library audit.** We have a `Tooltip` primitive; needs a sweep to ensure every interactive surface uses it consistently. Pairs with #5 (UI updates).
+- [ ] **Disabled-state styling pass.** Promote the "disabled" treatment into `globals.css` as a semantic class so the audit above doesn't introduce one-offs.
+
+#### Larger / strategic (post-templates)
+
+- [ ] **Real strategy composition (Workstream #7 candidate — see "Future ask 1" above).** Multi-node graphs synthesized intelligently by the agent from a plain-language goal, not picked from a 4-intent enum. This is the tester's repeated headline ask AND the core product thesis. ~1-2 weeks; would justify being its own workstream rather than a bullet here.
+- [ ] **Autonomous execution — batch tier (Workstream #8 candidate — see "Future ask 2" above, Flavor A).** Agent composes → shows execution preview → user approves the batch → agent runs every leg without re-asking. Smallest, safest first step toward agent autonomy. Pre-requires #7 (no point auto-executing 4 canned intents). ~1-2 weeks after #7 lands.
+- [ ] **Portfolio management surface.** Tester explicitly wants to see real "actual strategy deployment, transaction handling, and portfolio management" next round. Today's Investments panel is read-only positions; doesn't yet model strategy *deployment* as a first-class concept distinct from runs. Open question: do positions need a "deployment" wrapper that aggregates "I composed → ran → now tracking" into one card with rebalance / unwind actions? Defer to a focused design pass.
+
+### Cross-references
+
+- The "everything looks clickable" problem maps directly to **workstream #5** (UI updates per 0xJulo feedback) — fold the quick wins into the same UI polish pass.
+- The "what can I test" question maps to **workstream #1** (hardening) plus **#4** (templates) — once the mainnet smokes finish and templates ship, the testable surface area is concrete and demoable.
+- The "intelligent multi-node composition" ask should become **Workstream #7** (real strategy composition) — see the "Future feature ask" subsection. Pairs with **#6.1** (adapter expansion) since a richer adapter vocabulary makes composition demos more impressive, but composition is the gating capability and should land first.
+
+**Definition of done for the captured round:** the five quick wins are shipped and visible in the live app; tester is invited back for a second round.
+
+---
+
 ## 6. Adapter expansion + stress testing + combo verification
 
 **Goal:** broaden the protocol vocabulary the AI can compose, prove the runner handles arbitrary combinations correctly under realistic conditions, and put automated rails in place so regressions surface before users do.
@@ -356,12 +473,67 @@ Concrete proposal for the very next two weeks:
 
 ---
 
+## 9. Multichain foundation (Base / EVM) — scaffolding only
+
+**Status:** captured 2026-06-06. **Partially un-parks** the v1 EVM scope previously listed in `CLAUDE.md` "Parked Features" (which said *"wagmi hooks. Stays parked permanently for v1"*) — see "Reversal note" below. Adapter expansion across full EVM stays parked.
+
+**Goal:** ship a chain-switching foundation so users can connect a Base wallet alongside their Solana wallet and toggle between chains from a global header selector. **First slice is scaffolding only** — no Base adapters land in 9.1; users see an empty picker on Base with a "Coming soon" affordance. Adapter coverage on Base happens in subsequent phases as a deliberate sequencing decision.
+
+**Why scaffold first, adapters later:** the architectural lift (chain context, header selector, picker filters, workspace chain-binding, EVM wallet hooks) is the part that touches the most surfaces. Doing it first with zero adapters proves the architecture is sound. Adding a Base adapter in 9.2 then becomes a localized change. The alternative — building adapter + scaffold together — couples two big lifts and makes mistakes in either harder to isolate.
+
+### Pre-requisites
+
+This workstream is gated by **#7 (real composition) + #8 (autonomous batch)**. Reasoning: the composer is what makes the adapter vocabulary feel like a product; shipping multichain before the composer just gives users more buttons to manually wire up. Sequencing #9 after #7+#8 means by the time Base lands, "AI composes a Solana strategy" and "AI composes a Base strategy" are both compelling demos, and "AI rate-shops across chains" becomes a future pitch beat (#9.3+).
+
+### Phasing
+
+#### Phase 9.1 — chain-switching scaffold (no adapters)
+
+**Scope:**
+- **Chain context provider.** New `src/providers/chain-context-provider.tsx` exposing `{ chain: "solana" | "base", setChain }`. Defaults to `solana`. Persists to `localStorage` so the choice survives reloads.
+- **EVM wallet integration via Privy.** Privy is already configured with `walletChainType: 'ethereum-and-solana'`, so EVM wallets are provisioned today; we just need the read hooks. Use `@privy-io/react-auth` EVM hooks (`useWallets`, `useSignMessage`, `useSignTransaction`) — wagmi stays parked permanently. (One Privy is simpler than two wallet libraries.)
+- **Header chain selector.** Compact dropdown in `AppHeader` showing the current chain with a small chain icon. Click → menu → switch. Triggers `setChain`. Disabled tooltip when no connected wallet of that chain type.
+- **Workspace chain attribute.** Add `chain: "solana" | "base"` to the `Workspace` type. Defaults to the active chain on creation. Workspaces are chain-bound; switching the global chain shows only workspaces matching the new chain in the tab bar.
+- **Adapter registry chain filter.** Add `chain` field to `ProtocolAdapter`. `listAdapters()` filters by current chain. Existing Solana adapters all get `chain: "solana"`.
+- **Picker filter by chain.** Node catalog only surfaces adapters matching the current chain.
+- **Empty-state UX on Base.** Picker, chat composer empty state, and Investments panel all show a "Base adapters coming soon — switch to Solana for the current product" message. Honest, not pretending.
+- **Wallet connection UX.** Login flow auto-provisions both wallets; user can see both addresses in the Profile sheet under "Linked accounts" (already wired — the existing `linkedAccounts` list will include the EVM wallet once Privy provisions it).
+
+**Estimated effort:** 1-1.5 weeks. Most of it is touching the right files (provider tree, header, registry, picker, types), not deep new code.
+
+**Definition of done:** I can sign in with both wallets, toggle chain in the header, see the picker / chat composer go empty on Base with a clear "coming soon" message, and toggle back to Solana to see the full current product unchanged.
+
+#### Phase 9.2 — first Base adapter (post-9.1)
+
+**Open question — defer choice to scoping time:** likely **AAVE V3 USDC supply** on Base (mirrors Kamino USDC supply on Solana → unlocks "agent rate-shops between Solana and Base lenders"). Alternatives: a Base liquid-staking adapter for direct parity with Jito/BlazeStake, or a Uniswap swap for parity with Jupiter.
+
+**Pre-existing prep:** the parked v1 EVM scope already named **AAVE V3 adapters** and **ERC-4626 vault adapter** as future work. Those parked notes become the starting point for 9.2 scoping.
+
+#### Phase 9.3 — cross-chain composition (defer further)
+
+**Stays out of scope** until 9.1 and 9.2 ship and there's evidence users want to *bridge inside a strategy* rather than *pick a chain per strategy*. Re-introducing Li.Fi for this is non-trivial (bridge-as-node UX, asset compatibility across chains, settlement timing); don't pull on that thread speculatively.
+
+### Reversal note
+
+`CLAUDE.md` "Parked Features" currently says:
+
+> **EVM chain configs** (Base, Arbitrum, Optimism). **Reintroduce when:** the Solana surface is mature and there's a clear cross-chain story.
+>
+> **wagmi hooks** — replaced by Solana wallet adapter / Privy Solana hooks. Stays parked permanently for v1.
+
+Workstream #9 partially un-parks the first item (Base specifically, not the full EVM expansion) and keeps wagmi parked permanently (Privy EVM hooks cover the use case without adding a second wallet library). `CLAUDE.md` updated in lockstep to reflect this — see the "Parked Features → EVM and cross-chain" section there for the new state.
+
+The Solana-surface-maturity gate is still respected by sequencing #9 after #7 and #8. The reversal is about *intent* (we now plan to do Base in v1.x), not about *jumping the queue*.
+
+---
+
 ## Out of scope for v1 (parked, not forgotten)
 
 These live in CLAUDE.md "Parked Features" with revival conditions. Repeated here for visibility:
 
-- Cross-chain (EVM, Base, Arbitrum, Li.Fi, AAVE, ERC-4626, wagmi). Stays parked until Solana surface is mature.
-- Auto-compounding scheduler. Needs off-chain keeper infra.
+- **Full EVM expansion beyond Base** (Arbitrum, Optimism, Li.Fi cross-chain bridging, AAVE on other chains, ERC-4626 vault adapter). Partially un-parked: Base lands in #9 above. Other chains stay parked until Base ships and demand for additional EVM coverage is concrete.
+- **wagmi hooks** — permanently parked. Privy EVM hooks cover the use case in #9 without adding a second wallet library.
+- Auto-compounding scheduler. Needs off-chain keeper infra. Partial overlap with #8 Flavor B; revisit once #8 Flavor A ships.
 - Cycle-on-canvas leverage loops (flavor B). Composite leverage loop covers the use case.
 - NFT position representation. Revisit when lifecycles are long enough that wrapping adds value.
 - Active position locking on the canvas. Investments panel + inverse adapters cover the use case.
