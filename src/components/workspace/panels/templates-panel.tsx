@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import { MagnifyingGlass, Clock } from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 import { PanelShell } from "@/components/workspace/panels/panel-shell";
@@ -36,8 +36,8 @@ export function TemplatesPanel({ onClose }: TemplatesPanelProps) {
   return (
     <PanelShell
       eyebrow="Templates"
-      title="All templates"
-      description="Starter graphs and teaching examples. Templates are placeholders in this prototype."
+      title="Starter strategies (coming soon)"
+      description="Previews of canonical strategies you'll be able to fork into a fresh workspace. Not yet clickable — for now, ask the AI in chat to compose any of these, or drop nodes from the Nodes panel."
       onClose={onClose}
     >
       <div className="mb-4 flex flex-col gap-3">
@@ -72,18 +72,27 @@ export function TemplatesPanel({ onClose }: TemplatesPanelProps) {
 
       <div className="tidal-template-grid">
         {filteredTemplates.map((template) => (
-          <button
+          <div
             key={template.id}
-            type="button"
-            className="tidal-template-card"
+            role="group"
+            aria-disabled="true"
+            aria-label={`${template.title} — coming soon`}
+            title="Coming soon — for now, ask the AI in chat to compose this strategy"
+            className="tidal-template-card relative cursor-not-allowed opacity-70"
           >
             <div
               className="tidal-template-card-thumb"
               style={{ backgroundImage: template.accent }}
             />
             <div className="tidal-template-card-body">
-              <div className="text-sm font-medium text-foreground">
-                {template.title}
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-sm font-medium text-foreground">
+                  {template.title}
+                </div>
+                <span className="flex shrink-0 items-center gap-1 rounded-md border border-tidal-border bg-tidal-card/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-tidal-muted">
+                  <Clock weight="bold" className="h-2.5 w-2.5" />
+                  Soon
+                </span>
               </div>
               <p className="mt-1 text-[11px] leading-tight text-tidal-muted">
                 {template.subtitle}
@@ -96,7 +105,7 @@ export function TemplatesPanel({ onClose }: TemplatesPanelProps) {
                 ))}
               </div>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </PanelShell>
