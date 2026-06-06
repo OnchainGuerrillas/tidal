@@ -206,6 +206,9 @@ export function ChatPanel({
         </div>
 
         <div className="mt-4 flex shrink-0 flex-col gap-2">
+          <p className="px-1 text-[11px] font-medium text-tidal-accent">
+            Tell me what you want to do — I&rsquo;ll build the graph.
+          </p>
           {ready && (
             <div className="flex items-center justify-between gap-2 rounded-md border border-tidal-border bg-tidal-card px-3 py-1.5 text-[11px]">
               {authenticated && wallet ? (
