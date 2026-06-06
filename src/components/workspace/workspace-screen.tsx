@@ -21,6 +21,7 @@ import { SurfaceCard } from "@/components/tidal/surface-card";
 import { AmountNode } from "@/components/workspace/amount-node";
 import { CanvasRunPanel } from "@/components/workspace/canvas-run-panel";
 import { WorkspaceBuilderContextProvider } from "@/components/workspace/workspace-builder-context";
+import { WorkspaceWelcomeOverlay } from "@/components/workspace/workspace-welcome-overlay";
 import { ChatPanel } from "@/components/workspace/panels/chat-panel";
 import { NodesPanel } from "@/components/workspace/panels/nodes-panel";
 import { InvestmentsPanel } from "@/components/workspace/panels/investments-panel";
@@ -510,6 +511,7 @@ function WorkspaceCanvasHost({
           ) : null}
 
           <CanvasRunPanel />
+          <WorkspaceWelcomeOverlay />
         </div>
       </div>
     </div>
