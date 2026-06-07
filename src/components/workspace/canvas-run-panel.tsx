@@ -5,6 +5,7 @@ import { useWallets } from "@privy-io/react-auth/solana";
 import { Play, X } from "@phosphor-icons/react";
 
 import { useAdapterNodeRunner } from "@/hooks/workspace/use-adapter-node-runner";
+import { useRecordRun, type RunStatus } from "@/hooks/use-record-run";
 import { deriveExecutablePlan } from "@/lib/workspace/derive-executable-plan";
 import {
   executeGraph,
@@ -29,11 +30,12 @@ type RunState =
  * hand-built graphs hit this button.
  */
 export function CanvasRunPanel() {
-  const { workspace } = useWorkspace();
+  const { workspace, resolveDbWorkspaceId, resolveGraphVersion } = useWorkspace();
   const { wallets } = useWallets();
   const runNode = useAdapterNodeRunner();
   const { bumpSignal } = useChainStateSignal();
   const { applyEvent } = useRunStatus();
+  const { recordRun } = useRecordRun();
   const [state, setState] = useState<RunState>({ kind: "idle" });
   const hasWallet = wallets.length > 0;
 
@@ -56,6 +58,7 @@ export function CanvasRunPanel() {
     setState({ kind: "running", events: [] });
     const events: GraphExecutionEvent[] = [];
     let failed = false;
+    const startedAt = new Date();
     try {
       for await (const event of executeGraph({
         nodes: plan.nodes,
@@ -82,8 +85,36 @@ export function CanvasRunPanel() {
       // Bumping the signal triggers wallet/positions refetch so the
       // UI catches up to whatever DID settle.
       bumpSignal();
+
+      // Persist run history if this workspace is DB-backed (authed mode).
+      // No-op silently otherwise — anonymous demo runs don't get recorded.
+      const dbWorkspaceId = resolveDbWorkspaceId(workspace.id);
+      const walletAddress = wallets[0]?.address;
+      if (dbWorkspaceId && walletAddress) {
+        const summary = summarizeRun(events, failed);
+        void recordRun({
+          workspaceId: dbWorkspaceId,
+          graphVersion: resolveGraphVersion(workspace.id) ?? 0,
+          walletAddress,
+          status: summary.status,
+          txSignatures: summary.txSignatures,
+          events,
+          failureNodeId: summary.failureNodeId,
+          startedAt,
+          completedAt: new Date(),
+        });
+      }
     }
-  }, [workspace, runNode, bumpSignal, applyEvent]);
+  }, [
+    workspace,
+    runNode,
+    bumpSignal,
+    applyEvent,
+    recordRun,
+    resolveDbWorkspaceId,
+    resolveGraphVersion,
+    wallets,
+  ]);
 
   const isRunning = state.kind === "running";
 
@@ -210,4 +241,42 @@ function shortNodeId(id: string): string {
 function shortSig(sig: string): string {
   if (sig.length <= 16) return sig;
   return `${sig.slice(0, 8)}…${sig.slice(-6)}`;
+}
+
+/**
+ * Reduce a stream of GraphExecutionEvents to a run_history-shaped summary:
+ * collected tx signatures, the failing node id (if any), and the run status.
+ * - "success": graph-completed terminal, no node-failed events.
+ * - "partial": graph-failed / graph-cancelled terminal but at least one
+ *    node-succeeded landed (e.g., deposit succeeded, borrow failed).
+ * - "failed": graph-failed / graph-cancelled with no successful nodes,
+ *    or graph-completed with node-failed events (defensive).
+ */
+function summarizeRun(
+  events: GraphExecutionEvent[],
+  failed: boolean,
+): { status: RunStatus; txSignatures: string[]; failureNodeId: string | null } {
+  const txSignatures: string[] = [];
+  let failureNodeId: string | null = null;
+  let succeededCount = 0;
+
+  for (const event of events) {
+    if (event.kind === "node-succeeded") {
+      succeededCount += 1;
+      if (event.result.txSignature) txSignatures.push(event.result.txSignature);
+    } else if (event.kind === "node-failed" && !failureNodeId) {
+      failureNodeId = event.nodeId;
+    }
+  }
+
+  let status: RunStatus;
+  if (!failed) {
+    status = "success";
+  } else if (succeededCount > 0) {
+    status = "partial";
+  } else {
+    status = "failed";
+  }
+
+  return { status, txSignatures, failureNodeId };
 }

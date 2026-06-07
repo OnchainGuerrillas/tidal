@@ -11,9 +11,11 @@ import {
   type GraphExecutionEvent,
 } from "@/lib/workspace/graph-exec";
 import { useAdapterNodeRunner } from "@/hooks/workspace/use-adapter-node-runner";
+import { useRecordRun, type RunStatus } from "@/hooks/use-record-run";
 import { cn } from "@/lib/utils";
 import { useChainStateSignal } from "@/providers/chain-state-signal-provider";
 import { useRunStatus } from "@/providers/run-status-provider";
+import { useWorkspace } from "@/providers/workspace-provider";
 
 type StrategyComposeMessageProps = {
   output: ComposeStrategyOutput;
@@ -31,6 +33,8 @@ export function StrategyComposeMessage({
   const runNode = useAdapterNodeRunner();
   const { bumpSignal } = useChainStateSignal();
   const { applyEvent } = useRunStatus();
+  const { recordRun } = useRecordRun();
+  const { workspace, resolveDbWorkspaceId, resolveGraphVersion } = useWorkspace();
   const [runState, setRunState] = useState<RunState>({ kind: "idle" });
 
   const hasWallet = wallets.length > 0;
@@ -53,6 +57,8 @@ export function StrategyComposeMessage({
 
     setRunState({ kind: "running", events: [] });
     const events: GraphExecutionEvent[] = [];
+    let failed = false;
+    const startedAt = new Date();
     try {
       for await (const event of executeGraph({
         nodes: executableNodes,
@@ -63,6 +69,13 @@ export function StrategyComposeMessage({
         // Mirror to the per-node status provider so canvas nodes can
         // paint their borders by lifecycle state.
         applyEvent(event);
+        if (
+          event.kind === "node-failed" ||
+          event.kind === "graph-failed" ||
+          event.kind === "graph-cancelled"
+        ) {
+          failed = true;
+        }
         setRunState({ kind: "running", events: [...events] });
       }
     } finally {
@@ -71,8 +84,37 @@ export function StrategyComposeMessage({
       // panels (Investments, wallet node) so the UI reflects whatever
       // landed on chain. Fires even on partial-success runs.
       bumpSignal();
+
+      // Persist run history if the active workspace is DB-backed.
+      // Anonymous demo runs no-op silently.
+      const dbWorkspaceId = resolveDbWorkspaceId(workspace.id);
+      const walletAddress = wallets[0]?.address;
+      if (dbWorkspaceId && walletAddress) {
+        const summary = summarizeRun(events, failed);
+        void recordRun({
+          workspaceId: dbWorkspaceId,
+          graphVersion: resolveGraphVersion(workspace.id) ?? 0,
+          walletAddress,
+          status: summary.status,
+          txSignatures: summary.txSignatures,
+          events,
+          failureNodeId: summary.failureNodeId,
+          startedAt,
+          completedAt: new Date(),
+        });
+      }
     }
-  }, [output, runNode, bumpSignal, applyEvent]);
+  }, [
+    output,
+    runNode,
+    bumpSignal,
+    applyEvent,
+    recordRun,
+    resolveDbWorkspaceId,
+    resolveGraphVersion,
+    workspace.id,
+    wallets,
+  ]);
 
   const isRunning = runState.kind === "running";
   const events =
@@ -193,4 +235,37 @@ function renderEvent(event: GraphExecutionEvent): string {
 function shortSig(sig: string): string {
   if (sig.length <= 16) return sig;
   return `${sig.slice(0, 8)}…${sig.slice(-6)}`;
+}
+
+/**
+ * Reduce a stream of GraphExecutionEvents to a run_history-shaped summary.
+ * See canvas-run-panel.tsx for status semantics.
+ */
+function summarizeRun(
+  events: GraphExecutionEvent[],
+  failed: boolean,
+): { status: RunStatus; txSignatures: string[]; failureNodeId: string | null } {
+  const txSignatures: string[] = [];
+  let failureNodeId: string | null = null;
+  let succeededCount = 0;
+
+  for (const event of events) {
+    if (event.kind === "node-succeeded") {
+      succeededCount += 1;
+      if (event.result.txSignature) txSignatures.push(event.result.txSignature);
+    } else if (event.kind === "node-failed" && !failureNodeId) {
+      failureNodeId = event.nodeId;
+    }
+  }
+
+  let status: RunStatus;
+  if (!failed) {
+    status = "success";
+  } else if (succeededCount > 0) {
+    status = "partial";
+  } else {
+    status = "failed";
+  }
+
+  return { status, txSignatures, failureNodeId };
 }
