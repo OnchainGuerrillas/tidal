@@ -9,10 +9,10 @@ import {
   User,
   type IconProps,
 } from "@phosphor-icons/react";
-import { usePrivy } from "@privy-io/react-auth";
 
 import { ProfileSheet } from "@/components/tidal/profile-sheet";
 import { useMe } from "@/hooks/use-me";
+import { useTidalAuth } from "@/hooks/use-tidal-auth";
 import { cn } from "@/lib/utils";
 import { useSidePanel, type SidePanelId } from "@/providers/side-panel-provider";
 import { useWorkspace } from "@/providers/workspace-provider";
@@ -43,7 +43,7 @@ function deriveInitials(source: string | null | undefined): string {
 export function AppSidebar() {
   const { workspace } = useWorkspace();
   const { getActivePanel, togglePanel } = useSidePanel();
-  const { ready, authenticated, login } = usePrivy();
+  const { ready, authenticated, login } = useTidalAuth();
   const { state: meState } = useMe();
   const [profileOpen, setProfileOpen] = useState(false);
   const activePanel = getActivePanel(workspace.id);

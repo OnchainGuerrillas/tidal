@@ -1,5 +1,40 @@
 # Design Mode
 
+## Outcome
+
+This branch adds an opt-in design mode for frontend work without requiring live service credentials.
+
+Implemented so far:
+
+- Added `NEXT_PUBLIC_TIDAL_APP_MODE=design` support via `src/lib/app-mode.ts`.
+- Added a visible top-of-app banner: `Tidal is in design mode`.
+- Added frontend auth/wallet/token facades:
+  - `src/hooks/use-tidal-auth.ts`
+  - `src/hooks/use-tidal-wallets.ts`
+  - `src/hooks/get-tidal-access-token.ts`
+- Updated frontend UI and data hooks to use those facades instead of importing Privy directly where practical.
+- Made `src/components/providers/privy-provider.tsx` skip mounting Privy in design mode.
+- Added design-mode mock data under `src/mock-data/design-mode/` for profile, wallet balances, positions, rates, and chat composition.
+- Made `useMe()`, `useWalletBalances()`, `useAllPositions()`, and `useAdapterRate()` return design-mode data without calling live API routes.
+- Added a safe design-mode adapter runner so the workspace can load without Privy signing hooks.
+- Extracted graph composition templates into `src/lib/workspace/compose-strategy-template.ts` so live AI and design-mode chat share one graph builder.
+- Made design-mode chat compose graph mutations locally without calling `/api/chat` or requiring `ANTHROPIC_API_KEY`.
+
+Validated in browser:
+
+- Design-mode banner appears above the nav.
+- Mock profile/sidebar state renders.
+- Wallet node shows mocked SOL and USDC balances.
+- Investments panel shows mocked positions.
+- Adapter APY values render without live rate calls.
+- Chat starter prompts create editable graph nodes without `ANTHROPIC_API_KEY`.
+
+Known remaining work:
+
+- Full design-mode Run UX simulation is still Phase 5. Clicking Run is safe from Privy signing, but the complete pending/running/succeeded design flow is not finalized.
+- Live AI behavior still needs validation in live mode with real `ANTHROPIC_API_KEY`.
+- Documentation/guardrails in README and architecture docs are still Phase 6.
+
 ## Goal
 
 Create an opt-in design-only mode that lets frontend/design work happen without requiring live service credentials.
@@ -52,15 +87,15 @@ Success criteria:
 
 Goal: stop product UI from depending directly on Privy hooks when design mode is enabled.
 
-- [ ] Create local frontend auth/wallet facades, for example:
+- [x] Create local frontend auth/wallet facades, for example:
   - `useTidalAuth()`
   - `useTidalWallets()`
   - `getTidalAccessToken()`
-- [ ] In live mode, delegate to Privy.
-- [ ] In design mode, return a mocked ready/authenticated state.
-- [ ] In design mode, return a mocked Solana wallet address.
-- [ ] Update components and hooks that currently import Privy directly to use the local facade where practical.
-- [ ] Keep any Privy-specific code inside the auth/wallet boundary.
+- [x] In live mode, delegate to Privy.
+- [x] In design mode, return a mocked ready/authenticated state.
+- [x] In design mode, return a mocked Solana wallet address.
+- [x] Update components and hooks that currently import Privy directly to use the local facade where practical.
+- [x] Keep any Privy-specific code inside the auth/wallet boundary.
 
 Likely files to review:
 
@@ -73,44 +108,59 @@ Likely files to review:
 - `src/hooks/workspace/use-all-positions.ts`
 - `src/hooks/workspace/use-adapter-node-runner.ts`
 
+Notes:
+
+- `src/hooks/workspace/use-adapter-node-runner.ts` still imports Privy signing directly because it is the live transaction path. Design-mode run simulation is handled in Phase 5.
+- `src/app/privy-smoke/page.tsx`, `src/components/providers/privy-provider.tsx`, `src/lib/auth/privy-server.ts`, and the local facade hooks are allowed Privy boundaries.
+
 Success criteria:
 
-- [ ] The app can boot in design mode without `NEXT_PUBLIC_PRIVY_APP_ID`.
-- [ ] Sign-in/profile UI has stable mocked behavior in design mode.
-- [ ] Live mode still uses Privy.
+- [x] The app can boot in design mode without `NEXT_PUBLIC_PRIVY_APP_ID`.
+- [x] Sign-in/profile UI has stable mocked behavior in design mode.
+- [x] Live mode still uses Privy.
 
 ## Phase 3: Mock Live Data Hooks
 
 Goal: prevent frontend design work from requiring Helius, Neon, or live Solana routes.
 
-- [ ] In design mode, make `useMe()` return a mocked profile.
-- [ ] In design mode, make `useWalletBalances()` return mocked SOL and USDC balances.
-- [ ] In design mode, make `useAllPositions()` return mocked position data.
-- [ ] In design mode, make `useAdapterRate()` return mocked/catalog APY data instead of calling `/api/solana/rates`.
-- [ ] Preserve useful loading, empty, error, and ready states where designers need to inspect those UI states.
-- [ ] Keep mocked content in `src/mock-data` where practical.
+- [x] In design mode, make `useMe()` return a mocked profile.
+- [x] In design mode, make `useWalletBalances()` return mocked SOL and USDC balances.
+- [x] In design mode, make `useAllPositions()` return mocked position data.
+- [x] In design mode, make `useAdapterRate()` return mocked/catalog APY data instead of calling `/api/solana/rates`.
+- [x] Preserve useful loading, empty, error, and ready states where designers need to inspect those UI states.
+- [x] Keep mocked content in `src/mock-data` where practical.
+
+Notes:
+
+- Browser validation confirmed the design-mode banner, mocked profile/sidebar, mocked wallet balances, mocked investment positions, and mocked APY values render correctly.
+- `use-adapter-node-runner.ts` now has a safe design-mode runner so loading the workspace no longer calls Privy signing. Full run UX simulation remains Phase 5.
 
 Success criteria:
 
-- [ ] The workspace loads in design mode without `HELIUS_RPC_URL`.
-- [ ] The workspace loads in design mode without `DATABASE_URL`.
-- [ ] Panels and wallet nodes continue to look populated and useful.
+- [x] The workspace loads in design mode without `HELIUS_RPC_URL`.
+- [x] The workspace loads in design mode without `DATABASE_URL`.
+- [x] Panels and wallet nodes continue to look populated and useful.
 
 ## Phase 4: Design-Safe Chat Composition
 
 Goal: preserve the product thesis that the agent composes graphs without requiring `ANTHROPIC_API_KEY`.
 
-- [ ] In design mode, bypass live `/api/chat` calls.
-- [ ] Map starter prompts and common demo prompts to mocked graph mutations.
-- [ ] Reuse existing graph mutation helpers instead of creating a separate chat state model.
-- [ ] Keep composed output visible on the canvas.
-- [ ] Make sure chat remains an input modality, not the source of truth.
-- [ ] In live mode, keep the existing Vercel AI SDK + Claude route behavior.
+- [x] In design mode, bypass live `/api/chat` calls.
+- [x] Map starter prompts and common demo prompts to mocked graph mutations.
+- [x] Reuse existing graph mutation helpers instead of creating a separate chat state model.
+- [x] Keep composed output visible on the canvas.
+- [x] Make sure chat remains an input modality, not the source of truth.
+- [x] In live mode, keep the existing Vercel AI SDK + Claude route behavior.
+
+Notes:
+
+- Strategy composition templates now live in `src/lib/workspace/compose-strategy-template.ts` so live AI and design-mode chat share one graph builder.
+- In design mode, `ChatPanel` maps prompts locally and applies the same graph mutations the live AI tool would return.
 
 Success criteria:
 
-- [ ] A designer can click a starter prompt and see nodes appear on the canvas without `ANTHROPIC_API_KEY`.
-- [ ] The graph remains editable after mocked composition.
+- [x] A designer can click a starter prompt and see nodes appear on the canvas without `ANTHROPIC_API_KEY`.
+- [x] The graph remains editable after mocked composition.
 - [ ] Live AI behavior is unchanged when design mode is off.
 
 ## Phase 5: Simulated Runs

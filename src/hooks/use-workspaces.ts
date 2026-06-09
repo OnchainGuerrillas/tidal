@@ -1,7 +1,9 @@
 "use client";
 
-import { getAccessToken, usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState } from "react";
+
+import { getTidalAccessToken } from "@/hooks/get-tidal-access-token";
+import { useTidalAuth } from "@/hooks/use-tidal-auth";
 
 import type { MeWorkspace } from "@/hooks/use-me";
 
@@ -27,7 +29,7 @@ type CreateWorkspaceInput = {
  * unauthed callers should fall back to mock-seeded workspace state.
  */
 export function useWorkspaces() {
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated } = useTidalAuth();
   const [fetched, setFetched] = useState<FetchedState>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
@@ -42,7 +44,7 @@ export function useWorkspaces() {
 
     (async () => {
       try {
-        const token = await getAccessToken();
+        const token = await getTidalAccessToken();
         if (!token) {
           if (!cancelled) {
             setFetched({ status: "error", error: "Missing access token" });
@@ -80,7 +82,7 @@ export function useWorkspaces() {
 
   const createWorkspace = useCallback(
     async (input: CreateWorkspaceInput): Promise<MeWorkspace> => {
-      const token = await getAccessToken();
+      const token = await getTidalAccessToken();
       if (!token) throw new Error("Not authenticated");
       const res = await fetch("/api/workspaces", {
         method: "POST",

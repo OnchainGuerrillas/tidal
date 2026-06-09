@@ -3,18 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatCircle, Plus } from "@phosphor-icons/react";
 import { useChat } from "@ai-sdk/react";
-import { usePrivy } from "@privy-io/react-auth";
-import { useWallets } from "@privy-io/react-auth/solana";
 
 import { ChatMessage } from "@/components/tidal/chat-message";
+import { useTidalAuth } from "@/hooks/use-tidal-auth";
+import { useTidalWallets } from "@/hooks/use-tidal-wallets";
 import { PromptComposer } from "@/components/tidal/prompt-composer";
 import { PanelShell } from "@/components/workspace/panels/panel-shell";
 import { StrategyComposeMessage } from "@/components/workspace/strategy-compose-message";
+import { isDesignMode } from "@/lib/app-mode";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/providers/workspace-provider";
 import { placeMutationsRelativeTo } from "@/lib/workspace/mutations";
 import type { WorkspaceThread } from "@/mock-data/workspace/types";
-import type { ComposeStrategyOutput } from "@/lib/ai/tools/compose-strategy";
+import { composeDesignModeChatPrompt } from "@/mock-data/design-mode/chat-compose";
+import type { ComposeStrategyOutput } from "@/lib/workspace/compose-strategy-template";
 
 type ChatPanelProps = {
   activeThread: WorkspaceThread;
@@ -31,6 +33,12 @@ type ToolPart = {
   toolCallId?: string;
 };
 
+type ChatDisplayMessage = {
+  id: string;
+  role: "user" | "assistant";
+  parts: Array<ToolPart | { type: "text"; text: string }>;
+};
+
 export function ChatPanel({
   activeThread,
   threads,
@@ -38,10 +46,11 @@ export function ChatPanel({
   onClose,
 }: ChatPanelProps) {
   const { createBlankThread, applyGraphMutations, workspace } = useWorkspace();
-  const { ready, authenticated, login, logout } = usePrivy();
-  const { wallets } = useWallets();
+  const { ready, authenticated, login, logout } = useTidalAuth();
+  const { wallets } = useTidalWallets();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [composerValue, setComposerValue] = useState("");
+  const [designMessages, setDesignMessages] = useState<ChatDisplayMessage[]>([]);
   const { messages, sendMessage, status } = useChat();
   const appliedToolCallIds = useRef<Set<string>>(new Set());
   // Latest-ref pattern: keep a fresh handle on workspace.nodes inside the
@@ -59,12 +68,52 @@ export function ChatPanel({
     ? `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}`
     : null;
 
+  const displayMessages = isDesignMode
+    ? designMessages
+    : (messages as ChatDisplayMessage[]);
+
+  const submitPrompt = (value: string) => {
+    if (!authenticated) return;
+
+    if (!isDesignMode) {
+      sendMessage({ text: value });
+      return;
+    }
+
+    const composed = composeDesignModeChatPrompt(value);
+    const id = `design-chat-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
+
+    setDesignMessages((current) => [
+      ...current,
+      {
+        id: `${id}-user`,
+        role: "user",
+        parts: [{ type: "text", text: value }],
+      },
+      {
+        id: `${id}-assistant`,
+        role: "assistant",
+        parts: [
+          { type: "text", text: composed.leadIn },
+          {
+            type: "tool-composeStrategy",
+            state: "output-available",
+            output: composed.output,
+            toolCallId: `${id}-tool`,
+          },
+        ],
+      },
+    ]);
+  };
+
   // Apply composed-strategy mutations to the active workspace exactly once
   // per tool call. Dedupe key falls back to messageId:partIndex when the
   // tool part doesn't expose a toolCallId — keeps the effect idempotent
   // across re-renders even if the AI SDK's part shape evolves.
   useEffect(() => {
-    for (const message of messages) {
+    for (const message of displayMessages) {
       const parts = message.parts as ToolPart[];
       parts.forEach((part, partIndex) => {
         if (part.type !== "tool-composeStrategy") return;
@@ -81,13 +130,13 @@ export function ChatPanel({
         appliedToolCallIds.current.add(dedupeKey);
       });
     }
-  }, [messages, applyGraphMutations]);
+  }, [displayMessages, applyGraphMutations]);
 
-  const isBusy = status === "submitted" || status === "streaming";
+  const isBusy = !isDesignMode && (status === "submitted" || status === "streaming");
 
-  const orderedMessages = [...messages].reverse();
+  const orderedMessages = [...displayMessages].reverse();
 
-  const showEmptyState = messages.length === 0;
+  const showEmptyState = displayMessages.length === 0;
 
   return (
     <PanelShell
@@ -158,7 +207,7 @@ export function ChatPanel({
               disabled={!authenticated || isBusy}
               onPick={(prompt) => {
                 if (!authenticated) return;
-                sendMessage({ text: prompt });
+                submitPrompt(prompt);
               }}
             />
           ) : null}
@@ -256,7 +305,7 @@ export function ChatPanel({
             }
             onSubmit={({ value }) => {
               if (!authenticated) return;
-              sendMessage({ text: value });
+              submitPrompt(value);
               setComposerValue("");
             }}
           />

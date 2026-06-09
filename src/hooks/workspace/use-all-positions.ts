@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useWallets } from "@privy-io/react-auth/solana";
-
+import { useTidalWallets } from "@/hooks/use-tidal-wallets";
+import { isDesignMode } from "@/lib/app-mode";
+import { designModePositions } from "@/mock-data/design-mode/positions";
+import { designModeWalletAddress } from "@/mock-data/design-mode/wallet";
 import { useChainStateSignal } from "@/providers/chain-state-signal-provider";
 import type { NodeCatalogItem } from "@/mock-data/workspace/types";
 
@@ -73,8 +75,22 @@ type State =
  * `refetch` callback so callers can refresh after a successful run on
  * the canvas (Tier 1 #4 Phase D wires that up).
  */
-export function useAllPositions() {
-  const { wallets } = useWallets();
+function useDesignModeAllPositions() {
+  const refetch = useCallback(async () => {}, []);
+
+  return {
+    state: {
+      kind: "ready",
+      address: designModeWalletAddress,
+      positions: designModePositions,
+      fetchedAt: Date.parse("2026-06-09T12:00:00.000Z"),
+    } as State,
+    refetch,
+  };
+}
+
+function useLiveAllPositions() {
+  const { wallets } = useTidalWallets();
   const wallet = wallets[0];
   const address = wallet?.address;
   const { signal } = useChainStateSignal();
@@ -120,3 +136,7 @@ export function useAllPositions() {
 
   return { state, refetch };
 }
+
+export const useAllPositions = isDesignMode
+  ? useDesignModeAllPositions
+  : useLiveAllPositions;

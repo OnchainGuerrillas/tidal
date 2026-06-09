@@ -7,7 +7,6 @@ import {
   SignOut,
   Wallet,
 } from "@phosphor-icons/react";
-import { usePrivy } from "@privy-io/react-auth";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useMe, type MeProfile } from "@/hooks/use-me";
+import { useTidalAuth } from "@/hooks/use-tidal-auth";
 import { cn } from "@/lib/utils";
 
 type ProfileSheetProps = {
@@ -61,7 +61,7 @@ function formatTimestamp(iso: string | null): string {
 }
 
 export function ProfileSheet({ open, onOpenChange }: ProfileSheetProps) {
-  const { logout } = usePrivy();
+  const { logout } = useTidalAuth();
   const { state, updateDisplayName } = useMe();
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);

@@ -16,7 +16,7 @@ import {
 } from "@/lib/workspace/graph-exec";
 import { useAdapterNodeRunner } from "@/hooks/workspace/use-adapter-node-runner";
 import { applyMutations } from "@/lib/workspace/mutations";
-import type { ComposeStrategyOutput } from "@/lib/ai/tools/compose-strategy";
+import type { ComposeStrategyOutput } from "@/lib/workspace/compose-strategy-template";
 
 const JITO_CATALOG_ITEM_ID = "jito-sol-stake";
 const STAKE_LAMPORTS = "10000000"; // 0.01 SOL

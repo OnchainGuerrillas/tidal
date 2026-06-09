@@ -1,7 +1,9 @@
 "use client";
 
-import { getAccessToken, usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import { getTidalAccessToken } from "@/hooks/get-tidal-access-token";
+import { useTidalAuth } from "@/hooks/use-tidal-auth";
 
 const DEBOUNCE_MS = 500;
 
@@ -41,7 +43,7 @@ type PendingPayload = {
  * current save completes.
  */
 export function useWorkspaceGraph(workspaceId: string | null) {
-  const { ready, authenticated } = usePrivy();
+  const { ready, authenticated } = useTidalAuth();
   const [fetched, setFetched] = useState<FetchedState>(null);
   const [saving, setSaving] = useState(false);
   const [loadNonce, setLoadNonce] = useState(0);
@@ -64,7 +66,7 @@ export function useWorkspaceGraph(workspaceId: string | null) {
 
     (async () => {
       try {
-        const token = await getAccessToken();
+        const token = await getTidalAccessToken();
         if (!token) {
           if (!cancelled) {
             setFetched({ status: "error", error: "Missing access token" });
@@ -128,7 +130,7 @@ export function useWorkspaceGraph(workspaceId: string | null) {
     setSaving(true);
 
     try {
-      const token = await getAccessToken();
+      const token = await getTidalAccessToken();
       if (!token) throw new Error("Not authenticated");
       const res = await fetch(
         `/api/workspaces/${encodeURIComponent(targetWorkspaceId)}`,
