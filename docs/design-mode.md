@@ -37,15 +37,15 @@ NEXT_PUBLIC_TIDAL_APP_MODE=design
 
 Goal: create one source of truth for app mode.
 
-- [ ] Add an app-mode helper, likely `src/lib/app-mode.ts`.
-- [ ] Export an `isDesignMode` boolean.
-- [ ] Ensure live mode is the default when `NEXT_PUBLIC_TIDAL_APP_MODE` is not set.
+- [x] Add an app-mode helper, likely `src/lib/app-mode.ts`.
+- [x] Export an `isDesignMode` boolean.
+- [x] Ensure live mode is the default when `NEXT_PUBLIC_TIDAL_APP_MODE` is not set.
 - [ ] Avoid scattering raw `process.env.NEXT_PUBLIC_TIDAL_APP_MODE` reads throughout components.
 - [ ] Validate that the app still builds and runs in live mode without changing current behavior.
 
 Success criteria:
 
-- [ ] `bun run lint` passes.
+- [x] `bun run lint` passes.
 - [ ] No design-mode behavior is active unless the flag is set.
 
 ## Phase 2: Auth And Wallet Facade
