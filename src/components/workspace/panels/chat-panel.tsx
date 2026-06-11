@@ -26,7 +26,7 @@ type ChatPanelProps = {
 };
 
 type ToolPart = {
-  type: string;
+  type: "tool-composeStrategy";
   state?: string;
   output?: unknown;
   errorText?: string;
