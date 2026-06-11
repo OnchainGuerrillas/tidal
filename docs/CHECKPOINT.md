@@ -1,32 +1,95 @@
 # Checkpoint
 
-**Last updated:** 2026-05-17 (pre-shell-restart)
-**Branch:** main @ `5f08e11` — clean, pushed to `OnchainGuerrillas/tidal` (org renamed from `Solana-Guerrillas` on 2026-06-06)
+**Last updated:** 2026-06-10 (session pause)
+**Branch:** main @ `795d9d4` — clean, pushed to `OnchainGuerrillas/tidal`
 **Phase 1 thesis demo:** ✅ shipped to Colosseum (~2026-05-10)
-**Current focus:** post-hackathon roadmap — see `docs/post-hackathon-roadmap.md` for the six workstreams.
+**Roadmap:** nine workstreams documented in `docs/post-hackathon-roadmap.md`; external grant-pitch version at `docs/grant-roadmap.md`.
 
-## Resumption summary
+## Session 2026-05-24 → 2026-06-10 — backend + UX heavy session
 
-Three commits landed on main this week:
-- `23642c6` fix(solana): bypass Jupiter Ultra speculative-validation in leverage-loop (Bug #1)
-- `c04c12a` feat(solana): add BlazeStake (bSOL) stake + unstake adapters
-- `5f08e11` docs: post-hackathon roadmap + checkpoint update
+Substantial multi-week session. Big shape: stood up the persistence layer, wired it through to live UI, hardened the security posture, captured two rounds of alpha-tester feedback, added three new strategic workstreams to the roadmap (composer, autonomous batch, multichain Base), and shipped a polished external grant roadmap document.
 
-Build verified clean before push (`bun run lint`, `bunx tsc --noEmit`, `bun run build`).
+### Commits landed (in chronological order on `main`)
 
-### Immediate pickup when shell restarts
+| Commit | What |
+|---|---|
+| `78d9e93` | Neon DB + Drizzle scaffold + Privy server auth boundary + authed `/api/{me,workspaces,runs}` routes |
+| `1a05a3f` | Profile sheet on the sidebar avatar — wallet copy, display-name edit, linked accounts, recent runs |
+| `8e82437` | Roadmap: log ChatPanel right-edge clipping under 0xJulo feedback bucket |
+| `281e69c` | **Hotfix** — defer env-var validation to first use; module-load throws were killing Vercel's page-data-collection phase |
+| `6a9c0c6` | Next.js 16.2.1 → 16.2.7 — patches 13 May-2026 CVEs (SSRF, DoS, middleware auth bypass, etc.) |
+| `467b20e` | **Safety guardrails** — `.claude/settings.json` deny rules for env-bearing dotfiles, CLAUDE.md Secrets Safety section, `.gitignore` inverted so safety travels with the repo |
+| `25daf52` | Roadmap captures: alpha-tester feedback (5b), Workstreams #7/#8/#9, EVM partial un-park, org rename to OnchainGuerrillas |
+| `74ebf49` | Alpha-tester quick win: Templates panel cards marked Coming Soon (placeholder gallery now honest about state) |
+| `86f8c3b` | Alpha-tester quick win: chat panel headline copy above composer |
+| `7b77a3d` | Alpha-tester quick win: "What's live" capability status dialog in header |
+| `941f12b` | Alpha-tester quick win: first-load welcome overlay with 3 onboarding steps (localStorage-gated) |
+| `4e8ad93` | `docs/grant-roadmap.md` — external 3-5 page roadmap for Superteam / Colosseum / other grant programs |
+| `6563148` | Data hooks: `useWorkspaces` + `useWorkspaceGraph` + `useRecordRun` |
+| `6af34f2` | **WorkspaceProvider rewire** — authed users get DB-backed list, load, debounced save; unauthed unchanged |
+| `795d9d4` | Run-history persistence wired into `CanvasRunPanel` and `StrategyComposeMessage` |
 
-- **Mainnet smokes still pending** — none of the three changes have been on-chain verified yet:
-  1. BlazeStake stake (drop "Stake with BlazeStake", 0.01 SOL, Run → wallet shows bSOL)
-  2. BlazeStake unstake (drop "Unstake bSOL", ~0.005 bSOL, Run → SOL returns)
-  3. Bug #1 fix (wallet with SOL + zero USDC, Leverage Loop, Run → no Jupiter pre-validation error)
-- **Bug #2 (Kamino `0x1776`)** still needs a mainnet reproduction with full program logs. Until that lands, repeat-Kamino users hit a wall.
-- **0xJulo's UI feedback list** still uncaptured — section #5 of the roadmap has a placeholder template ready.
+### What's live in production
 
-### Operational note
+- Backend: Neon Postgres (5 tables: users, wallets, workspaces, workspace_graphs, run_history); Drizzle schema + migration runner; lazy-init DB + Privy clients.
+- Auth boundary: Privy JWT verification, user upsert, linked-account snapshot. Returns 401 cleanly when token absent/invalid.
+- Routes: `GET/PATCH /api/me`, `GET+POST /api/workspaces`, `GET+PUT /api/workspaces/[id]`, `POST /api/runs`. All build cleanly in Vercel and (per user 2026-06-09) Vercel now has the required env vars set.
+- UI: profile sheet on sidebar avatar, "What's live" header dialog, first-load onboarding overlay, chat-panel headline copy, Templates panel marked Coming Soon honestly.
+- Workspace persistence: authed users get DB-backed workspaces with debounced auto-save on graph mutations; first-login auto-creates a blank workspace; legacy URLs redirect to user's first owned workspace. Unauthed mode unchanged — mock seeds, in-memory state.
+- Run history: every graph execution (canvas run button OR AI compose bubble) writes a `run_history` row when the active workspace is DB-backed, with tx signatures, event stream, failure node id, and computed status (success/partial/failed).
+- Next.js 16.2.7 (latest), all CVE patches applied.
 
-- Repo branch protection on main was relaxed (or admin bypass active) — direct pushes now work, no PR dance needed.
-- Dev server was running in this shell session and will die on restart. Restart with `bun run dev` when you want to test again.
+### Roadmap state
+
+`docs/post-hackathon-roadmap.md` now has nine workstreams:
+1. Wrap up hardening
+2. Revenue strategy
+3. Database (mostly shipped; UI wire-up complete)
+4. Templates (DB-persisted) — Phase 4.1 unblocks the Coming Soon cards
+5. UI updates per 0xJulo feedback + 5b alpha-tester quick wins (4 quick wins shipped this session)
+6. Adapter expansion + stress testing
+7. **NEW** — Real strategy composition (close the composer gap). Tester's headline ask. Today's `composeStrategy` is a 4-intent enum classifier; this workstream builds actual multi-node synthesis.
+8. **NEW** — Autonomous execution, batch tier (preview + batch sign). Gated by #7.
+9. **NEW** — Multichain foundation (Base). Scaffolding-only first slice. Partial un-park of v1 EVM scope (`CLAUDE.md` "Parked Features" updated in lockstep).
+
+External-facing grant roadmap at `docs/grant-roadmap.md` covers thesis, shipped Phase 1 evidence, alpha validation with direct quotes, full workstream plan, differentiation table, and "why now." No funding ask included.
+
+### Incidents owned
+
+- **Secrets leak** — Early in the session I ran `grep -n PATTERN .env.local` which prints whole matching lines; three live secrets (Privy app secret, Helius API key, Anthropic API key) landed in the transcript. Mitigation: `.claude/settings.json` deny rules now block Read/Edit/Write/cat/head/tail/grep/awk/sed/Get-Content on `.env*` at the harness layer (committed to the repo), and CLAUDE.md has a Secrets Safety section with safe key-only inspection commands and an "ask the user, don't read the file" fallback. **Status: User confirmed they intended to rotate; rotation may or may not be complete — re-verify on resumption.**
+
+### Operational state at pause
+
+- **Dev server** was running in this session (`bun run dev` on port 3002 since port 3000 was busy). Will die on shell restart. Restart with `bun run dev` to resume.
+- **Vercel** has the required env vars per user confirmation on 2026-06-09 — `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `PRIVY_SECRET_KEY` are set. Latest deploy should be `795d9d4` and functional end-to-end.
+- **GitHub org** renamed Solana-Guerrillas → OnchainGuerrillas (2026-06-06). Git remote updated; old URL still redirects.
+
+### Immediate pickup when we return
+
+**Priority — verify the workspace wire-up end-to-end against real DB.** This work is committed and pushed but never smoke-tested. Suggested test path:
+
+1. **Unauthed regression check.** Incognito → `/workspace-fresh` → mock workspace renders, no `/api/*` calls fire, no errors. (Confirms we didn't break the demo path.)
+2. **First login auto-create.** Privy login (email or Phantom) → expect `GET /api/me` 200 → `GET /api/workspaces` returns `[]` → `POST /api/workspaces` fires with "My first workspace" → URL redirects to the new slug → profile sheet shows "Workspaces: 1".
+3. **Debounced save persistence.** Drop a Jito node from the picker → wait ~500ms → `PUT /api/workspaces/{uuid}` fires 201 with the new graph version → hard-refresh → node still there.
+4. **Run history.** Wallet with ~0.02 SOL → set Jito amount to 0.01 SOL → click Run → real mainnet tx lands → `POST /api/runs` fires 201 → profile sheet "Recent runs" shows the new row with `success` status and tx signature.
+5. **Legacy URL redirect.** While logged in, manually visit `/workspace-sol-yield-loop` (the mock example) → URL replaces to user's first owned workspace's slug.
+
+**Race condition to watch for:** Auto-create racing with hydration could produce two "My first workspace" rows. If observed, the fix is in `WorkspaceProvider`'s `autoCreateFiredRef` guard — investigate before declaring victory.
+
+**If the smoke surfaces a bug,** see `src/providers/workspace-provider.tsx` (most likely culprit), then the three data hooks in `src/hooks/use-workspace*.ts` / `use-record-run.ts`.
+
+### Still pending from earlier sessions (carry-over)
+
+- **Mainnet smokes for BlazeStake stake/unstake + Bug #1 leverage-loop fix** — still not on-chain verified since 2026-05-14. Low urgency but a known gap.
+- **Bug #2 (Kamino `0x1776`)** — needs mainnet reproduction with full program logs. Until then, repeat-Kamino users hit a wall.
+- **Secret rotation** — confirm Privy / Helius / Anthropic keys were rotated post-leak.
+- **0xJulo's UI feedback list** — section #5 of `docs/post-hackathon-roadmap.md` still has placeholder content alongside the captured alpha-tester section.
+
+### Roadmap shortcuts when picking up
+
+- **Highest-leverage next build:** Workstream #7 (real composer) — the alpha tester's repeated headline ask and the thesis-closing capability. ~1-2 weeks.
+- **Highest-validation next build:** browser smoke (above) to confirm this session's work shipped clean before adding more on top.
+- **Bug #2 Kamino repro** unblocks repeat-user lending which is currently the biggest known DX wall.
 
 ## Session 2026-05-13 / -14 — post-submission engineering pickup
 
