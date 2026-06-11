@@ -6,6 +6,7 @@ import {
   useWallets,
 } from "@privy-io/react-auth/solana";
 
+import { isDesignMode } from "@/lib/app-mode";
 import type {
   NodeRunInput,
   NodeRunner,
@@ -57,7 +58,16 @@ function base64ToUint8Array(b64: string): Uint8Array {
  * /privy-smoke page for single-node tests - the same flow, one node
  * at a time.
  */
-export function useAdapterNodeRunner(): NodeRunner {
+function useDesignModeAdapterNodeRunner(): NodeRunner {
+  return useCallback(
+    async ({ inputAmount }: NodeRunInput): Promise<NodeRunResult> => ({
+      outputs: new Map([["next", inputAmount]]),
+    }),
+    [],
+  );
+}
+
+function useLiveAdapterNodeRunner(): NodeRunner {
   const { wallets } = useWallets();
   const { signTransaction } = useSignTransaction();
 
@@ -144,3 +154,7 @@ export function useAdapterNodeRunner(): NodeRunner {
     [wallets, signTransaction],
   );
 }
+
+export const useAdapterNodeRunner = isDesignMode
+  ? useDesignModeAdapterNodeRunner
+  : useLiveAdapterNodeRunner;
