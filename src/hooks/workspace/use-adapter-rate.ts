@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { isDesignMode } from "@/lib/app-mode";
+import { getDesignModeAdapterRate } from "@/mock-data/design-mode/rates";
+
 type APYQuote = {
   apy: number;
   apyBreakdown?: Record<string, number>;
@@ -32,7 +35,15 @@ const CACHE_TTL_MS = 60_000;
  * resolve to `{ kind: "ready", rate: null }` and the caller is expected
  * to fall back to the static catalog display string.
  */
-export function useAdapterRate(catalogItemId: string | undefined) {
+function useDesignModeAdapterRate(catalogItemId: string | undefined): State {
+  if (!catalogItemId) {
+    return { kind: "idle" };
+  }
+
+  return { kind: "ready", rate: getDesignModeAdapterRate(catalogItemId) };
+}
+
+function useLiveAdapterRate(catalogItemId: string | undefined) {
   const [state, setState] = useState<State>({ kind: "idle" });
 
   useEffect(() => {
@@ -83,6 +94,10 @@ export function useAdapterRate(catalogItemId: string | undefined) {
 
   return state;
 }
+
+export const useAdapterRate = isDesignMode
+  ? useDesignModeAdapterRate
+  : useLiveAdapterRate;
 
 export function formatApy(apy: number): string {
   // adapter.readRate() returns APY as a fraction (0.059 = 5.9%).

@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useWallets } from "@privy-io/react-auth/solana";
+import { useTidalWallets } from "@/hooks/use-tidal-wallets";
 
-import type { ComposeStrategyOutput } from "@/lib/ai/tools/compose-strategy";
+import type { ComposeStrategyOutput } from "@/lib/workspace/compose-strategy-template";
 import {
   executeGraph,
   type ExecutableEdge,
@@ -29,7 +29,7 @@ type RunState =
 export function StrategyComposeMessage({
   output,
 }: StrategyComposeMessageProps) {
-  const { wallets } = useWallets();
+  const { wallets } = useTidalWallets();
   const runNode = useAdapterNodeRunner();
   const { bumpSignal } = useChainStateSignal();
   const { applyEvent } = useRunStatus();

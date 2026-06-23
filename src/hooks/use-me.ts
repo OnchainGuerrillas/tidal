@@ -1,8 +1,11 @@
 "use client";
 
-import { getAccessToken, usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState } from "react";
 
+import { getTidalAccessToken } from "@/hooks/get-tidal-access-token";
+import { useTidalAuth } from "@/hooks/use-tidal-auth";
+import { isDesignMode } from "@/lib/app-mode";
+import { designModeProfile } from "@/mock-data/design-mode/profile";
 import { useChainStateSignal } from "@/providers/chain-state-signal-provider";
 
 export type LinkedAccount =
@@ -60,8 +63,30 @@ type FetchedState =
   | { status: "error"; error: string }
   | null;
 
-export function useMe() {
-  const { ready, authenticated } = usePrivy();
+function useDesignModeMe() {
+  const [profile, setProfile] = useState<MeProfile>(designModeProfile);
+
+  const refresh = useCallback(() => {}, []);
+
+  const updateDisplayName = useCallback(async (displayName: string | null) => {
+    setProfile((current) => ({
+      ...current,
+      user: {
+        ...current.user,
+        displayName,
+      },
+    }));
+  }, []);
+
+  return {
+    state: { status: "ready", profile } satisfies MeState,
+    refresh,
+    updateDisplayName,
+  };
+}
+
+function useLiveMe() {
+  const { ready, authenticated } = useTidalAuth();
   const { signal } = useChainStateSignal();
   const [fetched, setFetched] = useState<FetchedState>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -77,7 +102,7 @@ export function useMe() {
 
     (async () => {
       try {
-        const token = await getAccessToken();
+        const token = await getTidalAccessToken();
         if (!token) {
           if (!cancelled) {
             setFetched({ status: "error", error: "Missing access token" });
@@ -121,7 +146,7 @@ export function useMe() {
 
   const updateDisplayName = useCallback(
     async (displayName: string | null) => {
-      const token = await getAccessToken();
+      const token = await getTidalAccessToken();
       if (!token) throw new Error("Not authenticated");
       const res = await fetch("/api/me", {
         method: "PATCH",
@@ -141,3 +166,5 @@ export function useMe() {
 
   return { state, refresh, updateDisplayName };
 }
+
+export const useMe = isDesignMode ? useDesignModeMe : useLiveMe;

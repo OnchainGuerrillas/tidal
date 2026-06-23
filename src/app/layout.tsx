@@ -11,6 +11,7 @@ import { RunStatusProvider } from "@/providers/run-status-provider";
 import { PrivyProvider } from "@/components/providers/privy-provider";
 import { AppHeader } from "@/components/tidal/app-header";
 import { AppSidebar } from "@/components/tidal/app-sidebar";
+import { DesignModeBanner } from "@/components/tidal/design-mode-banner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -38,6 +39,7 @@ export default function RootLayout({
                 <WorkspaceProvider>
                   <SidePanelProvider>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                      <DesignModeBanner />
                       <AppHeader />
                       <div className="flex min-h-0 flex-1 overflow-hidden">
                         <AppSidebar />

@@ -1,7 +1,9 @@
 "use client";
 
-import { getAccessToken, usePrivy } from "@privy-io/react-auth";
 import { useCallback } from "react";
+
+import { getTidalAccessToken } from "@/hooks/get-tidal-access-token";
+import { useTidalAuth } from "@/hooks/use-tidal-auth";
 
 export type RunStatus = "success" | "partial" | "failed";
 
@@ -24,14 +26,14 @@ export type RecordRunInput = {
  * graph-execution finally block.
  */
 export function useRecordRun() {
-  const { authenticated } = usePrivy();
+  const { authenticated } = useTidalAuth();
 
   const recordRun = useCallback(
     async (input: RecordRunInput): Promise<void> => {
       if (!authenticated) return;
 
       try {
-        const token = await getAccessToken();
+        const token = await getTidalAccessToken();
         if (!token) return;
         const res = await fetch("/api/runs", {
           method: "POST",

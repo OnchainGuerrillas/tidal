@@ -9,6 +9,8 @@ import {
   createSolanaRpcSubscriptions,
 } from "@solana/kit";
 
+import { isDesignMode } from "@/lib/app-mode";
+
 const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 // Privy's Solana hooks require an RPC config at provider level. We route
@@ -32,6 +34,10 @@ export function PrivyProvider({ children }: { children: React.ReactNode }) {
       rpcSubscriptions: createSolanaRpcSubscriptions(PUBLIC_SOLANA_WS),
     };
   }, []);
+
+  if (isDesignMode) {
+    return <>{children}</>;
+  }
 
   if (!appId) {
     if (typeof window !== "undefined") {

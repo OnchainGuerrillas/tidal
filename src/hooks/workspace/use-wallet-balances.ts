@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useWallets } from "@privy-io/react-auth/solana";
-
+import { useTidalWallets } from "@/hooks/use-tidal-wallets";
+import { isDesignMode } from "@/lib/app-mode";
+import { designModeWalletBalances } from "@/mock-data/design-mode/wallet";
 import { useChainStateSignal } from "@/providers/chain-state-signal-provider";
 
 const USDC_MINT_ADDRESS = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
@@ -126,8 +127,17 @@ async function fetchBalances(address: string): Promise<WalletBalances> {
  * yet — callers should fall back to mocked balances or hide the affected
  * UI until login completes.
  */
-export function useWalletBalances() {
-  const { wallets } = useWallets();
+function useDesignModeWalletBalances() {
+  const refetch = useCallback(async () => {}, []);
+
+  return {
+    state: { kind: "ready", balances: designModeWalletBalances } as State,
+    refetch,
+  };
+}
+
+function useLiveWalletBalances() {
+  const { wallets } = useTidalWallets();
   const wallet = wallets[0];
   const address = wallet?.address;
   const { signal } = useChainStateSignal();
@@ -164,3 +174,7 @@ export function useWalletBalances() {
 
   return { state, refetch };
 }
+
+export const useWalletBalances = isDesignMode
+  ? useDesignModeWalletBalances
+  : useLiveWalletBalances;

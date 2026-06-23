@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useWallets } from "@privy-io/react-auth/solana";
+import { useTidalWallets } from "@/hooks/use-tidal-wallets";
 import { Play, X } from "@phosphor-icons/react";
 
 import { useAdapterNodeRunner } from "@/hooks/workspace/use-adapter-node-runner";
@@ -31,7 +31,7 @@ type RunState =
  */
 export function CanvasRunPanel() {
   const { workspace, resolveDbWorkspaceId, resolveGraphVersion } = useWorkspace();
-  const { wallets } = useWallets();
+  const { wallets } = useTidalWallets();
   const runNode = useAdapterNodeRunner();
   const { bumpSignal } = useChainStateSignal();
   const { applyEvent } = useRunStatus();
