@@ -241,9 +241,17 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   // local workspaces state (for the unified consumer view). We only do
   // this on graph-load — subsequent local mutations stay in local state
   // and get pushed to the DB via saveGraph.
+  // Track which graph version we've materialized per slug, so we only write
+  // to local state when a genuinely new version loads. This is also a loop
+  // guard: even if graphState's identity is unstable, the effect bails before
+  // setState once the current version is already materialized.
+  const materializedVersionRef = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     if (graphState.status !== "ready" || !activeDbWorkspace) return;
     const slug = activeDbWorkspace.slug;
+    const version = graphState.graph?.version ?? -1;
+    if (materializedVersionRef.current.get(slug) === version) return;
+    materializedVersionRef.current.set(slug, version);
     const dbNodes = (graphState.graph?.nodesJson as WorkspaceGraphNode[]) ?? [];
     const dbEdges = (graphState.graph?.edgesJson as WorkspaceGraphEdge[]) ?? [];
 

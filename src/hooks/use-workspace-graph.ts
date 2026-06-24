@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getTidalAccessToken } from "@/hooks/get-tidal-access-token";
 import { useTidalAuth } from "@/hooks/use-tidal-auth";
@@ -184,17 +184,20 @@ export function useWorkspaceGraph(workspaceId: string | null) {
     [workspaceId, authenticated, flushSave],
   );
 
-  const state: WorkspaceGraphState = !ready
-    ? { status: "loading" }
-    : !authenticated
-      ? { status: "unauthenticated" }
-      : !workspaceId
-        ? { status: "no-workspace" }
-        : fetched === null
-          ? { status: "loading" }
-          : fetched.status === "ready"
-            ? { status: "ready", graph: fetched.graph, saving }
-            : { status: "error", error: fetched.error };
+  // Memoize so consumers get a referentially stable `state` across renders.
+  // Without this, `state` is a fresh object literal every render, which makes
+  // any effect that depends on it (e.g. WorkspaceProvider's graph
+  // materialization) re-fire every render and can spin into an update loop.
+  const state: WorkspaceGraphState = useMemo(() => {
+    if (!ready) return { status: "loading" };
+    if (!authenticated) return { status: "unauthenticated" };
+    if (!workspaceId) return { status: "no-workspace" };
+    if (fetched === null) return { status: "loading" };
+    if (fetched.status === "ready") {
+      return { status: "ready", graph: fetched.graph, saving };
+    }
+    return { status: "error", error: fetched.error };
+  }, [ready, authenticated, workspaceId, fetched, saving]);
 
   return { state, saveGraph, refresh };
 }
