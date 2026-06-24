@@ -1,9 +1,53 @@
 # Checkpoint
 
-**Last updated:** 2026-06-10 (session pause)
-**Branch:** main @ `795d9d4` — clean, pushed to `OnchainGuerrillas/tidal`
+**Last updated:** 2026-06-23 (session pause — local machine update)
+**Branch:** main @ `eb6d7a4` — loop fix committed; ahead of `origin/main` until pushed
 **Phase 1 thesis demo:** ✅ shipped to Colosseum (~2026-05-10)
 **Roadmap:** nine workstreams documented in `docs/post-hackathon-roadmap.md`; external grant-pitch version at `docs/grant-roadmap.md`.
+
+## Session 2026-06-23 — wire-up smoke + loop-bug fix + design-mode merge
+
+Resumed via `/session-start` to smoke-test the 2026-06-10 DB workspace wire-up. Found and fixed a real render-loop bug, then integrated 0xJulo's merged design-mode PR on top.
+
+### Verification of the DB workspace wire-up (the 2026-06-10 work)
+
+Ran the 5-step smoke from the previous checkpoint against the real Neon DB in live mode:
+
+| Step | What | Result |
+|---|---|---|
+| 1 | Unauthed regression (`/workspace-fresh`, no `/api/*`) | not re-run this session (was clean previously) |
+| 2 | First-login auto-create → profile shows 1 workspace | ✅ PASS — single workspace, no duplicate-row race observed |
+| 3 | Debounced save → drop Jito node → hard-refresh persists | ✅ PASS — node survives refresh (`PUT /api/workspaces/{uuid}` 200) |
+| 4 | Run history (live ~0.01 SOL Jito run → `POST /api/runs`) | ⏳ **STILL PENDING** — never exercised; needs a real mainnet run |
+| 5 | Legacy slug redirect (`/workspace-sol-yield-loop`) | ✅ PASS — redirects authed user to their owned workspace |
+
+**Step 4 is the only open verification item.** Everything else in the wire-up is confirmed working end-to-end against the real DB.
+
+### Bug fixed — infinite render loop (commit `eb6d7a4`)
+
+Dropping a node on an authed DB-backed workspace threw **"Maximum update depth exceeded"** from `WorkspaceProvider` (surfaced globally via `RootLayout`, so it also appeared on the run-history/profile view — one bug, many symptoms).
+
+- **Root cause:** `useWorkspaceGraph` rebuilt its `state` object as a fresh literal on every render. `WorkspaceProvider`'s graph-materialization effect depends on `graphState`, so it re-fired every render and unconditionally called `setWorkspaces(current => current.map(...))` — always a new array → re-render → loop.
+- **Fix:** (1) memoize `state` in `useWorkspaceGraph` for a stable ref; (2) add a per-slug version guard on the materialization effect so it only writes local state when a genuinely new graph version loads (its documented intent). Lint + `tsc --noEmit` clean.
+
+### Design-mode PR merged (PR #5 — `3850b82`, 6 commits)
+
+0xJulo's design-mode foundation landed on `origin/main`; fast-forwarded and re-applied the loop fix on top (trivial import conflict in `use-workspace-graph.ts`, resolved). Lint + typecheck green, dev server healthy in live mode.
+
+- **What it is:** opt-in frontend-only mode via `NEXT_PUBLIC_TIDAL_APP_MODE=design` (`.env.local`, gitignored). **Default is `live` — all live behavior and our verification are unchanged.**
+- **How:** facade hooks `use-tidal-auth` / `use-tidal-wallets` / `get-tidal-access-token` branch on `isDesignMode` (`src/lib/app-mode.ts`) at build time — pass through to Privy in live mode, return canned values in design mode (no Privy/Anthropic/Neon/Helius/RPC calls). "Tidal is in design mode" banner above the nav. Mock data under `src/mock-data/design-mode/*`.
+- **Architectural win relevant to Workstream #7:** graph-building logic was extracted out of `compose-strategy.ts` (441→~0 lines) into shared `src/lib/workspace/compose-strategy-template.ts`, used by both the live AI tool and design-mode chat. Good seam for the real composer to grow into.
+
+### Immediate pickup when we return
+
+1. **Finish Step 4** — live ~0.01 SOL Jito run on an authed workspace; confirm `POST /api/runs` writes a row and the profile sheet "Recent runs" shows it with a tx signature. Closes out wire-up verification.
+2. **Then Workstream #7 (real composer)** — full steam ahead. Build on `compose-strategy-template.ts` (the shared graph builder design mode just extracted).
+
+### Housekeeping / open items
+
+- **Untracked, NOT committed:** `.superstack/` (tooling) and `docs/validation-tidal-2026-06-19.html`. Decide whether to gitignore `.superstack/` next session.
+- **Secret rotation still unconfirmed** — Privy / Helius / Anthropic keys post-leak. Re-verify.
+- Carry-overs from 2026-06-10 still stand: BlazeStake + Bug #1 mainnet smokes, Bug #2 Kamino `0x1776` repro, 0xJulo UI feedback list (§5 of roadmap).
 
 ## Session 2026-05-24 → 2026-06-10 — backend + UX heavy session
 
