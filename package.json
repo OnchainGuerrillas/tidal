@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "bun src/lib/workspace/compose-graph.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bun src/lib/db/migrate.ts",
     "db:studio": "drizzle-kit studio"
