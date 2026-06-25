@@ -55,7 +55,7 @@ export type ComposeStrategyOutput = {
 // ExecutableNode contains a bigint, which doesn't serialize over JSON. We
 // emit raw-string amounts and let the client convert when wiring into the
 // runner.
-type SerializableExecutableNode = {
+export type SerializableExecutableNode = {
   id: string;
   catalogItemId: string;
   widgets: Record<string, unknown>;
@@ -89,13 +89,13 @@ const KAMINO_ID = "kamino-usdc-supply";
 const JUPITER_ID = "jupiter-swap-sol-usdc";
 const LEVERAGE_LOOP_ID = "kamino-leverage-loop";
 
-const EDGE_STYLE_MAIN = { stroke: "#61B3CF", strokeWidth: 2 } as const;
+export const EDGE_STYLE_MAIN = { stroke: "#61B3CF", strokeWidth: 2 } as const;
 
-function newId(prefix: string): string {
+export function newId(prefix: string): string {
   return `ai-${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function strategyNodeFromAdapter(params: {
+export function strategyNodeFromAdapter(params: {
   catalogItemId: string;
   position: { x: number; y: number };
   sourceAmountLabel?: string;
@@ -363,7 +363,7 @@ const TEMPLATES: Record<StrategyIntent, StrategyTemplate> = {
   },
 };
 
-function serializeExecutableNode(
+export function serializeExecutableNode(
   node: ExecutableNode,
 ): SerializableExecutableNode {
   // AI compose templates only emit adapter nodes today (no Splits in
