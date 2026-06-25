@@ -13,10 +13,13 @@ import { StrategyComposeMessage } from "@/components/workspace/strategy-compose-
 import { isDesignMode } from "@/lib/app-mode";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/providers/workspace-provider";
-import { placeMutationsRelativeTo } from "@/lib/workspace/mutations";
+import {
+  placeMutationsRelativeTo,
+  type GraphMutation,
+} from "@/lib/workspace/mutations";
 import type { WorkspaceThread } from "@/mock-data/workspace/types";
 import { composeDesignModeChatPrompt } from "@/mock-data/design-mode/chat-compose";
-import type { ComposeStrategyOutput } from "@/lib/workspace/compose-strategy-template";
+import type { ComposeCardOutput } from "@/lib/workspace/compose-strategy-template";
 
 type ChatPanelProps = {
   activeThread: WorkspaceThread;
@@ -25,13 +28,21 @@ type ChatPanelProps = {
   onClose: () => void;
 };
 
+// Both compose tools render through the same card: the fixed-intent
+// composeStrategy and the synthesized composeGraph (Workstream #7).
+type ComposeToolType = "tool-composeStrategy" | "tool-composeGraph";
+
 type ToolPart = {
-  type: "tool-composeStrategy";
+  type: ComposeToolType;
   state?: string;
   output?: unknown;
   errorText?: string;
   toolCallId?: string;
 };
+
+function isComposePart(type: string): type is ComposeToolType {
+  return type === "tool-composeStrategy" || type === "tool-composeGraph";
+}
 
 type ChatDisplayMessage = {
   id: string;
@@ -116,17 +127,23 @@ export function ChatPanel({
     for (const message of displayMessages) {
       const parts = message.parts as ToolPart[];
       parts.forEach((part, partIndex) => {
-        if (part.type !== "tool-composeStrategy") return;
+        if (!isComposePart(part.type)) return;
         if (part.state !== "output-available") return;
         const dedupeKey = part.toolCallId ?? `${message.id}:${partIndex}`;
         if (appliedToolCallIds.current.has(dedupeKey)) return;
-        const output = part.output as ComposeStrategyOutput | undefined;
+        const output = part.output as
+          | { mutations: GraphMutation[]; valid?: boolean }
+          | undefined;
         if (!output) return;
-        const placedMutations = placeMutationsRelativeTo(
-          workspaceNodesRef.current,
-          output.mutations,
-        );
-        applyGraphMutations(placedMutations);
+        // Invalid synthesized graphs carry no mutations — mark applied so
+        // we don't reprocess, but don't touch the canvas.
+        if (output.valid !== false) {
+          const placedMutations = placeMutationsRelativeTo(
+            workspaceNodesRef.current,
+            output.mutations,
+          );
+          applyGraphMutations(placedMutations);
+        }
         appliedToolCallIds.current.add(dedupeKey);
       });
     }
@@ -224,13 +241,13 @@ export function ChatPanel({
                     </ChatMessage>
                   );
                 }
-                if (part.type === "tool-composeStrategy") {
+                if (isComposePart(part.type)) {
                   const toolPart = part as ToolPart;
                   if (toolPart.state === "output-available" && toolPart.output) {
                     return (
                       <StrategyComposeMessage
                         key={partIndex}
-                        output={toolPart.output as ComposeStrategyOutput}
+                        output={toolPart.output as ComposeCardOutput}
                       />
                     );
                   }

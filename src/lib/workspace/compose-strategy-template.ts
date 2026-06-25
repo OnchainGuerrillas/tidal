@@ -62,6 +62,26 @@ export type SerializableExecutableNode = {
   sourceAmount?: string;
 };
 
+/**
+ * The minimal output shape the compose card (StrategyComposeMessage) needs
+ * to render + run a composed strategy. Both the fixed-intent
+ * ComposeStrategyOutput and the synthesized ComposeGraphOutput satisfy it,
+ * so the card is agnostic to which tool produced the strategy.
+ */
+export type ComposeCardOutput = {
+  summary: string;
+  protocols: string[];
+  rationale: string;
+  riskTier: string;
+  warnings: string[];
+  /** Present on synthesized graphs; advisory fatal-validation messages. */
+  errors?: string[];
+  executable: {
+    nodes: SerializableExecutableNode[];
+    edges: ExecutableEdge[];
+  };
+};
+
 type TemplateBuildOptions = {
   sourceAmount: bigint;
   loopCount?: number;

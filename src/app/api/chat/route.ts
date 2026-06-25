@@ -5,6 +5,7 @@ import {
   type UIMessage,
 } from "ai";
 
+import { composeGraphTool } from "@/lib/ai/tools/compose-graph";
 import { composeStrategyTool } from "@/lib/ai/tools/compose-strategy";
 
 export const runtime = "nodejs";
@@ -93,7 +94,10 @@ export async function POST(request: Request): Promise<Response> {
       model: anthropic("claude-sonnet-4-6"),
       system: TIDAL_SYSTEM_PROMPT,
       messages: modelMessages,
-      tools: { composeStrategy: composeStrategyTool },
+      tools: {
+        composeStrategy: composeStrategyTool,
+        composeGraph: composeGraphTool,
+      },
     });
     return result.toUIMessageStreamResponse();
   } catch (err) {

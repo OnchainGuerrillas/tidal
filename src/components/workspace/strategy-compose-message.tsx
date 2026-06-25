@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { useTidalWallets } from "@/hooks/use-tidal-wallets";
 
-import type { ComposeStrategyOutput } from "@/lib/workspace/compose-strategy-template";
+import type { ComposeCardOutput } from "@/lib/workspace/compose-strategy-template";
 import {
   executeGraph,
   type ExecutableEdge,
@@ -18,7 +18,7 @@ import { useRunStatus } from "@/providers/run-status-provider";
 import { useWorkspace } from "@/providers/workspace-provider";
 
 type StrategyComposeMessageProps = {
-  output: ComposeStrategyOutput;
+  output: ComposeCardOutput;
 };
 
 type RunState =
@@ -38,6 +38,7 @@ export function StrategyComposeMessage({
   const [runState, setRunState] = useState<RunState>({ kind: "idle" });
 
   const hasWallet = wallets.length > 0;
+  const hasErrors = (output.errors?.length ?? 0) > 0;
 
   const onRun = useCallback(async () => {
     // AI-composed strategies are adapter-only today (no Splits in the
@@ -150,6 +151,13 @@ export function StrategyComposeMessage({
           {output.rationale}
         </p>
       )}
+      {output.errors && output.errors.length > 0 && (
+        <ul className="list-inside list-disc text-[11px] text-red-400">
+          {output.errors.map((e, i) => (
+            <li key={i}>{e}</li>
+          ))}
+        </ul>
+      )}
       {output.warnings.length > 0 && (
         <ul className="list-inside list-disc text-[11px] text-amber-400">
           {output.warnings.map((w, i) => (
@@ -161,7 +169,7 @@ export function StrategyComposeMessage({
         <button
           type="button"
           onClick={onRun}
-          disabled={isRunning || !hasWallet}
+          disabled={isRunning || !hasWallet || hasErrors}
           className={cn(
             "rounded-md border border-tidal-border bg-tidal-card px-3 py-1 text-[12px] font-medium text-foreground transition-colors hover:bg-tidal-sidebar-active disabled:cursor-not-allowed disabled:opacity-50",
           )}
