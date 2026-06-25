@@ -22,7 +22,7 @@ The manifest now surfaces all 10 adapters, so the agent can wire e.g. LST rate-s
 
 ### Open / next on #7
 
-- **Live agent smoke (manual, needs `ANTHROPIC_API_KEY` + login):** type a novel multi-step request in chat (e.g. *"borrow USDC against my SOL on Kamino, then stake it on BlazeStake"* or *"rate-shop my SOL into the best LST"*) → confirm the agent calls `composeGraph`, nodes wire up asset-compatibly on the canvas, and Run executes. Route module load already verified (400 paths, no import errors).
+- **Live agent smoke — PASSED (2026-06-25).** A plain-English multistep request produces a multi-node graph wired up on the canvas; the agent selects `composeGraph` over the four-intent fast-path. The core thesis (agent synthesizes, not picks) is validated live. **Still to confirm:** mainnet Run of a synthesized graph executes cleanly, and asset-compat holds on more adversarial prompts.
 - **Compute nodes not yet composable:** `composeGraph` emits adapter nodes only — Split/Amount (branching/scaling) aren't in the spec yet. Add when branching strategies are needed.
 - **Design-mode parity** deferred (contrived without an LLM; render path already handles composeGraph output).
 
