@@ -1,9 +1,35 @@
 # Checkpoint
 
-**Last updated:** 2026-06-23 (session pause — local machine update)
-**Branch:** main @ `eb6d7a4` — loop fix committed; ahead of `origin/main` until pushed
+**Last updated:** 2026-06-25 (Workstream #7 composer foundation shipped)
+**Branch:** main @ `9a74fa6` — #7 slices 1-4 committed; ahead of `origin/main` until pushed
 **Phase 1 thesis demo:** ✅ shipped to Colosseum (~2026-05-10)
 **Roadmap:** nine workstreams documented in `docs/post-hackathon-roadmap.md`; external grant-pitch version at `docs/grant-roadmap.md`.
+
+## Session 2026-06-25 — Workstream #7: real strategy composition (foundation)
+
+Built the foundation of the real composer — the alpha tester's headline ask and the thesis-closing capability. The agent can now *synthesize* arbitrary multi-node strategies from the adapter vocabulary instead of picking one of four canned intents. Shipped in four clean slices, all lint + tsc + tests green.
+
+| Commit | Slice | What |
+|---|---|---|
+| `b8caef0` | 1 | **Pure builder** `src/lib/workspace/compose-graph.ts`. `getAdapterManifest()`/`formatManifestForPrompt()` expose the 10 runnable adapters; `buildComposeGraph(spec)` validates ids/refs, rejects cycles (Kahn topo sort), checks per-edge asset compatibility (advisory warnings), lays the DAG out left-to-right by depth, derives entry-node source amounts, and emits the same canvas-graph + executable-plan shape the runner already consumes. Reuses `strategyNodeFromAdapter` etc. (now exported from compose-strategy-template). No AI/server-only deps. |
+| `6ff2ab1` | 2 | **Wire the tool.** `composeGraphTool` (Zod schema mirroring GraphSpec) registered in `/api/chat` next to `composeStrategy`. Shared `ComposeCardOutput` type both tools satisfy; `ChatPanel` + `StrategyComposeMessage` handle `tool-composeGraph` parts (apply mutations, render, surface fatal `errors` in red + disable Run, skip mutation-apply on invalid graphs). |
+| `6c61aeb` | 3 | **System prompt.** Manifest generated at module load and interpolated in; "Two ways to compose" section (composeStrategy = 4 canonical fast-paths, composeGraph = everything else) + composition rules (manifest-only ids, asset-compatible edges with worked example, entry-only amounts, DAG-only, self-correct on errors/warnings). |
+| `9a74fa6` | 4 | **Unit tests.** Dependency-free (`node:assert`, run via `bun run test`) — 10 cases covering happy path, layout, amount/decimal derivation, asset-mismatch warning, and fatal rejections. Avoids `@types/bun` (global clash risk with Next DOM lib) by running TS under bun like the existing `db:migrate` script. |
+
+### What this unlocks (new compositions the agent can express)
+
+The manifest now surfaces all 10 adapters, so the agent can wire e.g. LST rate-shops (Jupiter SOL↔JitoSOL/bSOL), borrow→swap→stake, swap→supply in any asset, and exit/unwind paths (withdraw, unstake, repay-and-withdraw) — not just the 4 canned intents.
+
+### Open / next on #7
+
+- **Live agent smoke (manual, needs `ANTHROPIC_API_KEY` + login):** type a novel multi-step request in chat (e.g. *"borrow USDC against my SOL on Kamino, then stake it on BlazeStake"* or *"rate-shop my SOL into the best LST"*) → confirm the agent calls `composeGraph`, nodes wire up asset-compatibly on the canvas, and Run executes. Route module load already verified (400 paths, no import errors).
+- **Compute nodes not yet composable:** `composeGraph` emits adapter nodes only — Split/Amount (branching/scaling) aren't in the spec yet. Add when branching strategies are needed.
+- **Design-mode parity** deferred (contrived without an LLM; render path already handles composeGraph output).
+
+### Still open from 2026-06-23 (carry-over)
+
+- **Step 4 run-history verification** — one live ~0.01 SOL Jito run → confirm `POST /api/runs` writes a row. Only open item from the DB wire-up smoke.
+- Secret rotation unconfirmed; `.superstack/` + `docs/validation-tidal-2026-06-19.html` still untracked (decide gitignore).
 
 ## Session 2026-06-23 — wire-up smoke + loop-bug fix + design-mode merge
 

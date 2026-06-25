@@ -326,6 +326,8 @@ The tester asked for two substantive future features, the first repeated across 
 
 **Suggested promotion:** move this from "future feature ask" to a first-class workstream. Proposed name: **Workstream #7 — Real strategy composition (close the composer gap).** It's pitched as a future ask in tester language but it's actually the core product thesis.
 
+**Status (2026-06-25) — foundation shipped.** The synthesis path is built and runnable end-to-end (pending a live agent smoke). `src/lib/workspace/compose-graph.ts` lets the agent emit a graph spec (nodes referencing `catalogItemId`s + edges) that `buildComposeGraph` validates (asset compatibility, DAG, manifest-only ids), lays out, and materializes into the existing canvas + executable-plan shape. A `composeGraph` tool sits alongside the four-intent `composeStrategy` in `/api/chat`, the system prompt carries the auto-generated adapter manifest + composition rules, and the chat panel renders/runs both. Unit tests via `bun run test`. See `docs/CHECKPOINT.md` 2026-06-25 for the slice-by-slice breakdown. **Remaining:** live agent smoke; compute nodes (Split/Amount) in the spec for branching strategies; richer rationale/layout tuning as real usage surfaces gaps.
+
 ##### Future ask 2: Autonomous execution mode
 
 **Tester language:** *"An autonomous version would definitely be interesting, especially with clear risk controls and execution previews."*
