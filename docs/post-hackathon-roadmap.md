@@ -397,13 +397,18 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[parked]
 
 ### 6.1 New adapters (parallelizable)
 
-In priority order — each independent of the others:
+> **See `docs/adapter-expansion-research.md` (2026-06-27)** for the full grounded analysis: live Solana TVL by category, integration-path/effort/composer-fit per candidate, the creative combinations each unlocks, and architectural fit notes. Summary + updated priority below.
 
-- **Sanctum INF** (LST router). High pitch value: "AI rate-shops between JitoSOL, bSOL, mSOL." Pairs perfectly with the BlazeStake adapter shipped 2026-05-14.
-- **Jupiter Lend USDC.** Second stablecoin lender; same adapter shape as Kamino USDC. Enables "agent rate-shops between lenders."
-- **Kamino Earn Vaults** (curated). Mid-Depth tier; 8–15% APY. Expands strategy vocabulary upward.
-- **Jupiter Perps.** Deep Water tier leverage trading. Replaces the parked Drift slot once perps becomes a priority.
-- **Marinade Liquid Staking** (mSOL). Requires `@marinade.finance/marinade-ts-sdk` as a new dep (custom program, not SPL stake-pool). Lower priority given BlazeStake covers the second-LST role.
+**Headline finding:** Kamino's `klend-sdk` (already a dependency) exposes flash-borrow/flash-repay — **flash loans are nearly free to add** and unlock atomic leverage + collateral swaps. They must be **composite nodes** (atomic single-tx), not edge-wired, like today's leverage loop.
+
+Updated priority order:
+
+- **Tier A (cheap, rate-shop narrative):** **Jupiter Lend** USDC supply/withdraw ($887M lending pool, REST API, mirrors Kamino → lender rate-shop) and **Sanctum Infinity** LST router ($146M, swap-shaped → "AI rate-shops across LSTs").
+- **Tier B (flagship primitive):** **Kamino flash-loan composite** — atomic leverage loop + collateral swap. Highest wow-per-effort; reuses an existing dep.
+- **Tier C (Deep Water tier):** **Jupiter Perps** long/short ($685M, ~17× the next Solana perps venue) — unlocks **delta-neutral staking yield** and leveraged directional. Fills the parked Drift slot (Drift Trade has collapsed to ~$5.5M post-hack — stays parked).
+- **Tier D (defer — needs engine work):** **Marinade** mSOL (new dep), then **Meteora/Orca LP** (needs a new dual-input node shape), then **Exponent** PT/YT.
+
+Single-asset adapters (Jupiter Lend, Sanctum, Marinade) drop into the existing `AdapterCatalogEntry` shape and widen `composeGraph`'s manifest for free. Flash/perps/LP need composite/terminal/dual-input handling respectively — see the research doc.
 
 ### 6.2 Stress testing infrastructure
 
