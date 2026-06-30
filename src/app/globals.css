@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "material-symbols/outlined.css";
+@import "material-symbols/rounded.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -119,6 +121,7 @@
 
 .react-flow .tidal-flow-controls {
   @apply rounded-lg border border-tidal-border bg-tidal-card shadow-lg shadow-black/20;
+  margin: 0 0 0 21px;
 }
 
 .react-flow .tidal-flow-controls > button {
@@ -446,6 +449,226 @@
 
   .tidal-template-card-tag {
     @apply inline-flex items-center rounded-full border border-tidal-border bg-background/40 px-2 py-0.5 text-[10px] font-medium text-tidal-muted;
+  }
+
+  .material-symbols-outlined,
+  .material-symbols-rounded {
+    font-variation-settings:
+      "FILL" 0,
+      "wght" 400,
+      "GRAD" 0,
+      "opsz" 24;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .tidal-workspace-shell {
+    @apply relative h-full w-full overflow-hidden;
+  }
+
+  .tidal-workspace-header-overlay {
+    @apply absolute inset-x-0 top-0 z-30;
+  }
+
+  .tidal-workspace-strategy-trigger {
+    @apply flex h-8 w-full min-w-[157px] max-w-[220px] items-center justify-between gap-2 rounded-md border border-tidal-accent/50 bg-[#101f2c] px-3 text-[13px] text-tidal-accent transition-colors hover:bg-tidal-sidebar-active;
+  }
+
+  .tidal-workspace-strategy-trigger--open {
+    @apply rounded-b-none rounded-t-md border-tidal-border border-b-0;
+  }
+
+  .tidal-workspace-dropdown {
+    @apply relative min-w-[157px] max-w-[220px];
+  }
+
+  .tidal-workspace-dropdown-menu {
+    @apply absolute left-0 right-0 top-full z-50 flex flex-col overflow-hidden border-x border-tidal-border;
+  }
+
+  .tidal-workspace-dropdown-row {
+    @apply flex h-8 w-full items-center justify-between gap-2 px-3 text-left text-[13px] transition-colors;
+  }
+
+  .tidal-workspace-dropdown-row--item {
+    @apply bg-tidal-card text-tidal-accent hover:bg-tidal-sidebar-active/60;
+  }
+
+  .tidal-workspace-dropdown-row--new {
+    @apply justify-start gap-2 text-tidal-placeholder hover:bg-tidal-sidebar-active/40;
+  }
+
+  .tidal-workspace-dropdown-row--bottom {
+    @apply rounded-b-md border border-tidal-border bg-tidal-card;
+  }
+
+  .tidal-workspace-strategy-item {
+    @apply flex h-8 w-full items-center gap-2 px-3 text-[13px] text-tidal-accent;
+  }
+
+  .tidal-workspace-strategy-item--active {
+    @apply bg-[#101f2c];
+  }
+
+  .tidal-workspace-strategy-item--new {
+    @apply text-tidal-placeholder;
+  }
+
+  .tidal-workspace-header-chip {
+    @apply inline-flex h-8 items-center gap-2 rounded-md border border-tidal-accent/50 bg-tidal-card px-3 text-[13px] text-tidal-accent;
+  }
+
+  .tidal-workspace-header-chip--interactive {
+    @apply cursor-pointer transition-colors hover:bg-tidal-sidebar-active;
+  }
+
+  .tidal-view-toggle {
+    @apply inline-flex overflow-hidden rounded-full;
+  }
+
+  .tidal-view-toggle-segment {
+    @apply flex h-8 w-[110px] cursor-pointer items-center justify-center border border-tidal-accent/50 bg-tidal-card px-3 text-[13px] text-tidal-accent transition-colors;
+  }
+
+  .tidal-view-toggle-segment--left {
+    @apply rounded-l-full border-r-0;
+  }
+
+  .tidal-view-toggle-segment--right {
+    @apply rounded-r-full;
+  }
+
+  .tidal-view-toggle-segment--active {
+    @apply border-tidal-accent bg-tidal-accent font-medium text-tidal-card;
+  }
+
+  .tidal-workspace-fab {
+    @apply pointer-events-auto absolute bottom-8 z-30 flex h-[58px] w-[58px] cursor-pointer items-center justify-center rounded-xl border border-tidal-border bg-tidal-card text-tidal-accent shadow-lg shadow-black/20 transition-colors hover:bg-tidal-sidebar-active;
+  }
+
+  .tidal-workspace-fab--left {
+    @apply left-8;
+  }
+
+  .tidal-workspace-fab--right {
+    @apply right-8;
+  }
+
+  .tidal-workspace-fab--active {
+    @apply border-tidal-accent/50 bg-[#101f2c];
+  }
+
+  .tidal-floating-panel {
+    @apply absolute bottom-8 z-40 flex h-[min(604px,calc(100vh-120px))] w-[min(494px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[20px] border border-tidal-border bg-[#070e1a] shadow-2xl shadow-black/30;
+  }
+
+  .tidal-floating-panel--left {
+    @apply left-8;
+  }
+
+  .tidal-floating-panel--right {
+    @apply right-8;
+  }
+
+  .tidal-floating-panel--accent {
+    @apply border-tidal-accent/50 bg-[#101f2c];
+  }
+
+  .tidal-floating-panel--canvas {
+    @apply border-tidal-border bg-tidal-sidebar;
+  }
+
+  .tidal-floating-panel-header {
+    @apply flex items-start justify-between gap-3 border-b border-tidal-border/60 px-4 py-4;
+  }
+
+  .tidal-floating-panel-header--icon-only {
+    @apply items-center border-b-0 py-3;
+  }
+
+  .tidal-floating-panel-body {
+    @apply flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4;
+  }
+
+  .tidal-floating-panel-search {
+    @apply flex items-center gap-2 rounded-lg border border-tidal-border bg-tidal-card px-3 py-2;
+  }
+
+  .tidal-floating-filter-chip {
+    @apply inline-flex cursor-pointer items-center rounded-lg border border-tidal-border bg-tidal-card px-3 py-2 text-[13px] text-tidal-placeholder transition-colors hover:text-tidal-accent;
+  }
+
+  .tidal-floating-filter-chip--active {
+    @apply border-tidal-accent/40 bg-tidal-sidebar-active text-tidal-accent;
+  }
+
+  .tidal-chat-composer-stack {
+    @apply flex w-full flex-col;
+  }
+
+  .tidal-chat-context-bar {
+    @apply flex items-center justify-between rounded-t-lg border border-tidal-accent/50 border-b-0 bg-tidal-accent px-3 py-2 text-[11px] text-tidal-card;
+  }
+
+  .tidal-chat-composer {
+    @apply flex items-center justify-between gap-2 rounded-lg border border-tidal-accent/50 bg-[#0c1722] py-2 pl-3 pr-2;
+  }
+
+  .tidal-chat-composer--with-context {
+    @apply rounded-t-none rounded-b-lg;
+  }
+
+  .tidal-chat-composer-input {
+    @apply min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-[#5e707d];
+  }
+
+  .tidal-chat-context-toggle {
+    @apply flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-tidal-border bg-tidal-card text-tidal-muted transition-colors hover:border-tidal-accent/40 hover:text-tidal-accent;
+  }
+
+  .tidal-chat-context-toggle--active {
+    @apply border-tidal-accent bg-tidal-accent text-tidal-card hover:text-tidal-card;
+  }
+
+  .tidal-chat-composer-send {
+    @apply flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md bg-tidal-accent text-tidal-card transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .tidal-nodes-panel-intro {
+    @apply mb-4 shrink-0 space-y-2;
+  }
+
+  .tidal-nodes-panel-title {
+    @apply text-2xl font-medium text-tidal-accent;
+  }
+
+  .tidal-nodes-panel-description {
+    @apply text-[13px] leading-snug text-tidal-placeholder;
+  }
+
+  .tidal-nodes-search {
+    @apply flex h-9 items-center gap-2 rounded-lg border border-tidal-border bg-tidal-card px-3 py-2;
+  }
+
+  .tidal-nodes-filter-chip {
+    @apply inline-flex cursor-pointer items-center rounded-lg border border-tidal-border bg-tidal-card px-3 py-2 text-[13px] text-tidal-placeholder transition-colors hover:text-tidal-accent;
+  }
+
+  .tidal-nodes-filter-chip--active {
+    @apply border-tidal-accent/40 bg-tidal-sidebar-active text-tidal-accent;
+  }
+
+  .tidal-investments-view {
+    @apply mx-auto max-w-6xl px-6 pb-8 pt-24;
+  }
+
+  .tidal-investments-view-header {
+    @apply mb-6;
+  }
+
+  .tidal-investments-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
 }
 

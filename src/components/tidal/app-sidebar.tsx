@@ -3,8 +3,6 @@
 import { useState, type ComponentType } from "react";
 import {
   ChatCircle,
-  Coins,
-  SquaresFour,
   TreeStructure,
   User,
   type IconProps,
@@ -14,12 +12,12 @@ import { ProfileSheet } from "@/components/tidal/profile-sheet";
 import { useMe } from "@/hooks/use-me";
 import { useTidalAuth } from "@/hooks/use-tidal-auth";
 import { cn } from "@/lib/utils";
-import { useSidePanel, type SidePanelId } from "@/providers/side-panel-provider";
+import { useSidePanel, type OverlayPanelId } from "@/providers/side-panel-provider";
 import { useWorkspace } from "@/providers/workspace-provider";
 import { shellUser } from "@/mock-data/shell/navigation";
 
 type RailItem = {
-  id: SidePanelId;
+  id: OverlayPanelId;
   label: string;
   icon: ComponentType<IconProps>;
 };
@@ -27,8 +25,6 @@ type RailItem = {
 const railItems: RailItem[] = [
   { id: "nodes", label: "Nodes", icon: TreeStructure },
   { id: "chat", label: "Chat", icon: ChatCircle },
-  { id: "investments", label: "Investments", icon: Coins },
-  { id: "templates", label: "Templates", icon: SquaresFour },
 ];
 
 function deriveInitials(source: string | null | undefined): string {
@@ -42,11 +38,11 @@ function deriveInitials(source: string | null | undefined): string {
 
 export function AppSidebar() {
   const { workspace } = useWorkspace();
-  const { getActivePanel, togglePanel } = useSidePanel();
+  const { getPanelState, togglePanel } = useSidePanel();
   const { ready, authenticated, login } = useTidalAuth();
   const { state: meState } = useMe();
   const [profileOpen, setProfileOpen] = useState(false);
-  const activePanel = getActivePanel(workspace.id);
+  const panelState = getPanelState(workspace.id);
 
   const initials =
     meState.status === "ready"
@@ -74,7 +70,7 @@ export function AppSidebar() {
         <nav className="tidal-sidebar-rail" aria-label="Workspace panels">
           {railItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activePanel === item.id;
+            const isActive = panelState[item.id];
 
             return (
               <button

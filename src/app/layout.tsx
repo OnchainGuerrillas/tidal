@@ -9,9 +9,7 @@ import { PreferenceProfileProvider } from "@/providers/preference-profile-provid
 import { ChainStateSignalProvider } from "@/providers/chain-state-signal-provider";
 import { RunStatusProvider } from "@/providers/run-status-provider";
 import { PrivyProvider } from "@/components/providers/privy-provider";
-import { AppHeader } from "@/components/tidal/app-header";
-import { AppSidebar } from "@/components/tidal/app-sidebar";
-import { DesignModeBanner } from "@/components/tidal/design-mode-banner";
+import { AppShell } from "@/components/tidal/app-shell";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -34,24 +32,15 @@ export default function RootLayout({
         <PrivyProvider>
           <ChainStateSignalProvider>
             <RunStatusProvider>
-            <TooltipProvider>
-              <PreferenceProfileProvider>
-                <WorkspaceProvider>
-                  <SidePanelProvider>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                      <DesignModeBanner />
-                      <AppHeader />
-                      <div className="flex min-h-0 flex-1 overflow-hidden">
-                        <AppSidebar />
-                        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                          {children}
-                        </main>
-                      </div>
-                    </div>
-                  </SidePanelProvider>
-                </WorkspaceProvider>
-              </PreferenceProfileProvider>
-            </TooltipProvider>
+              <TooltipProvider>
+                <PreferenceProfileProvider>
+                  <WorkspaceProvider>
+                    <SidePanelProvider>
+                      <AppShell>{children}</AppShell>
+                    </SidePanelProvider>
+                  </WorkspaceProvider>
+                </PreferenceProfileProvider>
+              </TooltipProvider>
             </RunStatusProvider>
           </ChainStateSignalProvider>
         </PrivyProvider>

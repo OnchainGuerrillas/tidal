@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -16,16 +16,18 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { Badge } from "@/components/tidal/badge";
-import { SurfaceCard } from "@/components/tidal/surface-card";
 import { AmountNode } from "@/components/workspace/amount-node";
 import { CanvasRunPanel } from "@/components/workspace/canvas-run-panel";
 import { WorkspaceBuilderContextProvider } from "@/components/workspace/workspace-builder-context";
 import { WorkspaceWelcomeOverlay } from "@/components/workspace/workspace-welcome-overlay";
 import { ChatPanel } from "@/components/workspace/panels/chat-panel";
 import { NodesPanel } from "@/components/workspace/panels/nodes-panel";
-import { InvestmentsPanel } from "@/components/workspace/panels/investments-panel";
-import { TemplatesPanel } from "@/components/workspace/panels/templates-panel";
+import { InvestmentsView } from "@/components/workspace/investments-view";
+import {
+  WorkspaceHeaderOverlay,
+  type WorkspaceCenterView,
+} from "@/components/workspace/workspace-header-overlay";
+import { WorkspaceFabBar } from "@/components/workspace/workspace-fab-bar";
 import {
   NodePicker,
   type NodePickerGroupState,
@@ -57,7 +59,7 @@ const ReactFlowClient = dynamic(
     ),
   {
     ssr: false,
-    loading: () => <div className="h-full w-full bg-tidal-card" />,
+    loading: () => <div className="h-full w-full bg-tidal-sidebar" />,
   }
 );
 
@@ -110,108 +112,6 @@ const nodeTypes = {
 };
 
 const edgeTypes = { asset: AssetEdge };
-
-type CanvasStatusProps = {
-  workspace: Workspace;
-  onEnterDraftMode: () => void;
-  onRunDraft: () => void;
-};
-
-function CanvasStatus({
-  workspace,
-  onEnterDraftMode,
-  onRunDraft,
-}: CanvasStatusProps) {
-  const impactedNodeCount = workspace.draftState?.impactedNodeIds.length ?? 0;
-  const changedNodeCount = workspace.draftState?.changedNodeIds.length ?? 0;
-
-  return (
-    <>
-      <div className="pointer-events-none absolute top-4 right-4 z-10">
-        <SurfaceCard className="pointer-events-auto min-w-[260px] bg-[#15202E]/95 shadow-lg shadow-black/30">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Badge variant="status">
-                  {workspace.executionState === "active"
-                    ? "Active"
-                    : workspace.executionState === "impacted"
-                      ? "Impacted"
-                      : workspace.executionState === "error"
-                        ? "Error"
-                        : "Draft"}
-                </Badge>
-                {workspace.activeSnapshot?.updatedAtLabel ? (
-                  <span className="tidal-text-caption text-tidal-muted">
-                    {workspace.activeSnapshot.updatedAtLabel}
-                  </span>
-                ) : null}
-              </div>
-              <p className="max-w-[220px] tidal-text-caption text-tidal-muted">
-                {workspace.executionState === "active"
-                  ? "Nodes are locked while the strategy is marked active. Enter draft mode to make changes over the last successful run."
-                  : workspace.executionState === "impacted"
-                    ? "Upstream draft edits are affecting downstream positions. Review impacted nodes, then rerun to replace the active snapshot."
-                    : workspace.executionState === "error"
-                      ? "The last run found invalid or blocked nodes. Fix the highlighted path and rerun the draft."
-                      : "Inline controls are live in draft mode. Run the draft when you want to lock the strategy and review the current setup."}
-              </p>
-            </div>
-
-            {workspace.isEditable ? (
-              <button
-                type="button"
-                onClick={
-                  workspace.executionState === "active"
-                    ? onEnterDraftMode
-                    : onRunDraft
-                }
-                className="rounded-md border border-tidal-border bg-background/40 px-3 py-2 text-xs font-medium text-tidal-accent transition-colors hover:border-tidal-accent/40 hover:bg-tidal-sidebar-active"
-              >
-                {workspace.executionState === "active" ? "Edit draft" : "Run draft"}
-              </button>
-            ) : null}
-          </div>
-        </SurfaceCard>
-      </div>
-
-      {workspace.executionState === "impacted" && impactedNodeCount > 0 ? (
-        <div className="pointer-events-none absolute top-28 right-4 z-10">
-          <SurfaceCard className="pointer-events-auto max-w-[320px] border-amber-400/30 bg-[#1C2330]/95 shadow-lg shadow-black/30">
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-amber-300">
-                Downstream nodes impacted
-              </div>
-              <p className="tidal-text-caption text-tidal-muted">
-                {changedNodeCount} edited node
-                {changedNodeCount === 1 ? "" : "s"} changed the assumptions for{" "}
-                {impactedNodeCount} downstream node
-                {impactedNodeCount === 1 ? "" : "s"}. Rerun the draft to update
-                the active strategy state.
-              </p>
-            </div>
-          </SurfaceCard>
-        </div>
-      ) : null}
-
-      {workspace.executionState === "error" ? (
-        <div className="pointer-events-none absolute top-28 right-4 z-10">
-          <SurfaceCard className="pointer-events-auto max-w-[320px] border-rose-400/30 bg-[#241A22]/95 shadow-lg shadow-black/30">
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-rose-300">
-                Run blocked by invalid nodes
-              </div>
-              <p className="tidal-text-caption text-tidal-muted">
-                One or more nodes are missing upstream input or are blocked by
-                an invalid connection. Fix the highlighted nodes and rerun.
-              </p>
-            </div>
-          </SurfaceCard>
-        </div>
-      ) : null}
-    </>
-  );
-}
 
 type PickerOverlayProps = {
   pickerState: {
@@ -295,7 +195,7 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId?: string }) {
     setActiveWorkspaceId,
   } = useWorkspace();
   const router = useRouter();
-  const { getActivePanel, setActivePanel } = useSidePanel();
+  const { getPanelState, togglePanel, closePanel } = useSidePanel();
   const routedWorkspace = workspaceId
     ? workspaces.find((candidateWorkspace) => candidateWorkspace.id === workspaceId)
     : null;
@@ -306,7 +206,7 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId?: string }) {
     ) ??
     activeThread ??
     renderedWorkspace.threads[0];
-  const activePanel = getActivePanel(renderedWorkspace.id);
+  const panelState = getPanelState(renderedWorkspace.id);
 
   useEffect(() => {
     if (!workspaceId) {
@@ -339,8 +239,9 @@ export function WorkspaceScreen({ workspaceId }: { workspaceId?: string }) {
       activeThread={renderedActiveThread}
       updateWorkspaceGraph={updateWorkspaceGraph}
       updateWorkspaceMeta={updateWorkspaceMeta}
-      activePanel={activePanel}
-      onClosePanel={() => setActivePanel(renderedWorkspace.id, null)}
+      panelState={panelState}
+      onTogglePanel={(panel) => togglePanel(renderedWorkspace.id, panel)}
+      onClosePanel={(panel) => closePanel(renderedWorkspace.id, panel)}
       onSelectThread={(threadId) =>
         setActiveThreadId(threadId, renderedWorkspace.id)
       }
@@ -353,7 +254,8 @@ function WorkspaceCanvasHost({
   activeThread,
   updateWorkspaceGraph,
   updateWorkspaceMeta,
-  activePanel,
+  panelState,
+  onTogglePanel,
   onClosePanel,
   onSelectThread,
 }: {
@@ -370,10 +272,13 @@ function WorkspaceCanvasHost({
       Pick<Workspace, "executionState" | "activeSnapshot" | "draftState">
     >
   ) => void;
-  activePanel: import("@/providers/side-panel-provider").SidePanelSelection;
-  onClosePanel: () => void;
+  panelState: { nodes: boolean; chat: boolean };
+  onTogglePanel: (panel: "nodes" | "chat") => void;
+  onClosePanel: (panel: "nodes" | "chat") => void;
   onSelectThread: (threadId: string) => void;
 }) {
+  const [centerView, setCenterView] = useState<WorkspaceCenterView>("workspace");
+
   const {
     canEditWorkspace,
     nodes,
@@ -397,69 +302,16 @@ function WorkspaceCanvasHost({
     onConnectEnd,
     onPaneContextMenu,
     updateNodeData,
-    runWorkspaceDraft,
-    enterDraftMode,
   } = useCanvasState({
     workspace,
     updateWorkspaceGraph,
     updateWorkspaceMeta,
   });
 
-  const panelContent = useMemo(() => {
-    if (!activePanel) return null;
-
-    switch (activePanel) {
-      case "nodes":
-        return (
-          <NodesPanel
-            onSelect={(id) => addCatalogNodeAtCenter(id)}
-            onClose={onClosePanel}
-          />
-        );
-      case "investments":
-        return (
-          <InvestmentsPanel workspaceId={workspace.id} onClose={onClosePanel} />
-        );
-      case "chat":
-        return (
-          <ChatPanel
-            activeThread={activeThread}
-            threads={workspace.threads}
-            onSelectThread={onSelectThread}
-            onClose={onClosePanel}
-          />
-        );
-      case "templates":
-        return <TemplatesPanel onClose={onClosePanel} />;
-      default:
-        return null;
-    }
-  }, [
-    activePanel,
-    activeThread,
-    addCatalogNodeAtCenter,
-    onClosePanel,
-    onSelectThread,
-    workspace.id,
-    workspace.threads,
-  ]);
-
-  const isPanelOpen = Boolean(panelContent);
-
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
-      <div className={isPanelOpen ? "tidal-workspace" : "flex min-h-0 flex-1"}>
-        {isPanelOpen ? (
-          <div className="tidal-workspace-panel pt-0 pb-0">{panelContent}</div>
-        ) : null}
-
-        <div className="tidal-workspace-canvas relative">
-          <CanvasStatus
-            workspace={workspace}
-            onEnterDraftMode={enterDraftMode}
-            onRunDraft={runWorkspaceDraft}
-          />
-
+    <div className="tidal-workspace-shell relative h-full min-h-0 w-full overflow-hidden bg-background">
+      {centerView === "workspace" ? (
+        <div className="absolute inset-0 bg-tidal-sidebar">
           <WorkspaceBuilderContextProvider
             value={{
               isEditable: canEditWorkspace,
@@ -483,10 +335,10 @@ function WorkspaceCanvasHost({
               nodesConnectable={canEditWorkspace}
               elementsSelectable={canEditWorkspace}
               fitView
-              fitViewOptions={{ padding: 0.2 }}
+              fitViewOptions={{ padding: 0.45, maxZoom: 0.8 }}
               colorMode="dark"
             >
-              <Controls className="tidal-flow-controls" />
+              <Controls className="tidal-flow-controls" position="center-left" />
               <Background
                 variant={BackgroundVariant.Lines}
                 gap={28}
@@ -513,7 +365,40 @@ function WorkspaceCanvasHost({
           <CanvasRunPanel />
           <WorkspaceWelcomeOverlay />
         </div>
+      ) : (
+        <div className="absolute inset-0 overflow-y-auto bg-tidal-sidebar">
+          <InvestmentsView />
+        </div>
+      )}
+
+      <WorkspaceHeaderOverlay
+        centerView={centerView}
+        onCenterViewChange={setCenterView}
+      />
+
+      <div className="pointer-events-none absolute inset-0 z-20">
+        {panelState.nodes ? (
+          <NodesPanel
+            variant="floating"
+            onSelect={(id) => addCatalogNodeAtCenter(id)}
+            onClose={() => onClosePanel("nodes")}
+          />
+        ) : null}
+
+        {panelState.chat ? (
+          <ChatPanel
+            variant="floating"
+            activeThread={activeThread}
+            threads={workspace.threads}
+            onSelectThread={onSelectThread}
+            onClose={() => onClosePanel("chat")}
+          />
+        ) : null}
       </div>
+
+      {centerView === "workspace" ? (
+        <WorkspaceFabBar panelState={panelState} onTogglePanel={onTogglePanel} />
+      ) : null}
     </div>
   );
 }

@@ -119,7 +119,7 @@ export function CanvasRunPanel() {
   const isRunning = state.kind === "running";
 
   return (
-    <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
+    <div className="absolute right-4 top-20 z-10 flex flex-col items-end gap-2">
       <button
         type="button"
         onClick={onRun}
