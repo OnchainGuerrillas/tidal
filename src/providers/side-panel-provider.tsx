@@ -9,72 +9,89 @@ import {
   type ReactNode,
 } from "react";
 
-export const sidePanelIds = [
-  "nodes",
-  "investments",
-  "chat",
-  "templates",
-] as const;
+export const overlayPanelIds = ["nodes", "chat"] as const;
 
-export type SidePanelId = (typeof sidePanelIds)[number];
+export type OverlayPanelId = (typeof overlayPanelIds)[number];
 
-export type SidePanelSelection = SidePanelId | null;
-
-type SidePanelContextValue = {
-  getActivePanel: (workspaceId: string) => SidePanelSelection;
-  setActivePanel: (workspaceId: string, panel: SidePanelSelection) => void;
-  togglePanel: (workspaceId: string, panel: SidePanelId) => void;
+export type WorkspacePanelState = {
+  nodes: boolean;
+  chat: boolean;
 };
 
-const DEFAULT_PANEL: SidePanelId = "chat";
+type SidePanelContextValue = {
+  getPanelState: (workspaceId: string) => WorkspacePanelState;
+  togglePanel: (workspaceId: string, panel: OverlayPanelId) => void;
+  setPanelOpen: (
+    workspaceId: string,
+    panel: OverlayPanelId,
+    open: boolean
+  ) => void;
+  closePanel: (workspaceId: string, panel: OverlayPanelId) => void;
+};
+
+const DEFAULT_PANEL_STATE: WorkspacePanelState = {
+  nodes: false,
+  chat: false,
+};
 
 const SidePanelContext = createContext<SidePanelContextValue | null>(null);
 
 export function SidePanelProvider({ children }: { children: ReactNode }) {
   const [panelsByWorkspace, setPanelsByWorkspace] = useState<
-    Record<string, SidePanelSelection>
+    Record<string, WorkspacePanelState>
   >({});
 
-  const getActivePanel = useCallback(
-    (workspaceId: string): SidePanelSelection => {
-      if (!(workspaceId in panelsByWorkspace)) {
-        return DEFAULT_PANEL;
-      }
-      return panelsByWorkspace[workspaceId];
+  const getPanelState = useCallback(
+    (workspaceId: string): WorkspacePanelState => {
+      return panelsByWorkspace[workspaceId] ?? DEFAULT_PANEL_STATE;
     },
     [panelsByWorkspace]
   );
 
-  const setActivePanel = useCallback(
-    (workspaceId: string, panel: SidePanelSelection) => {
+  const setPanelOpen = useCallback(
+    (workspaceId: string, panel: OverlayPanelId, open: boolean) => {
       setPanelsByWorkspace((current) => ({
         ...current,
-        [workspaceId]: panel,
+        [workspaceId]: {
+          ...(current[workspaceId] ?? DEFAULT_PANEL_STATE),
+          [panel]: open,
+        },
       }));
     },
     []
   );
 
   const togglePanel = useCallback(
-    (workspaceId: string, panel: SidePanelId) => {
+    (workspaceId: string, panel: OverlayPanelId) => {
       setPanelsByWorkspace((current) => {
-        const active = workspaceId in current ? current[workspaceId] : DEFAULT_PANEL;
+        const active = current[workspaceId] ?? DEFAULT_PANEL_STATE;
         return {
           ...current,
-          [workspaceId]: active === panel ? null : panel,
+          [workspaceId]: {
+            ...active,
+            [panel]: !active[panel],
+          },
         };
       });
     },
     []
   );
 
+  const closePanel = useCallback(
+    (workspaceId: string, panel: OverlayPanelId) => {
+      setPanelOpen(workspaceId, panel, false);
+    },
+    [setPanelOpen]
+  );
+
   const value = useMemo<SidePanelContextValue>(
     () => ({
-      getActivePanel,
-      setActivePanel,
+      getPanelState,
       togglePanel,
+      setPanelOpen,
+      closePanel,
     }),
-    [getActivePanel, setActivePanel, togglePanel]
+    [closePanel, getPanelState, setPanelOpen, togglePanel]
   );
 
   return (

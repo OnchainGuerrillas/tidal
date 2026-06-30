@@ -118,7 +118,7 @@ export function ProfileSheet({ open, onOpenChange }: ProfileSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        side="left"
+        side="right"
         className="flex h-full w-full flex-col gap-0 p-0 sm:max-w-md"
       >
         <SheetHeader className="border-b border-border/60 p-5">
