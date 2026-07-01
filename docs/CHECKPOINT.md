@@ -1,9 +1,39 @@
 # Checkpoint
 
-**Last updated:** 2026-06-25 (Workstream #7 composer foundation shipped)
-**Branch:** main @ `9a74fa6` — #7 slices 1-4 committed; ahead of `origin/main` until pushed
+**Last updated:** 2026-07-01 (login-gate + adapter research; session pause — machine reset)
+**Branch:** main @ `d75bb66` — pushed, in sync with `origin/main`.
 **Phase 1 thesis demo:** ✅ shipped to Colosseum (~2026-05-10)
 **Roadmap:** nine workstreams documented in `docs/post-hackathon-roadmap.md`; external grant-pitch version at `docs/grant-roadmap.md`.
+
+## Session 2026-06-27 → 07-01 — adapter research + login-gate + UI redesign merge
+
+### Login-gate + per-user workspaces (`d75bb66`)
+
+Removed the shared "SOL Yield Loop" example and stopped seeding shared mocks into per-user state. **Live mode is now login-gated** via a new `AppShell` (`src/components/tidal/app-shell.tsx`): logged-out → sign-in screen; authed → only their own DB workspaces (uuid PK, readable slug URL); brief loading while DB workspaces load. **Design mode unchanged** — skips the gate, seeds one in-memory scratch workspace (`designModeSeedWorkspaces` in `workspace.ts`). Deleted `example-workspace.ts` + `initialWorkspaces/initialNodes/initialEdges`. Provider seeds `[]` in live mode; a memoized placeholder keeps context `workspace` non-null (never rendered).
+
+- **Merge note:** a UI-redesign PR (#6 "redesign UI workspace", `fe51937`) landed on main mid-work and *also* added its own `AppShell` + `layout.tsx` restructure (header/sidebar moved to in-canvas floating overlays on workspace routes). Rebased the login-gate onto it and merged both: their route-based shell + my auth gate. Lint + tsc clean.
+- **Known follow-up:** closing your *last* workspace via the tab × in authed mode empties the list client-side → shows the loading state until refresh (no DELETE endpoint yet; DB row still exists and reloads on refresh).
+- **Not yet browser-verified end-to-end** against the merged redesign — worth a login/logout smoke on resume.
+
+### Adapter expansion research (`bbfe4bc`) — `docs/adapter-expansion-research.md`
+
+Grounded survey (live DeFiLlama TVL + Solana-MCP integration checks) of protocols to add to widen the composer's vocabulary. **Headline finding:** flash loans are nearly free — Kamino's `klend-sdk` (already a dep) exposes flash-borrow/repay → atomic leverage + collateral swaps. Architectural catch: flash loans (atomic) and perps (keeper model) don't fit the cross-tx edge model — composite/terminal legs. Recommended order: Tier A **Jupiter Lend + Sanctum** (cheap, single-asset, rate-shop) → Tier B **Kamino flash-loan composite** → Tier C **Jupiter Perps** (delta-neutral staking yield; fills parked Drift slot) → Tier D Marinade/LP/Exponent. Roadmap §6.1 updated.
+
+### Jupiter Lend adapter — SCOPED, not built (pick up here)
+
+Full scope is in the chat + research doc. Confirmed contract: `POST lite-api.jup.ag/lend/v1/earn/deposit` `{ asset: <USDC mint>, signer, amount: "<raw 6-dec>" }` → `{ transaction: <base64> }`; `/earn/withdraw` mirrors; `GET /earn/tokens` (APY) + `/earn/positions?users=` (balance) — confirm those two field names at impl. **Keyless via `lite-api.jup.ag`** (mirrors our swap adapter — no new secret). Plan: new `jupiter-lend.ts` + `jupiter-lend-withdraw.ts` mirroring Kamino supply/withdraw; add `JUPITER_LEND_SUPPLY/WITHDRAW` entries to `adapter-catalog.ts` (in USDC → out jlUSDC / inverse); register in `adapters.ts`. `composeGraph` picks it up for free → lending rate-shop. ~1.5h, low risk.
+
+### Composer #7 status (from 2026-06-25, still current)
+
+Foundation shipped + **live composition smoke passed** — a plain-English multistep request produces a multi-node graph on the canvas; agent selects `composeGraph`. Still to confirm: mainnet Run of a synthesized graph. See the 2026-06-25 section below for the slice-by-slice detail.
+
+### Immediate pickup options on resume
+
+1. **Login/logout browser smoke** against the merged redesign (quick, confirms the gate + per-user workspaces render right).
+2. **Build Jupiter Lend adapter** (scoped above — lowest-effort vocabulary win, unlocks rate-shop combos).
+3. **Mainnet Run** of a synthesized composeGraph strategy (also clears the carry-over Step 4 run-history verification).
+
+Carry-overs still open: secret rotation unconfirmed; `.superstack/` untracked (tooling — decide gitignore); Bug #2 Kamino `0x1776` repro.
 
 ## Session 2026-06-25 — Workstream #7: real strategy composition (foundation)
 
