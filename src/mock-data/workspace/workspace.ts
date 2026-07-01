@@ -6,23 +6,13 @@ export {
   builderWorkspace,
   createBuilderWorkspace,
 } from "./builder-workspace";
-export {
-  exampleNodes,
-  exampleEdges,
-  exampleWorkspace,
-} from "./example-workspace";
 
 import { builderWorkspace } from "./builder-workspace";
-import {
-  exampleEdges,
-  exampleNodes,
-  exampleWorkspace,
-} from "./example-workspace";
 
-export const initialWorkspaces = [
-  builderWorkspace,
-  exampleWorkspace,
-];
-
-export const initialNodes = exampleNodes;
-export const initialEdges = exampleEdges;
+/**
+ * Seed workspaces for design mode only. Design mode has no Privy and no DB,
+ * so it needs an in-memory scratch workspace to render a canvas. Live mode
+ * seeds none — the app is login-gated and authed users load their own
+ * DB-backed workspaces (see WorkspaceProvider + AppShell).
+ */
+export const designModeSeedWorkspaces = [builderWorkspace];

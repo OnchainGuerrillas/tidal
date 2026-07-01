@@ -38,7 +38,7 @@ Live route files are intentionally thin and live in `src/app`.
 
 - `src/app/layout.tsx`: global app shell. It wraps the app with tooltip, preference-profile, workspace, and side-panel providers, then renders the header/sidebar frame.
 - `src/app/page.tsx`: root bootstrap route. It resolves the active mocked workspace and redirects/replaces to `/<workspaceId>` on the client while rendering the workspace screen.
-- `src/app/[workspaceId]/page.tsx`: addressable workspace route. Workspace IDs are top-level URL segments, for example `/workspace-sol-yield-loop`.
+- `src/app/[workspaceId]/page.tsx`: addressable workspace route. Workspace slugs are top-level URL segments, for example `/my-first-workspace-j2efdc`.
 
 There are no live Home, Pool, Swap, Global Chat, or Amplify routes. Earlier versions of those surfaces are archived under `_archive/` and are not part of the live architecture.
 
@@ -129,9 +129,8 @@ Live mocked data lives under `src/mock-data`.
 - `src/mock-data/workspace/types.ts`: workspace, node, edge, chat, catalog, and preference-facing types.
 - `src/mock-data/workspace/catalog.ts`: node catalog and supported assets.
 - `src/mock-data/workspace/node-factories.ts`: node creation helpers for builder flows.
-- `src/mock-data/workspace/builder-workspace.ts`: blank builder workspace seed.
-- `src/mock-data/workspace/example-workspace.ts`: seeded SOL yield loop example.
-- `src/mock-data/workspace/workspace.ts`: workspace mock-data re-export surface.
+- `src/mock-data/workspace/builder-workspace.ts`: blank builder workspace seed (used as the design-mode scratch workspace).
+- `src/mock-data/workspace/workspace.ts`: workspace mock-data re-export surface. Exports `designModeSeedWorkspaces` (design mode only). Live mode seeds no workspaces — the app is login-gated via `AppShell` and authed users load their own DB-backed workspaces.
 - `src/mock-data/workspace/investments.ts`: mocked investment positions and performance data.
 - `src/mock-data/workspace/discover.ts`: mocked recommendation and discovery data.
 - `src/mock-data/workspace/templates.ts`: mocked template gallery data.

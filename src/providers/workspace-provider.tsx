@@ -13,9 +13,10 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 
 import {
-  initialWorkspaces,
+  designModeSeedWorkspaces,
   createBuilderWorkspace,
 } from "@/mock-data/workspace/workspace";
+import { isDesignMode } from "@/lib/app-mode";
 import type {
   Workspace,
   WorkspaceGraphEdge,
@@ -184,18 +185,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const routeWorkspaceId = getWorkspaceIdFromPathname(pathname);
 
-  // Unauthed / fallback state: the in-memory mock workspaces (current
-  // behavior). Also serves as the home for ephemeral fields (threads,
-  // run state, etc.) in authed mode, keyed by the workspace's id/slug.
+  // Live mode seeds no workspaces — the app is login-gated (see AppShell) and
+  // authed users load their own DB-backed workspaces. Design mode has no DB,
+  // so it seeds a single in-memory scratch workspace. This state also serves
+  // as the home for ephemeral fields (threads, run state) in authed mode,
+  // keyed by the workspace's id/slug.
   const [workspaces, setWorkspaces] = useState<Workspace[]>(() =>
-    initialWorkspaces.map(cloneWorkspace),
+    isDesignMode ? designModeSeedWorkspaces.map(cloneWorkspace) : [],
   );
-  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState(() => {
-    const routeWorkspace = initialWorkspaces.find(
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<
+    string | undefined
+  >(() => {
+    if (!isDesignMode) return routeWorkspaceId ?? undefined;
+    const routeWorkspace = designModeSeedWorkspaces.find(
       (workspace) => workspace.id === routeWorkspaceId,
     );
-
-    return routeWorkspace?.id ?? initialWorkspaces[0]?.id;
+    return routeWorkspace?.id ?? designModeSeedWorkspaces[0]?.id;
   });
 
   // DB-mode hooks. These return idle/unauthenticated state when there's
@@ -588,8 +593,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return graphVersionsRef.current.get(workspaceId) ?? null;
   }, []);
 
+  // Stable placeholder that keeps the context `workspace` non-null in live
+  // mode before login / before DB workspaces load. Never rendered — AppShell
+  // gates the whole shell behind auth + workspace-load state. Memoized so its
+  // identity stays stable and doesn't churn the context value.
+  const fallbackWorkspace = useMemo(() => createBuilderWorkspace(), []);
   const workspace =
-    getWorkspaceById(workspaces, activeWorkspaceId) ?? createBuilderWorkspace();
+    getWorkspaceById(workspaces, activeWorkspaceId) ?? fallbackWorkspace;
   const activeThread =
     workspace.threads.find(
       (thread) => thread.id === workspace.activeThreadId,
